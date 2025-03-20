@@ -1,0 +1,33 @@
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore logs and trace files
+*.log
+*.trace
+
+# Ignore temporary or backup files
+*.bak
+*.swp
+*.swo
+
+# Ignore system files (macOS, Linux, Windows)
+.DS_Store
+Thumbs.db
+
+# Ignore virtual environment
+venv/
+.env
+*.env
+
+# Ignore shell script backup files
+*.sh~
+*.swp
+
+# Ignore generated figures or results
+Figures/
