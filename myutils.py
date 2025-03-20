@@ -1,6 +1,6 @@
 import re
 import json
-
+import csv
 import logging
 
 # Configure the logging system
@@ -45,10 +45,10 @@ def load_file(input_file):
 def calculate_major_minor(dev_t):
     # Calculate major number: shift right by 20 bits and mask with 0xFFF (12 bits)
     major = (dev_t >> 20) & 0xFFF
-    
+
     # Calculate minor number: lower 20 bits of dev_t
     minor = dev_t & 0xFFFFF
-    
+
     return major, minor
 
 def get_pid(tid, tgid, tgid_slicing):
@@ -65,7 +65,7 @@ def parse_ftrace_log(file_path):
     # Regular expression to match key-value pairs inside the 'details' section
     detail_pattern = re.compile(r'(\S+)=(".*?"|\S+)')
     parsed_events = []  # List to store parsed events (sequence of events)
-    
+
     with open(file_path, 'r') as f:
         for line in f:
             if len(line) > 1000:
@@ -109,7 +109,7 @@ def parse_ftrace_log(file_path):
                     "event": event,     # Event name
                     "details": parsed_details  # Parsed key-value pairs
                 }
-                
+
                 # Append the event to the list
                 parsed_events.append(parsed_event)
             else:
@@ -238,15 +238,15 @@ def extract_instances(parsed_events):
             #if api not in code2api:
                 #print(api, ' not found')
                 #continue
-        
+
             start = (api % 2 == 0)
-        
+
             if start:
                 if tid not in open_instances:
                     open_instances[tid] = dict()
                 if api not in open_instances[tid]:
                     open_instances[tid][api] = []
-            
+
                 open_instances[tid][api].append(i)
 
             if not start:
@@ -270,13 +270,13 @@ def extract_relevant_instances_all(parsed_events, t_pid):
         if e['tgid'] == t_pid and e['event'] == 'write_probe' and e['details']['pathname'] == 'null' and e['details']['count'] > 99999:
             api = e['details']['count']
             tid = e['tid']
-            
+
             #if api not in code2api:
                 #print(api, ' not found')
                 #continue
-        
+
             start = (api % 2 == 0)
-        
+
             if start:
                 api_instances.add(api)
             else:
@@ -289,7 +289,7 @@ def slice_log(api_instances, parsed_events, tgid_slicing = False):
     #ii = 0
     for api in api_instances:
         flows[api] = []
-        
+
         #logger.info(str(ii) + ' ' + str(api) + ' ' + str(len(api_instances[api])))
         #ii += 1
 
@@ -298,7 +298,7 @@ def slice_log(api_instances, parsed_events, tgid_slicing = False):
             out_flows_slice = []
             in_flows_slice = []
             ioinstance = {'pid':0, 'command':0, 'in':[], 'out':[]}
-        
+
             # Forward slicing for output operations (write or ioctl, which is considered "potential" read/write)
             #######################################################################
             # API start event
@@ -308,11 +308,11 @@ def slice_log(api_instances, parsed_events, tgid_slicing = False):
             pid = get_pid(tid, tgid, tgid_slicing)
             api_pid = pid
             api_command = ee['process']
-        
+
             # Relevent processes are tracked dynamically
             pid_set = {pid}
             binders = set()
-        
+
             for line in range(instance[0],instance[1]+1):
                 e = parsed_events[line]
                 # Continue if an API start/end event is encountered
@@ -322,7 +322,7 @@ def slice_log(api_instances, parsed_events, tgid_slicing = False):
                     tid = e['tid']
                     tgid = e['tgid']
                     event = e['event']
-                
+
                     pid = get_pid(tid, tgid, tgid_slicing)
 
                     if pid in pid_set:
@@ -332,8 +332,8 @@ def slice_log(api_instances, parsed_events, tgid_slicing = False):
                             # We consider socket state transitions both for input and output events
                             # Add event as output event for this instance
                             out_flows_slice.append(line)
-                
-                
+
+
                     # If a process receives a binder transaction originating from a tracked process, then the process also becomes tracked
                     if event == 'binder_transaction_received' and e['details']['transaction'] in binders:
                         if pid not in pid_set:
@@ -348,11 +348,11 @@ def slice_log(api_instances, parsed_events, tgid_slicing = False):
             tgid = ee['tgid']
             tid = ee['tid']
             pid = get_pid(tid, tgid, tgid_slicing)
-        
+
             # Re-initialize variables
             pid_set = {pid}
             binders = set()
-        
+
             for line in range(instance[1],instance[0]-1,-1):
                 e = parsed_events[line]
                 # Continue if an API start/end event is encountered
@@ -362,7 +362,7 @@ def slice_log(api_instances, parsed_events, tgid_slicing = False):
                     tid = e['tid']
                     tgid = e['tgid']
                     event = e['event']
-                
+
                     pid = get_pid(tid, tgid, tgid_slicing)
 
                     if pid in pid_set:
@@ -372,8 +372,8 @@ def slice_log(api_instances, parsed_events, tgid_slicing = False):
                             # Add event as input event for this instance
                             in_flows_slice.append(line)
                             #print('Input event')
-                
-                
+
+
                     # If a process sends a binder transaction to a tracked process, then the process also becomes tracked - of course we are going in reverse now!
                     if event == 'binder_transaction' and e['details']['transaction'] in binders:
                         if pid not in pid_set:
@@ -381,7 +381,7 @@ def slice_log(api_instances, parsed_events, tgid_slicing = False):
                             #print('Added via binder')
                         binders.remove(e['details']['transaction'])
 
-        
+
             # After both passes, save the flows in the dictionary
             ioinstance['pid'] = api_pid
             ioinstance['command'] = api_command
@@ -426,7 +426,7 @@ def slice_log(api_instances, parsed_events, tgid_slicing = False):
                 else:
                     merged.append(ioinstance['out'][j])
                     j += 1
-                
+
             merged = merged + ioinstance['in'][i:] + ioinstance['out'][j:]
             #if (jj % 1000 == 0):
             #    print(len(merged), jj)
@@ -448,10 +448,10 @@ def slice_log(api_instances, parsed_events, tgid_slicing = False):
                     light_e['details'] = e['details']
                     filtered_events.append(light_e.copy())
             filtered_slice['merged'] = filtered_events.copy()
-                    
+
             ###################################################################
             # New code block ends here.
-            
+
             #for io in ['in', 'out']:
             #    lines = ioinstance[io]
             #    filtered_events = []
@@ -464,7 +464,7 @@ def slice_log(api_instances, parsed_events, tgid_slicing = False):
             #            light_e['details'] = e['details']
             #            filtered_events.append(light_e.copy())
             #    filtered_slice[io] = filtered_events.copy()
-        
+
             apis2io[api].append(filtered_slice.copy())
     return apis2io
 
@@ -496,3 +496,33 @@ def create_apis2uio(apis2io, withpath = False):
                     unique_instances.append(simple_instance.copy())
         apis2uio[api] = unique_instances.copy()
     return apis2uio
+
+def flatten_event(event):
+    flat = {}
+    for key, value in event.items():
+        if key == "details" and isinstance(value, dict):
+            for subkey, subvalue in value.items():
+                flat[f"detail_{subkey}"] = subvalue
+        else:
+            flat[key] = value
+    return flat
+
+def export_events(events, csv_file_path, json_file_path):
+    # Export events to JSON
+    with open(json_file_path, 'w', encoding='utf-8') as json_file:
+        json.dump(events, json_file, indent=4, ensure_ascii=False)
+
+    # Flatten events for CSV output
+    flat_events = [flatten_event(event) for event in events]
+
+    # Compute header columns as the union of all keys from all flattened events
+    if flat_events:
+        headers = sorted(set().union(*(event.keys() for event in flat_events)))
+    else:
+        headers = []
+
+    # Export events to CSV
+    with open(csv_file_path, 'w', newline='', encoding='utf-8') as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=headers, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(flat_events)

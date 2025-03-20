@@ -31,3 +31,4 @@ venv/
 
 # Ignore generated figures or results
 Figures/
+Exports/
