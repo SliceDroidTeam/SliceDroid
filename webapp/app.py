@@ -11,10 +11,14 @@ import base64
 from io import BytesIO
 import re
 
-app = Flask(__name__)
-
+app = Flask(
+    __name__,
+    static_folder='static',
+    template_folder='templates'
+)
 # Set data paths
-DATA_DIR = 'Exports'
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DATA_DIR = os.path.join(BASE_DIR, '../Exports')
 PROCESSED_EVENTS_JSON = os.path.join(DATA_DIR, 'processed_events.json')
 
 # Helper functions
