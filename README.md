@@ -8,7 +8,6 @@ A modular toolchain for tracing Android kernel events using kprobes, parsing ftr
 
 - 🐚 **Shell tracing script** using `kprobes` for I/O, IPC, Bluetooth, Camera, Audio, and TCP events
 - 🧠 **Python parser** that extracts structured event data from ftrace logs
-- 📊 **Windowed analysis** to track device usage, API behavior, and TCP communication per app
 - 🌐 **Web app UI** to upload `.trace` files and explore results visually
 
 ---
