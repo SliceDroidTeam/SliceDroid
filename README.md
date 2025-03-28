@@ -16,7 +16,6 @@ A modular toolchain for tracing Android kernel events using kprobes, parsing ftr
 ## 📁 Project Structure
 ```
 ├── trace_script.sh      # Main shell script for ftrace and kprobe setup
-├── parser.py            # Core Python logic to parse and analyze traces
 ├── myutils.py           # Utility functions (cleaning, slicing, export)
 ├── webapp/
 │   ├── app.py           # Web server backend (Flask/Streamlit/Dash)
