@@ -66,7 +66,7 @@ Permissive
 Start an interactive ADB shell:
 
 ```bash
-adb shell/
+adb shell
 ```
 
 Gain root access:
