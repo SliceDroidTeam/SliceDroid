@@ -1,0 +1,187 @@
+\documentclass[a4paper,12pt]{report}
+
+% --------------------------------------------------
+%  Packages
+% --------------------------------------------------
+\usepackage[utf8]{inputenc}  % Support for UTF-8 encoding
+\usepackage[english]{babel}  % English language support
+\usepackage{amsmath,amssymb} % Math packages
+\usepackage{geometry}        % Page geometry
+\usepackage{setspace}        % Line spacing
+\usepackage{graphicx}        % Insert images
+\usepackage{hyperref}        % Hyperlinks in the PDF
+\usepackage{float}           % Improved float handling
+
+% Page margins
+\geometry{
+    left=3cm,
+    right=2.5cm,
+    top=2.5cm,
+    bottom=2.5cm
+}
+
+\setstretch{1.3}  % Line spacing
+
+% --------------------------------------------------
+%  Begin Document
+% --------------------------------------------------
+\begin{document}
+
+% --------------------------------------------------
+%  Title Page
+% --------------------------------------------------
+\begin{titlepage}
+    \begin{center}
+        \vspace*{1.5cm}
+
+        % AUEB Logo
+        \includegraphics[width=0.85\textwidth]{./aueb_logo.png}\\[1cm]
+
+        {\Large \textbf{Athens University of Economics and Business}}\\[0.5cm]
+        {\large Department of Management Science and Technology}\\[1.5cm]
+
+        {\Huge \textbf{Undergraduate Thesis}}\\[1.2cm]
+        {\Large \textbf{Behavioral Profiling of Popular Messaging Apps Using Kernel-Level Tracing with ML Techniques}}\\[2cm]
+
+        \textbf{Student:}\\
+        Foivos - Timotheos Proestakis\\
+        Student ID: 8210126\\[1.5cm]
+
+        \textbf{Supervisors:}\\
+        Prof. Diomidis Spinellis \\
+        Dr. Nikolaos Alexopoulos\\[1.5cm]
+
+        \vfill
+        \textbf{Submission Date:}\\
+        \today
+        \vspace*{1cm}
+    \end{center}
+\end{titlepage}
+\clearpage
+
+
+% --------------------------------------------------
+%  Abstract
+% --------------------------------------------------
+\begin{abstract}
+This thesis examines kernel-level tracing techniques to create behavioral profiles of popular messaging applications using Machine Learning. The main goal is to analyze the operational characteristics of such apps and employ ML algorithms to detect patterns regarding security and performance. The study covers topics such as kernel-level data collection, big data processing and analysis, and the design of ML models for behavior identification and classification.
+\end{abstract}
+\clearpage
+
+% --------------------------------------------------
+%  Acknowledgments
+% --------------------------------------------------
+\chapter*{Acknowledgments}
+\addcontentsline{toc}{chapter}{Acknowledgments}
+
+I would like to express my sincere gratitude to my supervisor, whose guidance and support were invaluable throughout this project. I am also thankful to everyone who contributed with suggestions and encouragement to complete this thesis.
+
+\clearpage
+
+% --------------------------------------------------
+%  Table of Contents
+% --------------------------------------------------
+\tableofcontents
+\clearpage
+
+% --------------------------------------------------
+%  Introduction
+% --------------------------------------------------
+\chapter{Introduction}
+
+\section{Purpose and Objectives}
+This section outlines the purpose and objectives of the thesis. It briefly describes how kernel-level analysis can provide critical insights into the behavior of messaging apps and how Machine Learning techniques can help derive meaningful conclusions.
+
+\section{Structure of the Thesis}
+A brief overview of the structure follows:
+\begin{itemize}
+    \item Chapter~2 presents the literature review.
+    \item Chapter~3 describes the research methodology.
+    \item Chapter~4 discusses the results obtained from the proposed methodology.
+    \item Chapter~5 provides a broader discussion of the results in context.
+    \item Chapter~6 presents the conclusions and suggests directions for future research.
+\end{itemize}
+
+% --------------------------------------------------
+%  Literature Review
+% --------------------------------------------------
+\chapter{Literature Review}
+
+\section{Introduction}
+An overview of the theoretical background:
+\begin{itemize}
+    \item Kernel-level tracing techniques.
+    \item Core functionalities and characteristics of popular messaging apps.
+    \item Basic Machine Learning concepts and techniques (supervised vs.\ unsupervised learning).
+\end{itemize}
+
+\section{Related Studies and Work}
+A review of previous research, articles, and studies relevant to this thesis. Emphasis is placed on identifying gaps in current literature and highlighting the thesis’s focus areas.
+
+% --------------------------------------------------
+%  Research Methodology
+% --------------------------------------------------
+\chapter{Research Methodology}
+
+\section{Data Collection and Preparation}
+A detailed description of how kernel-level data is collected and the preprocessing steps taken to ensure suitability for ML algorithms.
+
+\section{Machine Learning Algorithms and Tools}
+An overview of the ML algorithms (e.g., Random Forest, SVM, Neural Networks) and the software tools (e.g., Python, scikit-learn) employed in the study.
+
+\section{Experiment and Setup}
+A discussion of experimental settings, including how experiments were conducted and what evaluation metrics (e.g., accuracy, precision, recall, F1-score) were used.
+
+% --------------------------------------------------
+%  Results
+% --------------------------------------------------
+\chapter{Results}
+
+\section{Classification or Pattern Recognition Outcomes}
+Presentation of evaluation tables, charts, and analysis derived from the ML algorithms.
+
+\section{Comparisons and Interpretations}
+Comparison of different models or configurations, with emphasis on interpreting discrepancies and assessing each model’s performance.
+
+% --------------------------------------------------
+%  Discussion
+% --------------------------------------------------
+\chapter{Discussion}
+
+A detailed discussion of how the findings relate to the initial research objectives and the broader literature. The contribution and limitations of this study are highlighted.
+
+% --------------------------------------------------
+%  Conclusions
+% --------------------------------------------------
+\chapter{Conclusions}
+
+\section{Key Findings}
+A summary of the main results and how they address the initial research questions.
+
+\section{Future Work}
+Suggestions for expanding this research, including improvements or new avenues for study.
+
+% --------------------------------------------------
+%  References
+% --------------------------------------------------
+\begin{thebibliography}{99}
+\addcontentsline{toc}{chapter}{References}
+
+\bibitem{ref1} Author Name, \textit{Book or Paper Title}, Publisher, Year.
+\bibitem{ref2} Author Name, \textit{Article Title}, Journal, Volume, Issue, Pages, Year.
+
+\end{thebibliography}
+\clearpage
+
+% --------------------------------------------------
+%  Appendices
+% --------------------------------------------------
+\appendix
+
+\chapter{Appendix A: Additional Data Tables}
+Any further data tables, graphics, or supplementary material.
+
+\chapter{Appendix B: Code}
+Source code or additional scripts too extensive to include in the main chapters.
+
+\end{document}

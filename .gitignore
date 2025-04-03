@@ -32,3 +32,12 @@ venv/
 # Ignore generated figures or results
 Figures/
 Exports/
+
+
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
