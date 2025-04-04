@@ -114,54 +114,148 @@ Despite the growing research interest in Android security and behavioral analysi
 
 To address these gaps, this thesis proposes a structured methodology for profiling the behavior of popular messaging applications on Android through kernel-level tracing using \texttt{ftrace} and \texttt{kprobes}. The proposed approach integrates Machine Learning techniques to process and classify behavioral patterns, aiming to enhance security diagnostics, user privacy, and system transparency.
 
+\section{Motivation and Problem Statement}
+\paragraph{Motivation}
+The motivation behind this research arises from the necessity to bridge existing gaps between user expectations, regulatory compliance, and the actual operational behavior of popular messaging applications. Messaging apps process extensive personal data, creating substantial risks related to privacy violations and security breaches. Recent incidents involving unauthorized data collection by prominent messaging applications, along with revelations about governmental use of supposedly secure messaging platforms, underscore significant concerns regarding transparency and user trust.
 
-\section{Purpose and Objectives}
-This section outlines the purpose and objectives of the thesis. It briefly describes how kernel-level analysis can provide critical insights into the behavior of messaging apps and how Machine Learning techniques can help derive meaningful conclusions.
+\paragraph{Problem Statement}
+Current literature lacks comprehensive kernel-level behavioral analyses of messaging applications, leaving critical privacy and security risks inadequately addressed. Thus, this research seeks to systematically explore kernel-level behaviors to enhance transparency, improve user trust, and provide rigorous technical evaluations of messaging applications' privacy implications.
 
-\section{Structure of the Thesis}
-A brief overview of the structure follows:
+\section{Research Objectives}
+The specific research objectives addressed in this thesis are categorized as follows:
+
+\subsection*{Primary Objectives}
 \begin{itemize}
-    \item Chapter~2 presents the literature review.
-    \item Chapter~3 describes the research methodology.
-    \item Chapter~4 discusses the results obtained from the proposed methodology.
-    \item Chapter~5 provides a broader discussion of the results in context.
-    \item Chapter~6 presents the conclusions and suggests directions for future research.
+\item Record the actual kernel-level behavior of widely used messaging applications.
+\item Identify potential violations of the principle of data minimization.
+\item Analyze mismatches between granted permissions and real-time resource usage.
+\item Detect unauthorized or hidden access to sensitive user data.
+\item Compare the behavioral profiles of privacy-focused apps (e.g., Signal) and more commercial alternatives.
 \end{itemize}
 
-% --------------------------------------------------
-%  Literature Review
-% --------------------------------------------------
-\chapter{Literature Review}
-
-\section{Introduction}
-An overview of the theoretical background:
+\subsection*{Analytical and Technical Sub-Objectives}
 \begin{itemize}
-    \item Kernel-level tracing techniques.
-    \item Core functionalities and characteristics of popular messaging apps.
-    \item Basic Machine Learning concepts and techniques.
+\item Develop a tracing and profiling framework using ftrace and kprobes.
+\item Classify system calls into functional categories (file access, networking, IPC).
+\item Monitor transitions between app states (idle, active, background).
+\item Collect and analyze kernel-level usage statistics per application.
+\item Identify potential indirect data leakage through side-channel patterns.
+\item Correlate traced behaviors with declared permissions.
+\item Implement a web-based dashboard for behavior visualization.
 \end{itemize}
 
-\section{Related Studies and Work}
+\subsection*{Broader Goals}
+\begin{itemize}
+\item Enhance transparency in how messaging apps behave at system level.
+\item Improve user awareness of hidden behaviors executed in the background.
+\item Demonstrate the value of kernel-level tracing for security and privacy evaluation.
+\item Provide a structured and reproducible methodology for privacy-respecting behavior analysis.
+\end{itemize}
+
+\section{Research Questions}
+Based on the motivation and objectives, this thesis aims to address the following research questions:
+
+\vspace{0.5em}
+\noindent\fbox{\parbox{\textwidth}{
+\textbf{Q1.} What kernel-level operations do popular messaging applications perform during normal usage?
+}}
+
+\vspace{0.5em}
+\noindent\fbox{\parbox{\textwidth}{
+\textbf{Q2.} Are there deviations between the declared permissions of these applications and their actual behavior at runtime?
+}}
+
+\vspace{0.5em}
+\noindent\fbox{\parbox{\textwidth}{
+\textbf{Q3.} Can kernel-level tracing techniques identify unexpected or potentially invasive operations performed without user interaction?
+}}
+
+\vspace{0.5em}
+\noindent\fbox{\parbox{\textwidth}{
+\textbf{Q4.} How does the behavior of privacy-focused apps compare to that of commercial messaging platforms at the kernel level?
+}}
+
+\vspace{0.5em}
+\noindent\fbox{\parbox{\textwidth}{
+\textbf{Q5.} What kind of patterns in system calls can be used to characterize privacy-relevant behavior?
+}}
+
+
+\section{Limitations}
+\begin{itemize}
+    \item \textbf{Platform Scope}: Analysis restricted to Android 10+ due to kernel API dependencies.
+    \item \textbf{Dynamic Analysis Constraints}: Real-world noise (e.g., background services) may affect system call traces.
+    \item \textbf{App Selection Bias}: Focus on top-tier apps (WhatsApp, Signal, Telegram) may omit niche platforms.
+\end{itemize}
+
+\section{Contributions of this Thesis}
+
+\section{Thesis Outline}
+This thesis is organized into the following chapters:
+
+\begin{itemize}
+\item \textbf{Chapter 1 – Introduction:} Provides background context, outlines the motivation and objectives, presents the research questions, contributions, and a high-level overview of the thesis structure.
+\item \textbf{Chapter 2 – Related Work and Technical Background:} Reviews existing literature on Android architecture, messaging app privacy implications, static and dynamic analysis techniques, system call tracing, and identifies key research gaps.
+\item \textbf{Chapter 3 – Methodology and System Design:} Describes the research design, experimental setup, data collection using kernel-level tracing, and the analysis framework.
+\item \textbf{Chapter 4 – Results:} Presents the observed behavioral patterns, differences among messaging apps, and key findings related to privacy-relevant behaviors.
+\item \textbf{Chapter 5 – Discussion:} Interprets the results in light of the research questions, discusses limitations of the study, and suggests potential improvements.
+\item \textbf{Chapter 6 – Conclusions:} Summarizes key contributions, highlights findings, and suggests directions for future research.
+\item \textbf{Appendix A – Additional Data Tables:} Includes supplementary statistical data and traces.
+\item \textbf{Appendix B – Code:} Provides relevant shell scripts, Python tools, and configuration details used in the implementation.
+\end{itemize}
+
+
+% --------------------------------------------------
+%  Related Work and Technical Background
+% --------------------------------------------------
+\chapter{Related Work and Technical Background}
+
+\section{Android Architecture and Kernel-Level Access}
 A review of previous research, articles, and studies relevant to this thesis. Emphasis is placed on identifying gaps in current literature and highlighting the thesis’s focus areas.
+
+\section{Messaging Apps: Characteristics  Privacy Implications}
+
+
+\section{Static vs. Dynamic Analysis}
+
+\section{System Call Analysis and Kernel Tracing}
+
+\section{Machine Learning for Behavior Profiling}
+
+\section{Related Research  Gaps in Literature}
 
 % --------------------------------------------------
 %  Research Methodology
 % --------------------------------------------------
-\chapter{Research Methodology}
+\chapter{Methodology and System Design}
+
+\section{Research Design}
+
+\section{Experimental Setup}
+A discussion of experimental settings, including how experiments were conducted and what evaluation metrics (e.g., accuracy, precision, recall, F1-score) were used.
+
+
 
 \section{Data Collection and Preparation}
 A detailed description of how kernel-level data is collected and the preprocessing steps taken to ensure suitability for ML algorithms.
 
-\section{Machine Learning Algorithms and Tools}
+\section{Feature Extraction from System Calls}
+
+\section{Machine Learning Models and Tools}
 An overview of the ML algorithms (e.g., Random Forest, SVM, Neural Networks) and the software tools (e.g., Python, scikit-learn) employed in the study.
 
-\section{Experiment and Setup}
-A discussion of experimental settings, including how experiments were conducted and what evaluation metrics (e.g., accuracy, precision, recall, F1-score) were used.
+
+
 
 % --------------------------------------------------
 %  Results
 % --------------------------------------------------
 \chapter{Results}
+\section{Behavioral Patterns Observed}
+
+\section{Model Performance}
+
+\section{Comparison Between Messaging Apps}
 
 \section{Classification or Pattern Recognition Outcomes}
 Presentation of evaluation tables, charts, and analysis derived from the ML algorithms.
@@ -169,10 +263,19 @@ Presentation of evaluation tables, charts, and analysis derived from the ML algo
 \section{Comparisons and Interpretations}
 Comparison of different models or configurations, with emphasis on interpreting discrepancies and assessing each model’s performance.
 
+\section{ Visualizations}
+
 % --------------------------------------------------
 %  Discussion
 % --------------------------------------------------
 \chapter{Discussion}
+
+\section{Interpretation of Results}
+
+\section{Limitations of the Study}
+
+\section{Opportunities for Improvement}
+
 
 A detailed discussion of how the findings relate to the initial research objectives and the broader literature. The contribution and limitations of this study are highlighted.
 
@@ -184,7 +287,7 @@ A detailed discussion of how the findings relate to the initial research objecti
 \section{Key Findings}
 A summary of the main results and how they address the initial research questions.
 
-\section{Future Work}
+\section{Future Research Directions}
 Suggestions for expanding this research, including improvements or new avenues for study.
 
 % --------------------------------------------------
