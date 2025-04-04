@@ -33,8 +33,10 @@ echo > $TRACE_DIR/kprobe_events
 echo > $TRACE_DIR/events/binder/filter
 
 # Define kprobe events
-echo 'p:kprobes/write_probe vfs_write file=$arg1 buf=$arg2 count=$arg3 inode=+64(+32($arg1)):u64 k__dev=+76(+32($arg1)):u32 s_dev_inode=+16(+40(+32($arg1))):u32 i_mode=+0(+32($arg1)):u16 kuid=+4(+32($arg1)):u32 kgid=+8(+32($arg1)):u32 pathname=+0(+40(+24($arg1))):string' >> $TRACE_DIR/kprobe_events
-echo 'p:kprobes/read_probe vfs_read file=$arg1 buf=$arg2 count=$arg3 inode=+64(+32($arg1)):u64 k__dev=+76(+32($arg1)):u32 s_dev_inode=+16(+40(+32($arg1))):u32 i_mode=+0(+32($arg1)):u16 kuid=+4(+32($arg1)):u32 kgid=+8(+32($arg1)):u32 pathname=+0(+40(+24($arg1))):string' >> $TRACE_DIR/kprobe_events
+#echo 'p:kprobes/write_probe vfs_write file=$arg1 buf=$arg2 count=$arg3 inode=+64(+32($arg1)):u64 k__dev=+76(+32($arg1)):u32 s_dev_inode=+16(+40(+32($arg1))):u32 i_mode=+0(+32($arg1)):u16 kuid=+4(+32($arg1)):u32 kgid=+8(+32($arg1)):u32 pathname=+0(+40(+24($arg1))):string' >> $TRACE_DIR/kprobe_events
+echo 'p:kprobes/write_probe generic_file_write_iter file=$arg1 buf=$arg2 count=$arg3 inode=+64(+32($arg1)):u64 k__dev=+76(+32($arg1)):u32 s_dev_inode=+16(+40(+32($arg1))):u32 i_mode=+0(+32($arg1)):u16 kuid=+4(+32($arg1)):u32 kgid=+8(+32($arg1)):u32 pathname=+0(+40(+24($arg1))):string' >> $TRACE_DIR/kprobe_events
+echo 'p:kprobes/read_probe generic_file_read_iter file=$arg1 buf=+24($arg2):x64 count=+16($arg2):u64 inode=+64(+32($arg1)):u64 k__dev=+76(+32($arg1)):u32 s_dev_inode=+16(+40(+32($arg1))):u32 i_mode=+0(+32($arg1)):u16 kuid=+4(+32($arg1)):u32 kgid=+8(+32($arg1)):u32 pathname=+0(+40(+24($arg1))):string' >> $TRACE_DIR/kprobe_events
+#echo 'p:kprobes/read_probe vfs_read file=$arg1 buf=$arg2 count=$arg3 inode=+64(+32($arg1)):u64 k__dev=+76(+32($arg1)):u32 s_dev_inode=+16(+40(+32($arg1))):u32 i_mode=+0(+32($arg1)):u16 kuid=+4(+32($arg1)):u32 kgid=+8(+32($arg1)):u32 pathname=+0(+40(+24($arg1))):string' >> $TRACE_DIR/kprobe_events
 echo 'p:kprobes/ioctl_probe do_vfs_ioctl file=$arg1 inode=+64(+32($arg1)):u64 k__dev=+76(+32($arg1)):u32 s_dev_inode=+16(+40(+32($arg1))):u32 i_mode=+0(+32($arg1)):u16 kuid=+4(+32($arg1)):u32 kgid=+8(+32($arg1)):u32 pathname=+0(+40(+24($arg1))):string' >> $TRACE_DIR/kprobe_events
 echo 'p:kprobes/unix_stream_sendmsg unix_stream_sendmsg sock=$arg1 msg=$arg2 len=$arg3 topid=+96(+592(+24($arg1))):u32 inode=+64(+32(+16($arg1))):u64 k__dev=+76(+32(+16($arg1))):u32 s_dev_inode=+16(+40(+32(+16($arg1)))):u32 i_mode=+0(+32(+16($arg1))):u16 kuid=+4(+32(+16($arg1))):u32 kgid=+8(+32(+16($arg1))):u32 pathname=+0(+40(+24(+16($arg1)))):string' >> $TRACE_DIR/kprobe_events
 echo 'p:kprobes/unix_stream_recvmsg unix_stream_recvmsg sock=$arg1 msg=$arg2 len=$arg3 frompid=+96(+592(+24($arg1))):u32 inode=+64(+32(+16($arg1))):u64 k__dev=+76(+32(+16($arg1))):u32 s_dev_inode=+16(+40(+32(+16($arg1)))):u32 i_mode=+0(+32(+16($arg1))):u16 kuid=+4(+32(+16($arg1))):u32 kgid=+8(+32(+16($arg1))):u32 pathname=+0(+40(+24(+16($arg1)))):string' >> $TRACE_DIR/kprobe_events
@@ -46,7 +48,7 @@ echo 'r:kprobes/l2cap_sock_sendmsg l2cap_sock_sendmsg error=$retval:u32' >> $TRA
 echo 'r:kprobes/hci_sock_sendmsg hci_sock_sendmsg error=$retval:u32' >> $TRACE_DIR/kprobe_events
 echo 'r:kprobes/sock_sendmsg sock_sendmsg num=$retval:u32' >> $TRACE_DIR/kprobe_events
 # Pixel-specific kprobe for AoC sensors
-echo 'p:kprobes/aoc_service_write_message aoc_service_write_message service=$arg1 base=$arg2 dir=$arg3 size=$arg5 channel=+0($arg4):x32 sensor=+0($arg4):x32[36]' >> $TRACE_DIR/kprobe_events
+#echo 'p:kprobes/aoc_service_write_message aoc_service_write_message service=$arg1 base=$arg2 dir=$arg3 size=$arg5 channel=+0($arg4):x32 sensor=+0($arg4):x32[36]' >> $TRACE_DIR/kprobe_events
 
 # Start reading from the trace pipe in the background
 cat $TRACE_DIR/trace_pipe > /data/local/tmp/trace.trace &
@@ -96,7 +98,7 @@ echo "($pid_string)" > $TRACE_DIR/events/kprobes/l2cap_sock_sendmsg/filter
 echo "($pid_string)" > $TRACE_DIR/events/kprobes/sock_sendmsg/filter
 
 # Add Pixel-specific filter for AoC sensors
-echo "size == 0x90 || size == 0x5c || size == 0x40" > $TRACE_DIR/events/kprobes/aoc_service_write_message/filter
+#echo "size == 0x90 || size == 0x5c || size == 0x40" > $TRACE_DIR/events/kprobes/aoc_service_write_message/filter
 
 # Enable kprobe events
 echo 1 > $TRACE_DIR/events/kprobes/write_probe/enable
