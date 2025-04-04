@@ -35,7 +35,7 @@
         \vspace*{1.5cm}
 
         % AUEB Logo
-        \includegraphics[width=0.85\textwidth]{./aueb_logo.png}\\[1cm]
+        \includegraphics[width=0.9\textwidth]{./aueb_logo.png}\\[1cm]
 
         {\Large \textbf{Athens University of Economics and Business}}\\[0.5cm]
         {\large Department of Management Science and Technology}\\[1.5cm]
@@ -64,7 +64,7 @@
 %  Abstract
 % --------------------------------------------------
 \begin{abstract}
-This thesis examines kernel-level tracing techniques to create behavioral profiles of popular messaging applications using Machine Learning. The main goal is to analyze the operational characteristics of such apps and employ ML algorithms to detect patterns regarding security and performance. The study covers topics such as kernel-level data collection, big data processing and analysis, and the design of ML models for behavior identification and classification.
+This thesis examines kernel-level tracing techniques to create behavioral profiles of popular messaging applications using Machine Learning. The main goal is to analyze the operational characteristics of such apps and employ ML algorithms to detect patterns regarding security. The study covers topics such as kernel-level data collection, big data processing and analysis, and the design of ML models for behavior identification and classification.
 \end{abstract}
 \clearpage
 
@@ -74,8 +74,11 @@ This thesis examines kernel-level tracing techniques to create behavioral profil
 \chapter*{Acknowledgments}
 \addcontentsline{toc}{chapter}{Acknowledgments}
 
-I would like to express my sincere gratitude to my supervisor, whose guidance and support were invaluable throughout this project. I am also thankful to everyone who contributed with suggestions and encouragement to complete this thesis.
+I would like to express my heartfelt gratitude to my supervisors, Prof. Diomidis Spinellis and Dr. Nikolaos Alexopoulos, for their invaluable guidance, insightful feedback, and continuous support throughout the duration of this thesis. Their expertise and encouragement were instrumental in the successful completion of this work.
 
+I would also like to sincerely thank my exceptional fellow students, Vangelis Talos and Giannis Karyotakis, for their contribution, collaboration, and for being true companions in this academic journey.
+
+A special thanks goes to my family, whose unwavering support, both emotional and practical, made this endeavor not only possible but also deeply meaningful. Their presence and encouragement were a constant source of strength.
 \clearpage
 
 % --------------------------------------------------
@@ -88,6 +91,29 @@ I would like to express my sincere gratitude to my supervisor, whose guidance an
 %  Introduction
 % --------------------------------------------------
 \chapter{Introduction}
+
+Smartphones have become an integral component of modern society, with the number of global users surpassing 5 billion and continuing to grow rapidly \cite{statista2024smartphone}. Among the dominant mobile platforms, Android—an open-source operating system developed by Google—holds a stable global market share of approximately 75\% \cite{statista2021android}. Its open-source nature, flexibility, and widespread adoption have cultivated a vast ecosystem of applications that enhance user productivity and social interaction across various domains.
+
+Among these applications, messaging platforms such as WhatsApp, Telegram, Facebook Messenger, and Signal have gained significant popularity, playing a central role in both personal and professional communication. However, the ubiquitous use of smartphones for such purposes has led to the accumulation of sensitive personal data on user devices, including photos, contact lists, location history, and financial information, thereby raising serious privacy and security concerns \cite{verge2018facebooksms}.
+
+Incidents such as Facebook's unauthorized collection of SMS texts and call logs from Android devices \cite{verge2018facebooksms} underscore the vulnerabilities within existing mobile ecosystems. In response, regulatory frameworks like the General Data Protection Regulation (GDPR) and national laws such as the UK Data Protection Act 2018 aim to enforce principles of transparency, data minimization, and user consent in data processing \cite{gdpr2018, dpa2018}.
+
+Despite these legislative efforts, Android's current permission management system remains insufficient. Users frequently misinterpret the scope and implications of the permissions they grant, inadvertently exposing sensitive data to misuse \cite{feng2020survey, felt2012permissions}.
+
+To address these challenges, it is essential to analyze application behavior—that is, the actual operations performed by an app, both in the foreground and background. Research has shown that discrepancies often exist between user expectations and actual app behavior, with applications executing hidden or unauthorized tasks \cite{uipicker2019, gorla2014checking}. Many detection techniques rely on the assumption that user interface (UI) elements accurately represent application functionality, an assumption that is not always valid \cite{nan2019uipicker}.
+
+Behavioral analysis methods are typically divided into static and dynamic approaches. Static analysis examines application code without execution, identifying known malicious patterns. However, it is susceptible to evasion through obfuscation and polymorphism \cite{arzt2014flowdroid, enck2010taintdroid}. In contrast, dynamic analysis evaluates applications during runtime, monitoring behaviors such as system calls, resource consumption, and network activity \cite{xu2011crowdroid, lindorfer2014andrubis}. Among these, system call analysis is particularly valuable, offering fine-grained visibility into application interactions with hardware and OS-level services \cite{canfora2015syscalls}.
+
+Kernel-level tracing is a powerful form of dynamic analysis, capable of capturing low-level system interactions with high precision. Android is built on a modified Linux kernel that orchestrates resource management and system processes via system calls \cite{love2010linux}. Tools such as \texttt{ftrace} and \texttt{kprobes} enable developers and researchers to trace kernel-level function calls, execution flows, and resource usage \cite{rostedt2023ftrace, kernel2023kprobes}.
+
+\texttt{Ftrace} is a built-in tracing utility within the Linux kernel, optimized for performance and capable of monitoring execution latency and function call sequences. \texttt{Kprobes}, on the other hand, allows for dynamic instrumentation of running kernels, enabling targeted probing of specific code locations during runtime \cite{corbet2015drivers}.
+
+Applying kernel-level tracing to messaging applications, however, introduces unique technical challenges. These apps typically exhibit complex, multi-threaded behavior, frequent background processing, and diverse interactions with system resources. Accurately profiling such behavior requires collecting and interpreting high-volume, high-resolution kernel data \cite{tang2017profiling, kim2016io}.
+
+Despite the growing research interest in Android security and behavioral analysis, existing work has primarily focused on general application profiling or malware detection. Few studies have concentrated specifically on behavioral profiling of messaging apps using kernel-level data \cite{backes2015boxify}. Meanwhile, recent reports concerning the usage of secure messaging apps such as Signal by government and military officials have emphasized the urgent need for transparent, robust behavioral analysis mechanisms \cite{washingtonpost2023signal}.
+
+To address these gaps, this thesis proposes a structured methodology for profiling the behavior of popular messaging applications on Android through kernel-level tracing using \texttt{ftrace} and \texttt{kprobes}. The proposed approach integrates Machine Learning techniques to process and classify behavioral patterns, aiming to enhance security diagnostics, user privacy, and system transparency.
+
 
 \section{Purpose and Objectives}
 This section outlines the purpose and objectives of the thesis. It briefly describes how kernel-level analysis can provide critical insights into the behavior of messaging apps and how Machine Learning techniques can help derive meaningful conclusions.
@@ -165,12 +191,50 @@ Suggestions for expanding this research, including improvements or new avenues f
 %  References
 % --------------------------------------------------
 \begin{thebibliography}{99}
-\addcontentsline{toc}{chapter}{References}
+    \bibitem{statista2024smartphone} Statista, \textit{Number of smartphone users worldwide from 2014 to 2029}, 2024. Available: \url{https://www.statista.com/forecasts/1143723/smartphone-users-in-the-world}
 
-\bibitem{ref1} Author Name, \textit{Book or Paper Title}, Publisher, Year.
-\bibitem{ref2} Author Name, \textit{Article Title}, Journal, Volume, Issue, Pages, Year.
+    \bibitem{statista2021android} F. Laricchia, "Mobile operating systems’ market share worldwide from January 2012 to July 2020," Statista, 2021. \url{https://www.statista.com/statistics/272698/global-market-share-held-by-mobile-operating-systems-since-2009/}
 
-\end{thebibliography}
+    \bibitem{verge2018facebooksms} The Verge, "Facebook has been collecting call history and SMS data from Android devices," 2018. \url{https://www.theverge.com/2018/3/25/17160944/facebook-call-history-sms-data-collection-android}
+
+    \bibitem{gdpr2018} GDPR.EU, \textit{General Data Protection Regulation}, 2018. \url{https://gdpr.eu/}
+
+    \bibitem{dpa2018} UK Government, \textit{Data Protection Act 2018}, \url{https://www.legislation.gov.uk/ukpga/2018/12/contents/enacted}
+
+    \bibitem{feng2020survey} Z. Feng et al., "A Survey on Security and Privacy Issues in Android," IEEE Communications Surveys & Tutorials, vol. 22, no. 4, pp. 2445-2472, 2020.
+
+    \bibitem{felt2012permissions} A. Felt et al., "Android Permissions: User Attention, Comprehension, and Behavior," SOUPS, 2012.
+
+    \bibitem{gorla2014checking} A. Gorla et al., "Checking App Behavior Against App Descriptions," ICSE, 2014.
+
+    \bibitem{nan2019uipicker} Y. Nan et al., "UIPicker: User-Input Privacy Identification in Mobile Applications," IEEE TSE, 2019.
+
+    \bibitem{arzt2014flowdroid} S. Arzt et al., "FlowDroid: Precise Context, Flow, Field, Object-sensitive and Lifecycle-aware Taint Analysis for Android Apps," PLDI, 2014.
+
+    \bibitem{enck2010taintdroid} W. Enck et al., "TaintDroid: An Information-Flow Tracking System for Realtime Privacy Monitoring on Smartphones," OSDI, 2010.
+
+    \bibitem{xu2011crowdroid} Z. Xu et al., "Crowdroid: Behavior-Based Malware Detection System for Android," SPSM, 2011.
+
+    \bibitem{lindorfer2014andrubis} M. Lindorfer et al., "ANDRUBIS - 1,000,000 Apps Later: A View on Current Android Malware Behaviors," BADGERS, 2014.
+
+    \bibitem{canfora2015syscalls} G. Canfora et al., "Detecting Android Malware Using Sequences of System Calls," IEEE TSE, 2015.
+
+    \bibitem{love2010linux} R. Love, \textit{Linux Kernel Development}, Addison-Wesley, 2010.
+
+    \bibitem{rostedt2023ftrace} S. Rostedt, "Ftrace: Function Tracer," Linux Kernel Documentation, 2023.
+
+    \bibitem{kernel2023kprobes} Linux Kernel Organization, "Kernel Probes (kprobes)," Linux Kernel Documentation, 2023.
+
+    \bibitem{corbet2015drivers} J. Corbet, G. Kroah-Hartman, A. Rubini, \textit{Linux Device Drivers}, 4th ed., O'Reilly Media, 2015.
+
+    \bibitem{tang2017profiling} J. Tang et al., "Profiling Android Applications via Kernel Tracing," IEEE TMC, 2017.
+
+    \bibitem{kim2016io} J. Kim et al., "Understanding I/O Behavior in Android Applications through Kernel Tracing," ACM MobiSys, 2016.
+
+    \bibitem{backes2015boxify} M. Backes et al., "Boxify: Full-fledged App Sandboxing for Stock Android," USENIX Security, 2015.
+
+    \bibitem{washingtonpost2023signal} The Washington Post, "Pentagon officials used Signal messaging app, raising security concerns," March 2023.
+    \end{thebibliography}
 \clearpage
 
 % --------------------------------------------------
