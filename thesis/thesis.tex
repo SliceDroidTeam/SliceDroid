@@ -304,10 +304,120 @@ System call filtering through seccomp restricts the range of calls an app can ma
 Relevant sources and additional references include official Android documentation, Linux kernel manuals, and peer-reviewed papers on Android system architecture and security.
 \section{Messaging Apps: Characteristics  Privacy Implications}
 
+\subsection{Functional and Architectural Overview}
+Messaging applications are among the most widely used mobile software categories, providing real-time communication, media sharing, group messaging, and voice/video calling capabilities. Popular platforms such as Signal, Telegram, and Facebook Messenger serve billions of users globally, integrating deeply into daily communication routines.
+
+Android, as the dominant mobile operating system, provides the primary distribution platform for these apps through the Google Play Store. According to public data \cite{statista2024messaging, googleplaydata2024}, Facebook Messenger has surpassed 5 billion downloads, Telegram exceeds 1.2 billion downloads, and Signal has more than 100 million installs. While usage varies by region, these numbers highlight the ubiquity and market penetration of messaging applications on Android devices.
+
+Such widespread deployment across diverse hardware and Android configurations introduces heterogeneous behaviors in terms of network communication patterns, lifecycle management, and system-level operations. This diversity, combined with varying security practices among apps, renders them ideal candidates for behavioral profiling at the kernel level.
+
+These applications typically rely on key Android components to support their functionality: foreground \texttt{Services} are used for persistent communication sessions, \texttt{Broadcast Receivers} handle asynchronous events such as network connectivity or message reception, and \texttt{Content Providers} facilitate access to structured data such as shared databases. All applications are packaged in APK format and structured using component declarations in the \texttt{AndroidManifest.xml} file.
+
+Rather than detailing cryptographic implementations or privacy architectures here, which are explored in Section 2.2.3, this section focuses on the foundational aspects of app deployment, runtime behavior, and Android system integration that are relevant for low-level behavioral tracing.
+
+\textbf{Figure 5:} Popular Messaging Apps by Feature Comparison and System Integration Characteristics.
+
+\subsection{Privacy-Critical Behaviors and Resource Usage}
+Messaging applications often initiate background services using components like \texttt{JobScheduler}, \texttt{AlarmManager}, and foreground services to maintain persistent communication channels—frequently waking the device from idle states using wakelocks \cite{androidwakelocks}.
+
+Resource access is another key concern. Most messaging apps request access to sensitive resources such as contacts (\texttt{READ\_CONTACTS}), device location (\texttt{ACCESS\_FINE\_LOCATION}), microphone (\texttt{RECORD\_AUDIO}), and camera (\texttt{CAMERA}). While many of these are used legitimately during active user sessions (e.g., voice/video calls, media sharing), kernel-level traces often reveal such accesses occurring in the background without any visible UI activity—raising potential privacy concerns \cite{reardon2019leakage}.
+
+Additionally, messaging apps rely on push notification services such as Firebase Cloud Messaging (FCM) or Google Cloud Messaging (GCM) to deliver messages. These services necessitate persistent TCP connections and background listeners that, when profiled, result in recurring system calls like \texttt{recvmsg()}, \texttt{poll()}, or \texttt{select()}. Furthermore, apps such as Facebook Messenger are known to incorporate third-party SDKs (e.g., for analytics or ads) that initiate background network connections and file I/O unrelated to core messaging functionality \cite{pi2018metadata}.
+
+Metadata collection—such as timestamps, contact hashes, or device identifiers—is another privacy-relevant behavior. Even apps that implement strong encryption at the message content level (like Signal) may still generate system call activity that reflects metadata-related operations (e.g., \texttt{stat()}, \texttt{write()}, \texttt{getuid()}). In privacy-unfriendly apps, this is more pronounced and persistent \cite{signalprivacy2016}.
+
+Finally, the use of native code through JNI can introduce kernel-visible activity that bypasses Android’s permission mediation layer. This is especially relevant for apps that offload cryptographic or media processing to native components. System call traces such as \texttt{mmap()}, \texttt{ioctl()}, and \texttt{openat()} often appear in these cases and can be captured using ftrace or kprobes.
+
+These behaviors underscore the necessity of dynamic, syscall-level observation for detecting privacy-relevant activity and serve as foundational evidence in the behavioral profiling framework proposed in this thesis.
+
+\textbf{Figure 6:} Typical System Call Patterns for Background Resource Access in Messaging Apps.
+
+\subsection{Architectures, Privacy, and Cryptographic Models}
+Messaging applications adopt distinct architectural and cryptographic frameworks that critically influence their privacy characteristics and observable behaviors at the kernel level. The majority of messaging platforms—including Signal, Telegram, and Facebook Messenger—use centralized client-server architectures, where backend servers handle communication routing, message storage, and authentication. Centralization supports multi-device synchronization and cloud storage but introduces privacy risks, such as metadata accumulation and continuous background socket activity (e.g., \texttt{connect()}, \texttt{poll()}, \texttt{recvmsg()}).
+
+Signal utilizes a centralized yet privacy-focused architecture, relying exclusively on the Signal Protocol, a robust end-to-end encryption (E2EE) scheme ensuring forward secrecy, deniability, session-specific ephemeral keys, and the Double Ratchet algorithm for key management. The Double Ratchet combines a Diffie-Hellman key exchange and symmetric key cryptography, generating new encryption keys for every message sent, significantly enhancing security against key compromise \cite{signalwhitepaper}. Signal employs a custom Java implementation of the Signal Protocol known as libsignal, which provides cryptographic primitives and protocol management directly within Android applications, facilitating rigorous security auditing and simplifying integration. Kernel-level activities linked to Signal’s encryption involve system calls such as \texttt{getrandom()}, \texttt{mprotect()}, and \texttt{write()} during cryptographic operations. Signal's architecture avoids cloud synchronization and external dependencies, significantly reducing its syscall footprint.
+
+Telegram implements a hybrid model, providing optional E2EE via "Secret Chats" but defaulting to server-side encryption. Standard conversations store plaintext messages centrally, enabling synchronization but increasing metadata exposure. This design results in elevated kernel activity, particularly frequent \texttt{send()}, \texttt{recv()}, and \texttt{stat()} calls for persistent synchronization and message retrieval.
+
+Facebook Messenger exemplifies a privacy-limited centralized system, offering E2EE only within an opt-in "Secret Conversations" mode based on a derivative of the Signal Protocol. Default chats lack end-to-end encryption, incorporate numerous third-party SDKs for advertising and analytics, and generate extensive background system calls such as \texttt{open()}, \texttt{socket()}, \texttt{unlink()}, and \texttt{connect()}.
+
+Storage models further distinguish these apps. Signal maintains exclusively local encrypted storage without cloud backups, minimizing kernel interactions. Telegram and Messenger utilize cloud synchronization for message histories, leading to increased kernel-level I/O operations (e.g., \texttt{open()}, \texttt{fsync()}, \texttt{stat()}).
+
+Ephemeral messaging capabilities (disappearing messages) affect transient kernel behaviors, including short-lived file creation and memory operations like \texttt{madvise()}. Conversely, platforms that store logs or metadata generate repeated kernel interactions via persistent database accesses.
+
+Finally, encryption key management significantly impacts syscall activity. Signal generates and securely stores keys locally using secure hardware or biometric-protected storage. Telegram and Messenger employ centralized key management, simplifying multi-device usage but requiring trust in backend infrastructure.
+
+These architectural and cryptographic distinctions shape observable syscall behaviors, enabling kernel-level analysis to assess privacy implications effectively.
+
+\textbf{Figure 7:} Comparative Analysis of Architectural and Cryptographic Models in Signal, Telegram, and Messenger.
+
 
 \section{Static vs. Dynamic Analysis}
 
-\section{System Call Analysis and Kernel Tracing}
+The security and behavioral analysis of Android applications can be approached through two primary methodologies: static and dynamic analysis. Each offers unique advantages and limitations, particularly when it comes to uncovering privacy-sensitive behavior in messaging applications. This section contrasts the two approaches and motivates the use of kernel-level dynamic analysis as the foundation for the profiling methodology employed in this thesis.
+
+\subsection{Static Analysis}
+Static analysis examines the application code, configuration files, and resources without executing the application. Tools such as JADX, Androguard, and MobSF decompile APKs and provide insights into declared permissions, control flow structures, and third-party library usage. This method is effective for identifying potentially dangerous code paths, hardcoded secrets, or violations of best practices.
+
+However, static analysis suffers from several well-documented limitations. It cannot reliably account for runtime behavior that is conditional, obfuscated, or implemented in dynamically loaded or native code. Additionally, it provides no visibility into real-world execution patterns, user interactions, or background operations initiated through APIs like \texttt{JobScheduler} or \texttt{AlarmManager}. From a privacy standpoint, static analysis cannot reveal whether declared permissions are exercised legitimately or abused in practice.
+
+\subsection{Dynamic Analysis and Kernel-Level Tracing}
+Dynamic analysis captures application behavior during execution, providing ground-truth data on runtime interactions with the operating system. Techniques range from high-level instrumentation using frameworks like Frida and Xposed, to lower-level monitoring using strace or custom logging APIs. For this thesis, we adopt kernel-level dynamic analysis, specifically through system call tracing using tools such as \texttt{ftrace}, \texttt{kprobes}, and \texttt{debugfs}.
+
+Kernel-level tracing offers a privileged vantage point for observing all user-to-kernel transitions, regardless of the programming language, framework, or runtime environment used by the application. Unlike instrumentation at the application layer, which can be bypassed by obfuscation or native code execution, kernel tracing captures raw syscall activity including file I/O (\texttt{open()}, \texttt{read()}, \texttt{unlink()}), network operations (\texttt{connect()}, \texttt{send()}, \texttt{recvmsg()}), and cryptographic processing (\texttt{getrandom()}, \texttt{mprotect()}, \texttt{write()}).
+
+This approach is especially relevant for profiling messaging applications, which often perform background operations, access sensitive resources, and engage in encrypted communications without user interaction. By analyzing syscall sequences and their temporal patterns, one can construct behavioral profiles that are resilient to static evasion techniques and indicative of privacy-relevant behavior.
+
+\textbf{Figure 8:} Comparison of Static Analysis, Dynamic Instrumentation, and Kernel-Level Tracing Capabilities.
+
+\section{System Call Tracing and Behavioral Analysis}
+
+Kernel-level system call tracing provides a low-level, ground-truth view of how Android applications interact with the operating system. In this section, we explore both the technical mechanisms available for capturing such interactions and the analytical methods used to extract meaningful behavioral insights—particularly in the context of privacy-sensitive mobile applications such as messaging platforms.
+
+\subsection{Tracing Interfaces and Instrumentation Tools}
+Several kernel-level tracing tools are available in Android and Linux-based systems, each offering a distinct trade-off between overhead, observability, and programmability:
+
+\begin{itemize}
+\item \textbf{ftrace}: Integrated into the Linux kernel, ftrace provides function-level and syscall-level tracing, context switches, scheduling events, and filtering by PID or syscall. It is accessible via \texttt{/sys/kernel/debug/tracing} and optimized for minimal overhead.
+\item \textbf{kprobes and uprobes}: Support dynamic, on-the-fly instrumentation at both kernel and user-space function addresses. Useful for attaching probes at points like \texttt{do\_sys\_open}, logging file accesses and argument values.
+\item \textbf{tracepoints}: Provide predefined hook points in the kernel source that offer safe, efficient monitoring of events such as process creation, file access, or scheduler activity. Often used with tools like perf or BCC.
+\item \textbf{strace}: A user-space syscall tracer that uses ptrace to log syscall invocations. Ideal for debugging but with high overhead and poor stealth, making it unsuitable for continuous profiling.
+\item \textbf{eBPF (Extended Berkeley Packet Filter)}: A modern programmable tracing interface allowing safe kernel extensions at runtime. It supports dynamic filtering, per-event logic, aggregation, and export to user space. Its adoption in Android is growing with newer kernels.
+\end{itemize}
+
+\textbf{Table 1: Comparison of Kernel Tracing Tools}
+
+
+\subsection{Raw Trace Data and Post-Processing}
+The output from syscall tracing tools typically consists of structured logs, such as:
+
+\begin{verbatim}
+<...>-1234 [000] .... 10000.123456: sys_enter_openat: dfd=AT_FDCWD filename="/data/user/0/app/cache/image.jpg"
+\end{verbatim}
+
+These logs capture syscall names, parameters, timestamps, and context (e.g., PID, thread state). To extract insights:
+
+\begin{itemize}
+\item Data is filtered and cleaned to isolate app-specific syscall events.
+\item Features such as syscall frequency, argument patterns, and return codes are extracted.
+\item Aggregated traces are converted to higher-level representations (e.g., n-grams, histograms) for machine learning or statistical analysis.
+\end{itemize}
+
+Post-processing typically involves parsing tools like Python scripts, custom Bash pipelines, or tools like \texttt{perf}, \texttt{bcc}, and \texttt{Sysdig}. These allow for correlation with app state (foreground/background), event type, and time windows.
+
+\subsubsection*{2.4.3 System Call Pattern Analysis and Behavioral Fingerprinting}
+Beyond raw logging, system call sequences form the basis for behavioral modeling:
+
+\begin{itemize}
+\item \textbf{N-gram Modeling}: Sequences of length n (e.g., \texttt{open()}  \texttt{read()}  \texttt{close()}) are extracted to build behavioral signatures.
+\item \textbf{Clustering and Classification}: Using unsupervised or supervised techniques, apps are grouped by syscall profile similarity.
+\item \textbf{Anomaly Detection}: Sudden spikes in system call rate or unexpected syscall usage in idle state may suggest abnormal or privacy-invasive behavior.
+\end{itemize}
+
+Such analysis enables detection of covert channels, SDK activity, cryptographic operations, or unauthorized resource access. For example, background \texttt{recvmsg()} and \texttt{sendto()} events may indicate hidden data transmission; frequent \texttt{getrandom()} and \texttt{mprotect()} calls often correlate with cryptographic routines.
+
+\textbf{Figure 9:} System Call Tracing Pipeline and Example Behavioral Fingerprints for Messaging Apps.
+
 
 \section{Machine Learning for Behavior Profiling}
 
