@@ -1,0 +1,14 @@
+events/binder
+events/kprobes/write_probe
+events/kprobes/read_probe
+events/kprobes/ioctl_probe
+events/sock/inet_sock_set_state
+events/kprobes/unix_dgram_sendmsg
+events/kprobes/unix_dgram_recvmsg
+events/kprobes/unix_stream_sendmsg
+events/kprobes/unix_stream_recvmsg
+events/kprobes/sock_queue_tail
+events/kprobes/hci_sock_sendmsg
+events/kprobes/sco_sock_sendmsg
+events/kprobes/l2cap_sock_sendmsg
+events/kprobes/sock_sendmsg
