@@ -1,0 +1,13 @@
+p:kprobes/write_probe vfs_write file=$arg1 buf=$arg2 count=$arg3 inode=+64(+32($arg1)):u64 k__dev=+76(+32($arg1)):u32 s_dev_inode=+16(+40(+32($arg1))):u32 i_mode=+0(+32($arg1)):u16 kuid=+4(+32($arg1)):u32 kgid=+8(+32($arg1)):u32 pathname=+0(+40(+24($arg1))):string
+p:kprobes/read_probe vfs_read file=$arg1 buf=$arg2 count=$arg3 inode=+64(+32($arg1)):u64 k__dev=+76(+32($arg1)):u32 s_dev_inode=+16(+40(+32($arg1))):u32 i_mode=+0(+32($arg1)):u16 kuid=+4(+32($arg1)):u32 kgid=+8(+32($arg1)):u32 pathname=+0(+40(+24($arg1))):string
+p:kprobes/ioctl_probe do_vfs_ioctl file=$arg1 inode=+64(+32($arg1)):u64 k__dev=+76(+32($arg1)):u32 s_dev_inode=+16(+40(+32($arg1))):u32 i_mode=+0(+32($arg1)):u16 kuid=+4(+32($arg1)):u32 kgid=+8(+32($arg1)):u32 pathname=+0(+40(+24($arg1))):string
+p:kprobes/unix_stream_sendmsg unix_stream_sendmsg sock=$arg1 msg=$arg2 len=$arg3 topid=+96(+592(+24($arg1))):u32 inode=+64(+32(+16($arg1))):u64 k__dev=+76(+32(+16($arg1))):u32 s_dev_inode=+16(+40(+32(+16($arg1)))):u32 i_mode=+0(+32(+16($arg1))):u16 kuid=+4(+32(+16($arg1))):u32 kgid=+8(+32(+16($arg1))):u32 pathname=+0(+40(+24(+16($arg1)))):string
+p:kprobes/unix_stream_recvmsg unix_stream_recvmsg sock=$arg1 msg=$arg2 len=$arg3 frompid=+96(+592(+24($arg1))):u32 inode=+64(+32(+16($arg1))):u64 k__dev=+76(+32(+16($arg1))):u32 s_dev_inode=+16(+40(+32(+16($arg1)))):u32 i_mode=+0(+32(+16($arg1))):u16 kuid=+4(+32(+16($arg1))):u32 kgid=+8(+32(+16($arg1))):u32 pathname=+0(+40(+24(+16($arg1)))):string
+p:kprobes/unix_dgram_sendmsg unix_dgram_sendmsg sock=$arg1 msg=$arg2 len=$arg3 inode=+64(+32(+16($arg1))):u64 k__dev=+76(+32(+16($arg1))):u32 s_dev_inode=+16(+40(+32(+16($arg1)))):u32 i_mode=+0(+32(+16($arg1))):u16 kuid=+4(+32(+16($arg1))):u32 kgid=+8(+32(+16($arg1))):u32 pathname=+0(+40(+24(+16($arg1)))):string
+p:kprobes/unix_dgram_recvmsg unix_dgram_recvmsg sock=$arg1 msg=$arg2 len=$arg3 inode=+64(+32(+16($arg1))):u64 k__dev=+76(+32(+16($arg1))):u32 s_dev_inode=+16(+40(+32(+16($arg1)))):u32 i_mode=+0(+32(+16($arg1))):u16 kuid=+4(+32(+16($arg1))):u32 kgid=+8(+32(+16($arg1))):u32 pathname=+0(+40(+24(+16($arg1)))):string
+p:kprobes/sock_queue_tail skb_queue_tail sk_receive_queue=$arg1 skb=$arg2 socket=+424($arg1):x64 inode=+64(+32(+16(+424($arg1)))):u64
+r:kprobes/sco_sock_sendmsg sco_sock_sendmsg error=$retval:u32
+r:kprobes/l2cap_sock_sendmsg l2cap_sock_sendmsg error=$retval:u32
+r:kprobes/hci_sock_sendmsg hci_sock_sendmsg error=$retval:u32
+r:kprobes/sock_sendmsg sock_sendmsg num=$retval:u32
+p:kprobes/aoc_service_write_message aoc_service_write_message service=$arg1 base=$arg2 dir=$arg3 size=$arg5 channel=+0($arg4):x32 sensor=+0($arg4):x32[36]
