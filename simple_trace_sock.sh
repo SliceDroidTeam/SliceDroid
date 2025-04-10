@@ -38,6 +38,15 @@ echo 'r:kprobes/hci_sock_sendmsg hci_sock_sendmsg error=$retval:u32' >> /sys/ker
 echo 'r:kprobes/sock_sendmsg sock_sendmsg num=$retval:u32' >> /sys/kernel/tracing/kprobe_events
 # Pixel-specific kprobe for AoC sensors
 echo 'p:kprobes/aoc_service_write_message aoc_service_write_message service=$arg1 base=$arg2 dir=$arg3 size=$arg5 channel=+0($arg4):x32 sensor=+0($arg4):x32[36]' >> /sys/kernel/tracing/kprobe_events
+
+
+echo 'p:kprobes/sys_socket sys_socket family=$arg1 type=$arg2 protocol=$arg3' >> /sys/kernel/tracing/kprobe_events
+echo 'p:kprobes/sys_connect sys_connect sockfd=$arg1 addr=$arg2 addrlen=$arg3' >> /sys/kernel/tracing/kprobe_events
+echo 'p:kprobes/sys_sendto sys_sendto sockfd=$arg1 buf=$arg2 len=$arg3 flags=$arg4 to=$arg5 tolen=$arg6' >> /sys/kernel/tracing/kprobe_events
+echo 'p:kprobes/sys_recvfrom sys_recvfrom sockfd=$arg1 buf=$arg2 len=$arg3 flags=$arg4 from=$arg5 fromlen=$arg6' >> /sys/kernel/tracing/kprobe_events
+echo 'p:kprobes/sys_bind sys_bind sockfd=$arg1 addr=$arg2 addrlen=$arg3' >> /sys/kernel/tracing/kprobe_events
+
+
 # Start reading from the trace pipe in the background
 cat /sys/kernel/tracing/trace_pipe > /data/local/tmp/trace.trace &
 waitpid=$!
@@ -90,6 +99,14 @@ echo "($pid_string)" > /sys/kernel/tracing/events/kprobes/sock_sendmsg/filter
 # Add Pixel-specific filter for AoC sensors
 echo "size == 0x90 || size == 0x5c || size == 0x40" > /sys/kernel/tracing/events/kprobes/aoc_service_write_message/filter
 
+echo "($pid_string)" > /sys/kernel/tracing/events/kprobes/sys_socket/filter
+echo "($pid_string)" > /sys/kernel/tracing/events/kprobes/sys_connect/filter
+echo "($pid_string)" > /sys/kernel/tracing/events/kprobes/sys_sendto/filter
+echo "($pid_string)" > /sys/kernel/tracing/events/kprobes/sys_recvfrom/filter
+echo "($pid_string)" > /sys/kernel/tracing/events/kprobes/sys_bind/filter
+
+
+
 # Enable tracing raw system calls entry and exit points
 #echo 0 > /sys/kernel/tracing/events/raw_syscalls/sys_enter/enable
 #echo 0 > /sys/kernel/tracing/events/raw_syscalls/sys_exit/enable
@@ -115,6 +132,13 @@ echo 1 > /sys/kernel/tracing/events/kprobes/l2cap_sock_sendmsg/enable
 echo 1 > /sys/kernel/tracing/events/kprobes/sock_sendmsg/enable
 # Enable Pixel-specific AoC sensor identification
 echo 1 > /sys/kernel/tracing/events/kprobes/aoc_service_write_message/enable
+# Enable new networking events
+echo 1 > /sys/kernel/tracing/events/kprobes/sys_socket/enable
+echo 1 > /sys/kernel/tracing/events/kprobes/sys_connect/enable
+echo 1 > /sys/kernel/tracing/events/kprobes/sys_sendto/enable
+echo 1 > /sys/kernel/tracing/events/kprobes/sys_recvfrom/enable
+echo 1 > /sys/kernel/tracing/events/kprobes/sys_bind/enable
+
 
 # Start Tracing
 echo 1 > /sys/kernel/tracing/tracing_on
