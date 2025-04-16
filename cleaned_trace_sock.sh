@@ -1,110 +1,106 @@
-#/bin/sh
+#!/system/bin/sh
 
-rm /data/local/tmp/trace.trace
-rm /data/local/tmp/trace.trace.gz
+CONFIG_DIR="/data/local/tmp/config_files"
+TRACE_DIR="/sys/kernel/tracing"
+TMP_DIR="/data/local/tmp"
+
+rm -f $TMP_DIR/trace.trace
+rm -f $TMP_DIR/trace.trace.gz
 
 # Configure tracing options
-echo 102400 > /sys/kernel/tracing/buffer_size_kb
-echo record-tgid > /sys/kernel/tracing/trace_options
+echo 102400 > $TRACE_DIR/buffer_size_kb
+echo record-tgid > $TRACE_DIR/trace_options
 
-# Disable all events
-echo 0 > /sys/kernel/tracing/events/enable
-echo > /sys/kernel/tracing/trace
+# Disable all events and clear old data
+echo 0 > $TRACE_DIR/events/enable
+echo > $TRACE_DIR/trace
+echo > $TRACE_DIR/kprobe_events
+echo > $TRACE_DIR/events/binder/filter
 
-# Clear kprobes and filters
-echo > /sys/kernel/tracing/kprobe_events
-#echo > /sys/kernel/tracing/events/kprobes/filter
-echo > /sys/kernel/tracing/events/binder/filter
+# Load basic kprobes
+if [ -f "$CONFIG_DIR/kprobes.txt" ]; then
+    while read -r probe; do
+        echo "$probe" >> $TRACE_DIR/kprobe_events
+    done < "$CONFIG_DIR/kprobes.txt"
+fi
 
-while read -r probe; do
-    echo "$probe" >> /sys/kernel/tracing/kprobe_events
-done < config_files/kprobes.txt
-
+# Load conditional kprobes by device tag
 device_tag="generic"
-if [[ "$(getprop ro.product.brand)" == "google" ]]; then
+if [ "$(getprop ro.product.brand)" = "google" ]; then
     device_tag="pixel"
 fi
-# Enable brand-specific kprobes
-while IFS='->' read -r tag probe; do
-    [[ "$tag" == "$device_tag" ]] && echo "$probe" >> /sys/kernel/tracing/kprobe_events
-done < config_files/kprobes_conditional.txt
 
-# Start reading from the trace pipe in the background
-cat /sys/kernel/tracing/trace_pipe > /data/local/tmp/trace.trace &
+if [ -f "$CONFIG_DIR/kprobes_conditional.txt" ]; then
+    while IFS='->' read -r tag probe; do
+        [ "$tag" = "$device_tag" ] && echo "$probe" >> $TRACE_DIR/kprobe_events
+    done < "$CONFIG_DIR/kprobes_conditional.txt"
+fi
+
+# Start trace_pipe background read
+cat $TRACE_DIR/trace_pipe > $TMP_DIR/trace.trace &
 waitpid=$!
 
-# Initialize an empty list of PIDs
+# Collect PIDs
 all_pids=""
+if [ -f "$CONFIG_DIR/pid_targets.txt" ]; then
+    while IFS=',' read -r mode name; do
+        if [ "$mode" = "-x" ]; then
+            pids=$(pgrep -x "$name")
+        else
+            pids=$(pgrep "$mode")
+        fi
+        all_pids="$all_pids $pids"
+    done < "$CONFIG_DIR/pid_targets.txt"
+fi
 
-# Read the list and run appropriate pgrep
-while IFS=',' read -r mode name; do
-    if [[ "$mode" == "-x" ]]; then
-        pids=$(pgrep -x "$name")
-    else
-        # If only one field, it's the name without -x
-        pids=$(pgrep "$mode")
-    fi
-
-    all_pids+=" $pids"
-done < config_files/pid_targets.txt
-
-# Initialize an empty string to hold the PIDs
+# Create filter string
 pid_string=""
-
-# Loop through the PIDs and append them to the string
 for pid in $all_pids; do
-    # If pid_string is not empty, append ' && ' first
-    if [ -n "$pid_string" ]; then
-        pid_string+=" && "
-    fi
-    pid_string+="common_pid != $pid"
+    [ -n "$pid_string" ] && pid_string="$pid_string && "
+    pid_string="${pid_string}common_pid != $pid"
 done
 
-# Add PIDs to the filter
-while read -r event; do
-    echo "($pid_string)" > /sys/kernel/tracing/$event/filter
-done < config_files/events_to_filter.txt
+# Apply event filters
+if [ -f "$CONFIG_DIR/events_to_filter.txt" ]; then
+    while read -r event; do
+        echo "($pid_string)" > $TRACE_DIR/$event/filter
+    done < "$CONFIG_DIR/events_to_filter.txt"
+fi
 
-# Enable events
-while read -r event; do
-    echo 1 > "/sys/kernel/tracing/$event/enable"
-done < config_files/events_to_enable.txt
+# Enable selected events
+if [ -f "$CONFIG_DIR/events_to_enable.txt" ]; then
+    while read -r event; do
+        echo 1 > "$TRACE_DIR/$event/enable"
+    done < "$CONFIG_DIR/events_to_enable.txt"
+fi
 
-# Execute monkey
-#monkey -p $1 --ignore-crashes --ignore-timeouts --pct-majornav 0 --pct-motion 0 --throttle 500 1000
-#monkey --ignore-crashes --ignore-timeouts --throttle 500 800
-
-# For simple tracing
+# Wait for user to stop
 read STOP
 
 # Stop tracing
-echo 0 > /sys/kernel/tracing/tracing_on
+echo 0 > $TRACE_DIR/tracing_on
 
-# Start a timer in the background
+# Background sleep for timeout
 sleep 10 &
 timeout_pid=$!
 
 # Wait for either process to finish
 wait -n $waitpid $timeout_pid 2>/dev/null
 
-# Check if the timeout expired first
 if kill -0 $waitpid 2>/dev/null; then
-  echo "Timeout expired. Killing process $bg_pid."
-  kill $waitpid
+    echo "Timeout expired. Killing trace_pipe (pid $waitpid)."
+    kill $waitpid
 else
-  echo "Process $waitpid finished before the timeout."
+    echo "Trace collection completed before timeout."
 fi
-#
-#if ! timeout 10s wait $waitpid; then
-#  echo "Command timed out, terminating."
-#  kill -9 $waitpid 2>/dev/null
-#fi
-#
-# Print output file size
-ls -alh /data/local/tmp/trace.trace
 
-echo 'Starting gzip'
-gzip -f /data/local/tmp/trace.trace
-echo 'Finished gzip'
-# Print zipped file size
-ls -alh /data/local/tmp/trace.trace.gz
+# Show output trace file
+ls -alh $TMP_DIR/trace.trace
+
+# Gzip the trace
+echo "Starting gzip..."
+gzip -f $TMP_DIR/trace.trace
+echo "Finished gzip."
+
+# Show gzipped file
+ls -alh $TMP_DIR/trace.trace.gz
