@@ -13,4 +13,8 @@ events/kprobes/hci_sock_sendmsg
 events/kprobes/sco_sock_sendmsg
 events/kprobes/l2cap_sock_sendmsg
 events/kprobes/sock_sendmsg
-events/kprobes/aoc_service_write_message
+events/kprobes/__sys_socket
+events/kprobes/__sys_connect
+events/kprobes/__sys_sendto
+events/kprobes/__sys_recvfrom
+events/kprobes/__sys_bind
