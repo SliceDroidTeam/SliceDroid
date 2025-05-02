@@ -1,0 +1,65 @@
+{
+    "contacts": {
+        "st_dev16": 65102,
+        "st_dev32": 266338382,
+        "major": 254,
+        "minor": 78,
+        "inode": 9253,
+        "path": "/data/data/com.android.providers.contacts/databases/contacts2.db",
+        "description": "Contacts database"
+    },
+    "sms": {
+        "st_dev16": 65102,
+        "st_dev32": 266338382,
+        "major": 254,
+        "minor": 78,
+        "inode": 10545,
+        "path": "/data/data/com.android.providers.telephony/databases/mmssms.db",
+        "description": "SMS and MMS messages database"
+    },
+    "calendar": {
+        "st_dev16": 65102,
+        "st_dev32": 266338382,
+        "major": 254,
+        "minor": 78,
+        "inode": 10024,
+        "path": "/data/data/com.android.providers.calendar/databases/calendar.db",
+        "description": "Calendar events database"
+    },
+    "call_logs": {
+        "st_dev16": 65102,
+        "st_dev32": 266338382,
+        "major": 254,
+        "minor": 78,
+        "inode": 6932,
+        "path": "/data/data/com.android.providers.contacts/databases/calllog.db",
+        "description": "Call history database"
+    },
+    "photos": {
+        "st_dev16": 65102,
+        "st_dev32": 266338382,
+        "major": 254,
+        "minor": 78,
+        "inode": 10045,
+        "path": "/data/media/0/DCIM",
+        "description": "Camera photos directory"
+    },
+    "documents": {
+        "st_dev16": 65102,
+        "st_dev32": 266338382,
+        "major": 254,
+        "minor": 78,
+        "inode": 12788,
+        "path": "/data/media/0/Documents",
+        "description": "User documents directory"
+    },
+    "downloads": {
+        "st_dev16": 65102,
+        "st_dev32": 266338382,
+        "major": 254,
+        "minor": 78,
+        "inode": 13476,
+        "path": "/data/media/0/Download",
+        "description": "Downloaded files directory"
+    }
+  }
