@@ -42,6 +42,11 @@ def load_file(input_file):
     with open(input_file, 'r') as f:
         return json.load(f)
 
+def load_sensitive_resources(json_path='cat2stdev.json'):
+    import json
+    with open(json_path, 'r') as f:
+        return json.load(f)
+
 def calculate_major_minor(dev_t):
     # Calculate major number: shift right by 20 bits and mask with 0xFFF (12 bits)
     major = (dev_t >> 20) & 0xFFF
