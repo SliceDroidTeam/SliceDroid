@@ -31,7 +31,7 @@
         "st_dev32": 266338382,
         "major": 254,
         "minor": 78,
-        "inode": 6932,
+        "inode": 9068,
         "path": "/data/data/com.android.providers.contacts/databases/calllog.db",
         "description": "Call history database"
     },
