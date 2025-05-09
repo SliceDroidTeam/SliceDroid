@@ -18,4 +18,6 @@ events/kprobes/__sys_connect
 events/kprobes/__sys_sendto
 events/kprobes/__sys_recvfrom
 events/kprobes/__sys_bind
-events/kprobes/mmap_probe
+events/mmap
+events/net/net_dev_xmit
+events/net/netif_receive_skb
