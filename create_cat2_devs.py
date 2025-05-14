@@ -30,5 +30,5 @@ for line in lines:
     if 'calendar' in line:
         device_nodes['calendar'].append(f"{line.split(' ')[1]} - {line.split(' ')[2]}".replace('\n',''))
 
-with open('cat2_devs_nothing2atest.json','w') as f:
+with open('cat2_dev.json','w') as f:
     json.dump(device_nodes, f, indent=4)

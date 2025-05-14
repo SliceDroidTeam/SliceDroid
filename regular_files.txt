@@ -1,4 +1,0 @@
-/data/data/com.android.providers.calendar/databases/calendar.db 266338357 5421
-/data/data/com.android.providers.contacts/databases/calllog.db 266338357 5488
-/data/data/com.android.providers.contacts/databases/contacts2.db 266338357 4483
-/data/data/com.android.providers.telephony/databases/mmssms.db 266338357 5409

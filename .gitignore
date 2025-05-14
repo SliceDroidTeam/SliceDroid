@@ -32,3 +32,7 @@ venv/
 # Ignore generated figures or results
 Figures/
 Exports/
+
+rdevs.txt
+regular_files.txt
+cat2_dev.json
