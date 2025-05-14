@@ -43,7 +43,7 @@ def load_file(input_file):
     with open(input_file, 'r') as f:
         return json.load(f)
 
-def load_sensitive_resources(json_path='../data/mappings/cat2stdev.json'):
+def load_sensitive_resources(json_path='../data/mappings/cat2stdevs_oneplus.json'):
     import json
     with open(json_path, 'r') as f:
         return json.load(f)
