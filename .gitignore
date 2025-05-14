@@ -28,7 +28,3 @@ venv/
 # Ignore shell script backup files
 *.sh~
 *.swp
-
-# Ignore generated figures or results
-Figures/
-Exports/
