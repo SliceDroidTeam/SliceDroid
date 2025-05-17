@@ -2,12 +2,13 @@ import subprocess
 import os
 
 # === Configuration ===
-SCRIPT_LOCAL = "find_rdev_stdev_inode.sh"
+SCRIPT_LOCAL = "scripts/find_rdev_stdev_inode.sh"
 SCRIPT_DEVICE = "/data/local/tmp/find_rdev_stdev_inode.sh"
 OUTPUT_FILES = ["regular_files.txt", "rdevs.txt"]
 DEVICE_OUTPUT_DIR = "/data/local/tmp"
 LOCAL_OUTPUT_DIR = "outputs"
-PYTHON_PROCESSOR = "create_cat2_devs.py"
+PYTHON_PROCESSOR = "scripts/create_cat2_devs.py"
+manufacturer = subprocess.run(["adb", "shell", "getprop", "ro.product.manufacturer"], capture_output=True, text=True).stdout.strip()
 
 # === Prepare Output Directory ===
 os.makedirs(LOCAL_OUTPUT_DIR, exist_ok=True)
@@ -38,6 +39,6 @@ for filename in OUTPUT_FILES:
 
 # === Run Python Processor ===
 print("[*] Running Python processor script...")
-subprocess.run(["python", PYTHON_PROCESSOR], check=True)
+subprocess.run(["python", PYTHON_PROCESSOR, manufacturer], check=True)
 
 print("[✓] Done.")

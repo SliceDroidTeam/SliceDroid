@@ -1,12 +1,14 @@
 from collections import defaultdict
 import json
 import os
-
+import sys
 # Path to the mappings directory where the JSON file will be saved
 MAPPINGS_DIR = "data/mappings"
 
 # Path to the data directory where the sh output files are located
 DATA_DIR = "outputs"
+
+output_json = os.path.join(MAPPINGS_DIR, f'cat2_dev_{sys.argv[1]}.json')
 
 # Use correct paths to the files
 rdevs_path = os.path.join(DATA_DIR, 'rdevs.txt')
@@ -19,16 +21,18 @@ with open(rdevs_path, 'r') as f:
     lines = f.readlines()
 
 for line in lines:
-    if 'v4l' in line or 'video' in line:
-        device_nodes['camera'].append(line.split(' ')[1].replace('\n',''))
-    if 'pcm' in line and line.split(' ')[0].endswith('c'):
-        device_nodes['audio_in'].append(line.split(' ')[1].replace('\n',''))
-    if 'nfc' in line:
-        device_nodes['nfc'].append(line.split(' ')[1].replace('\n',''))
-    if 'gnss' in line or 'gps' in line:
-        device_nodes['gnss'].append(line.split(' ')[1].replace('\n',''))
-    if 'rfkill' in line:
-        device_nodes['bluetooth'].append(line.split(' ')[1].replace('\n',''))
+    #
+    if 'camera'== line.split(' ')[2] or 'camera'== line.split(' ')[3].removesuffix('\n'):
+        device_nodes['camera'].append(line.split(' ')[1])
+    if 'pcm' in line and line.split(' ')[0].endswith('c') and \
+        ('audio'== line.split(' ')[3].removesuffix('\n') or 'audio'== line.split(' ')[2]):
+        device_nodes['audio_in'].append(line.split(' ')[1])
+    if 'nfc'== line.split(' ')[2] or 'nfc'== line.split(' ')[3].removesuffix('\n'):
+        device_nodes['nfc'].append(line.split(' ')[1])
+    if 'gps'== line.split(' ')[2] or 'gps'== line.split(' ')[3].removesuffix('\n'):
+        device_nodes['gnss'].append(line.split(' ')[1])
+    if 'bluetooth'== line.split(' ')[2] or 'bluetooth'== line.split(' ')[3].removesuffix('\n'):
+        device_nodes['bluetooth'].append(line.split(' ')[1])
 
 # Uses st_dev and i_node to identify the file
 with open(regular_files_path, 'r') as f:
@@ -45,7 +49,6 @@ for line in lines:
         device_nodes['calendar'].append(f"{line.split(' ')[1]} - {line.split(' ')[2]}".replace('\n',''))
 
 # Save the output to the mappings directory
-output_json = os.path.join(MAPPINGS_DIR, 'cat2_dev.json')
 with open(output_json, 'w') as f:
     json.dump(device_nodes, f, indent=4)
 

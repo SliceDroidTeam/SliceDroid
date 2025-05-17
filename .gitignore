@@ -32,3 +32,4 @@ venv/
 # Ignore output files
 /Figures
 /Exports
+outputs
