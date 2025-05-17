@@ -10,7 +10,6 @@ r:kprobes/sco_sock_sendmsg sco_sock_sendmsg error=$retval:u32
 r:kprobes/l2cap_sock_sendmsg l2cap_sock_sendmsg error=$retval:u32
 r:kprobes/hci_sock_sendmsg hci_sock_sendmsg error=$retval:u32
 r:kprobes/sock_sendmsg sock_sendmsg num=$retval:u32
-p:kprobes/aoc_service_write_message aoc_service_write_message service=$arg1 base=$arg2 dir=$arg3 size=$arg5 channel=+0($arg4):x32 sensor=+0($arg4):x32[36]
 p:kprobes/__sys_socket __sys_socket family=$arg1 type=$arg2 protocol=$arg3
 p:kprobes/__sys_connect __sys_connect sockfd=$arg1 addr=$arg2 addrlen=$arg3
 p:kprobes/__sys_sendto __sys_sendto sockfd=$arg1 buf=$arg2 len=$arg3 flags=$arg4 to=$arg5 tolen=$arg6
