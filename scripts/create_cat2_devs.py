@@ -39,7 +39,7 @@ with open(regular_files_path, 'r') as f:
     lines = f.readlines()
     
 for line in lines:
-    if 'callog' in line:
+    if 'calllog' in line:
         device_nodes['callogger'].append(f"{line.split(' ')[1]} - {line.split(' ')[2]}".replace('\n',''))
     if 'contacts' in line:
         device_nodes['contacts'].append(f"{line.split(' ')[1]} - {line.split(' ')[2]}".replace('\n',''))
