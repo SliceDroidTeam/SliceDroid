@@ -406,20 +406,9 @@ These logs capture syscall names, parameters, timestamps, and context (e.g., PID
 Post-processing typically involves parsing tools like Python scripts, custom Bash pipelines, or tools like \texttt{perf}, \texttt{bcc}, and \texttt{Sysdig}. These allow for correlation with app state (foreground/background), event type, and time windows.
 
 \subsubsection*{2.4.3 System Call Pattern Analysis and Behavioral Fingerprinting}
-Beyond raw logging, system call sequences form the basis for behavioral modeling:
-
-\begin{itemize}
-\item \textbf{N-gram Modeling}: Sequences of length n (e.g., \texttt{open()}  \texttt{read()}  \texttt{close()}) are extracted to build behavioral signatures.
-\item \textbf{Clustering and Classification}: Using unsupervised or supervised techniques, apps are grouped by syscall profile similarity.
-\item \textbf{Anomaly Detection}: Sudden spikes in system call rate or unexpected syscall usage in idle state may suggest abnormal or privacy-invasive behavior.
-\end{itemize}
-
-Such analysis enables detection of covert channels, SDK activity, cryptographic operations, or unauthorized resource access. For example, background \texttt{recvmsg()} and \texttt{sendto()} events may indicate hidden data transmission; frequent \texttt{getrandom()} and \texttt{mprotect()} calls often correlate with cryptographic routines.
 
 \textbf{Figure 9:} System Call Tracing Pipeline and Example Behavioral Fingerprints for Messaging Apps.
 
-
-\section{Machine Learning for Behavior Profiling}
 
 \section{Related Research  Gaps in Literature}
 
@@ -435,10 +424,11 @@ Kernel-level tracing was chosen over user-level or API-based approaches due to i
 
 The study follows a minimal intervention, "black-box" methodology with no modifications to apps or OS components, focusing solely on kernel observations. Technical tools used include ftrace, kprobes, ADB, custom shell scripts, and Python scripts for parsing and processing trace data into structured formats (JSON).
 
+An additional design decision was the use of kprobes and ftrace instead of more advanced or emerging technologies such as eBPF. This choice was primarily driven by the principle of simplicity, in line with Occam's razor—opting for the simplest effective solution when more complex alternatives are unnecessary. Since the research objectives could be fully met using established, low-level tracing tools, there was no compelling need to adopt or upgrade to more sophisticated frameworks. This approach facilitated ease of deployment, lower learning curve, and minimized potential system instability or compatibility issues, while still ensuring comprehensive data collection for the study's requirements.
+
 Design principles such as reproducibility, low overhead, and the detection capability for IPC, sensitive resource access, and network activities are prioritized. A sliding window approach (5000 events per window, 1000-event overlap) is applied for detailed temporal analysis.
 
 Data quality is ensured via validation and heuristic cleaning to filter irrelevant daemon activities. Special attention is given to privacy protection, ensuring sensitive resource monitoring without data compromise. Comprehensive downstream analysis, including statistical evaluation, visualization, and a web-based interface, will be thoroughly detailed in subsequent sections.
-
 \section{Experimental Setup}
 
 The experimental setup involves detailed technical preparation and precise procedures to ensure kernel-level tracing capability. The device selected was a OnePlus Nord CE 4 Lite (CPH2621, EU variant) running Android 15 (SDK 35). It supports System-as-Root (isSAR=true), features A/B partitioning (isAB=true), and includes an accessible ramdisk.
@@ -454,6 +444,17 @@ Subsequently, Magisk APK was installed, the boot image was patched, and the patc
 The ADB setup enabled detailed interaction between the computer and the rooted device, allowing the execution of custom shell scripts for tracing (e.g., \texttt{simple\_trace\_sock.sh}) and Python scripts for detailed data parsing and cleaning. Issues regarding portability and trace events were tracked and resolved using a structured GitHub project setup.
 
 This comprehensive and precise experimental configuration provided the basis for reliable kernel-level data collection, ensuring reproducibility, accuracy, and minimal system intrusion.
+
+In order to associate kernel-level trace events with high-level resources (e.g., camera, microphone, contacts database), it was necessary to extract device identifiers from the target Android device. This process involved executing shell commands via ADB to map each device class to its corresponding major:minor identifier. Specifically, a custom loop over the /sys/class/**/dev entries was used to enumerate character and block devices, using the formula \texttt{dev\_t = (major << 20) | minor}. This allowed us to collect and encode device IDs such as video0, nq-nci, btpower, pcmC0D0c, and GNSS/NFC interfaces.
+
+Additionally, to monitor access to sensitive databases (e.g., contacts2.db, mmssms.db), file paths were manually located, and their inode values were extracted using stat commands. Each resource was annotated with metadata including its full path, description, major, minor, and inode values. These identifiers enabled accurate matching with trace events during analysis.
+
+To streamline and automate this otherwise manual and error-prone process, a collaborator (Giannis Karyotakis) contributed custom Bash and Python scripts that programmatically retrieved and serialized this metadata into JSON files. These mappings were then used during the parsing phase to label events associated with sensitive resources.
+
+Identifying these device and file descriptors was essential for enabling high-level semantic interpretation of low-level events, supporting accurate privacy-relevant event detection throughout the tracing pipeline.
+
+This comprehensive and precise experimental configuration provided the basis for reliable kernel-level data collection, ensuring reproducibility, accuracy, and minimal system intrusion.
+
 \section{Data Collection and Preparation}
 Kernel tracing involved the detailed instrumentation of kernel events, specifically system calls associated with file operations, IPC mechanisms, network activities, and device resource access. Data collection scripts configured kernel trace buffers and event triggers, executing real-time logging with precise timestamping and process identifiers (PIDs/TGIDs).
 
@@ -474,7 +475,7 @@ Features extracted for behavioral analysis included:
 \item \textbf{Sensitive Data Access}: Detection of filesystem interactions linked explicitly to sensitive resources (contacts, SMS, calendar, call logs), using inode and device identifiers.
 \end{itemize}
 
-\section{Data Flow and System Architecture}
+\section{System Architecture and Data Flow}
 The developed system employs a modular data flow architecture:
 \begin{enumerate}
 \item \textbf{Kernel-Level Instrumentation}: Custom shell scripts employing \texttt{kprobes} configured via tracefs for kernel event logging.
@@ -483,7 +484,7 @@ The developed system employs a modular data flow architecture:
 \item \textbf{Visualization and Reporting Module}: Results from analysis are visualized through comprehensive timelines and statistical summaries via an interactive web-based dashboard implemented with HTML, JavaScript (D3.js, Bootstrap), and Flask backend.
 \end{enumerate}
 
-\section{Visualization Techniques}
+\section{Data Visualization and User Interface Design}
 To facilitate high-level understanding of kernel-level behaviors, the visualization strategy incorporates:
 \begin{itemize}
 \item \textbf{Interactive Event Timelines}: Provide detailed temporal views of categorized system activities.
@@ -491,18 +492,6 @@ To facilitate high-level understanding of kernel-level behaviors, the visualizat
 \item \textbf{Dynamic Filtering and Interaction}: Allow users to filter visualizations dynamically based on PID, event types, and accessed devices.
 \end{itemize}
 
-\section{Challenges and Limitations}
-The research encountered several technical challenges:
-\begin{itemize}
-\item \textbf{Kernel Tracing Overhead}: Mitigated by tuning buffer sizes and event filters.
-\item \textbf{Root Access and Stability}: Addressed through detailed troubleshooting of Magisk installation and bootloader configuration.
-\item \textbf{Event Noise and Precision}: Overcame by applying rigorous heuristic rules during data cleaning and event classification.
-\end{itemize}
-
-\section{Ethical Considerations}
-All data collection and analysis complied strictly with privacy standards and ethical guidelines. Sensitive data was anonymized, and results were aggregated to prevent identification of individual user behaviors.
-
-The described methodology ensures reproducibility, precision, and reliability in analyzing complex kernel-level behaviors of Android messaging applications, ultimately facilitating robust and transparent insights into privacy-sensitive operations.
 
 
 % --------------------------------------------------
