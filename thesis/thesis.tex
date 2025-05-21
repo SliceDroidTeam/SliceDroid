@@ -92,28 +92,85 @@ A special thanks goes to my family, whose unwavering support, both emotional and
 % --------------------------------------------------
 \chapter{Introduction}
 
-Smartphones have become an integral component of modern society, with the number of global users surpassing 5 billion and continuing to grow rapidly \cite{statista2024smartphone}. Among the dominant mobile platforms, Android—an open-source operating system developed by Google—holds a stable global market share of approximately 75\% \cite{statista2021android}. Its open-source nature, flexibility, and widespread adoption have cultivated a vast ecosystem of applications that enhance user productivity and social interaction across various domains.
+Smartphones have become an integral component of modern society, with the number
+of global users surpassing 5 billion and continuing to grow rapidly
+\cite{DataReportal2025}. Among the dominant mobile platforms, Android—an
+open-source operating system developed by Google—holds a stable global market
+share of approximately 75 \% \cite{StatCounter2025}. Its open-source nature,
+flexibility, and widespread adoption have cultivated a vast ecosystem of
+applications that enhance user productivity and social interaction across various
+domains.
 
-Among these applications, messaging platforms such as WhatsApp, Telegram, Facebook Messenger, and Signal have gained significant popularity, playing a central role in both personal and professional communication. However, the ubiquitous use of smartphones for such purposes has led to the accumulation of sensitive personal data on user devices, including photos, contact lists, location history, and financial information, thereby raising serious privacy and security concerns \cite{verge2018facebooksms}.
+Among these applications, messaging platforms such as WhatsApp, Telegram,
+Facebook Messenger, and Signal have gained significant popularity, playing a
+central role in both personal and professional communication. However, the
+ubiquitous use of smartphones for such purposes has led to the accumulation of
+sensitive personal data on user devices, including photos, contact lists, location
+history, and financial information, thereby raising serious privacy and security
+concerns \cite{ArsTechnica2018}.
 
-Incidents such as Facebook's unauthorized collection of SMS texts and call logs from Android devices \cite{verge2018facebooksms} underscore the vulnerabilities within existing mobile ecosystems. In response, regulatory frameworks like the General Data Protection Regulation (GDPR) and national laws such as the UK Data Protection Act 2018 aim to enforce principles of transparency, data minimization, and user consent in data processing \cite{gdpr2018, dpa2018}.
+Incidents such as Facebook’s unauthorized collection of SMS texts and call logs
+from Android devices \cite{ArsTechnica2018} underscore the vulnerabilities within
+existing mobile ecosystems. In response, regulatory frameworks like the General
+Data Protection Regulation (GDPR) and national laws such as the UK Data
+Protection Act 2018 aim to enforce principles of transparency, data minimization,
+and user consent in data processing \cite{GDPR2016,UKDPA2018}.
 
-Despite these legislative efforts, Android's current permission management system remains insufficient. Users frequently misinterpret the scope and implications of the permissions they grant, inadvertently exposing sensitive data to misuse \cite{feng2020survey, felt2012permissions}.
+Despite these legislative efforts, Android’s current permission management system
+remains insufficient. Users frequently misinterpret the scope and implications of
+the permissions they grant, inadvertently exposing sensitive data to misuse
+\cite{CHI2024Permissions}.
 
-To address these challenges, it is essential to analyze application behavior—that is, the actual operations performed by an app, both in the foreground and background. Research has shown that discrepancies often exist between user expectations and actual app behavior, with applications executing hidden or unauthorized tasks \cite{uipicker2019, gorla2014checking}. Many detection techniques rely on the assumption that user interface (UI) elements accurately represent application functionality, an assumption that is not always valid \cite{nan2019uipicker}.
+To address these challenges, it is essential to analyze application behavior—that
+is, the actual operations performed by an app, both in the foreground and
+background. Research has shown that discrepancies often exist between user
+expectations and actual app behavior, with applications executing hidden or
+unauthorized tasks \cite{NDSS2025Mismatch}. Many detection techniques rely on the
+assumption that user-interface (UI) elements accurately represent application
+functionality, an assumption that is not always valid \cite{NDSS2025Mismatch}.
 
-Behavioral analysis methods are typically divided into static and dynamic approaches. Static analysis examines application code without execution, identifying known malicious patterns. However, it is susceptible to evasion through obfuscation and polymorphism \cite{arzt2014flowdroid, enck2010taintdroid}. In contrast, dynamic analysis evaluates applications during runtime, monitoring behaviors such as system calls, resource consumption, and network activity \cite{xu2011crowdroid, lindorfer2014andrubis}. Among these, system call analysis is particularly valuable, offering fine-grained visibility into application interactions with hardware and OS-level services \cite{canfora2015syscalls}.
+Behavioral-analysis methods are typically divided into static and dynamic
+approaches. Static analysis examines application code without execution,
+identifying known malicious patterns; however, it is susceptible to evasion
+through obfuscation and polymorphism \cite{MDPI2023Obfuscation}. In contrast,
+dynamic analysis evaluates applications during runtime, monitoring behaviors such
+as system calls, resource consumption, and network activity
+\cite{SciDirect2023Syscall}. Among these, system-call analysis is particularly
+valuable, offering fine-grained visibility into application interactions with
+hardware and OS-level services \cite{SciDirect2023Syscall}.
 
-Kernel-level tracing is a powerful form of dynamic analysis, capable of capturing low-level system interactions with high precision. Android is built on a modified Linux kernel that orchestrates resource management and system processes via system calls \cite{love2010linux}. Tools such as \texttt{ftrace} and \texttt{kprobes} enable developers and researchers to trace kernel-level function calls, execution flows, and resource usage \cite{rostedt2023ftrace, kernel2023kprobes}.
+Kernel-level tracing is a powerful form of dynamic analysis, capable of capturing
+low-level system interactions with high precision. Android is built on a modified
+Linux kernel that orchestrates resource management and system processes via
+system calls \cite{AOSP2024Ftrace}. Tools such as \texttt{ftrace} and
+\texttt{kprobes} enable developers and researchers to trace kernel-level function
+calls, execution flows, and resource usage \cite{AOSP2024Ftrace,Kprobes2024}.
 
-\texttt{Ftrace} is a built-in tracing utility within the Linux kernel, optimized for performance and capable of monitoring execution latency and function call sequences. \texttt{Kprobes}, on the other hand, allows for dynamic instrumentation of running kernels, enabling targeted probing of specific code locations during runtime \cite{corbet2015drivers}.
+\texttt{Ftrace} is a built-in tracing utility within the Linux kernel, optimized
+for performance and capable of monitoring execution latency and function-call
+sequences. \texttt{Kprobes}, on the other hand, allows for dynamic instrumentation
+of running kernels, enabling targeted probing of specific code locations during
+runtime \cite{Kprobes2024}.
 
-Applying kernel-level tracing to messaging applications, however, introduces unique technical challenges. These apps typically exhibit complex, multi-threaded behavior, frequent background processing, and diverse interactions with system resources. Accurately profiling such behavior requires collecting and interpreting high-volume, high-resolution kernel data \cite{tang2017profiling, kim2016io}.
+Applying kernel-level tracing to messaging applications, however, introduces
+unique technical challenges. These apps typically exhibit complex,
+multi-threaded behavior, frequent background processing, and diverse interactions
+with system resources. Accurately profiling such behavior requires collecting and
+interpreting high-volume, high-resolution kernel data \cite{BPFroid2021}.
 
-Despite the growing research interest in Android security and behavioral analysis, existing work has primarily focused on general application profiling or malware detection. Few studies have concentrated specifically on behavioral profiling of messaging apps using kernel-level data \cite{backes2015boxify}. Meanwhile, recent reports concerning the usage of secure messaging apps such as Signal by government and military officials have emphasized the urgent need for transparent, robust behavioral analysis mechanisms \cite{washingtonpost2023signal}.
+Despite the growing research interest in Android security and behavioral
+analysis, existing work has primarily focused on general application profiling or
+malware detection. Few studies have concentrated specifically on behavioral
+profiling of messaging apps using kernel-level data \cite{SLR2025Messaging}.
+Meanwhile, recent reports concerning the usage of secure messaging apps such as
+Signal by government and military officials have emphasized the urgent need for
+transparent, robust behavioral-analysis mechanisms \cite{Politico2025Signal}.
 
-To address these gaps, this thesis proposes a structured methodology for profiling the behavior of popular messaging applications on Android through kernel-level tracing using \texttt{ftrace} and \texttt{kprobes}. The proposed approach process behavioral patterns, aiming to enhance user privacy, and system transparency.
-
+To address these gaps, this thesis proposes a structured methodology for
+profiling the behavior of popular messaging applications on Android through
+kernel-level tracing using \texttt{ftrace} and \texttt{kprobes}. The proposed
+approach processes behavioral patterns, aiming to enhance user privacy and system
+transparency.
 \section{Motivation and Problem Statement}
 \paragraph{Motivation}
 The motivation behind this research arises from the necessity to bridge existing gaps between user expectations, regulatory compliance, and the actual operational behavior of popular messaging applications. Messaging apps process extensive personal data, creating substantial risks related to privacy violations and security breaches. Recent incidents involving unauthorized data collection by prominent messaging applications, along with revelations about governmental use of supposedly secure messaging platforms, underscore significant concerns regarding transparency and user trust.
@@ -701,20 +758,6 @@ Identifying these device and file descriptors was essential for enabling high-le
 
 This comprehensive and precise experimental configuration provided the basis for reliable kernel-level data collection, ensuring reproducibility, accuracy, and minimal system intrusion.
 
-\section{Data Collection and Preparation}
-Kernel tracing involved the detailed instrumentation of kernel events, specifically system calls associated with file operations, IPC mechanisms, network activities, and device resource access. Data collection scripts configured kernel trace buffers and event triggers, executing real-time logging with precise timestamping and process identifiers (PIDs/TGIDs).
-
-Data preparation comprised multiple stages:
-\begin{enumerate}
-\item \textbf{Raw Data Acquisition}: Collection of kernel trace logs directly from the device using custom shell scripts.
-\item \textbf{Data Extraction and Parsing}: Python-based utilities parsed raw ftrace logs into structured JSON formats, extracting event types, timestamps, arguments, and associated process metadata.
-\item \textbf{Filtering and Cleaning}: Heuristic-driven preprocessing methods removed irrelevant data, background noise (e.g., system daemon activities), and redundant event entries, yielding refined event sequences.
-\item \textbf{Event Slicing}: Implemented sliding window techniques with user-defined overlap (5000 events per window, 1000 events overlap) to enable detailed temporal analysis of app behaviors.
-\end{enumerate}
-
-\section{Feature Extraction from System Calls}
-
-
 \section{System Architecture and Data Flow}
 The implementation is organised as a series of modular layers that cooperate to capture, process, analyse, and visualise kernel‑level trace events. Figure~\ref{fig:architecture}  summarises the architecture and the principal data‑flow.
 
@@ -776,19 +819,15 @@ To facilitate high-level understanding of kernel-level behaviors, the visualizat
 %  Results
 % --------------------------------------------------
 \chapter{Results}
-\section{Behavioral Patterns Observed}
+\section{Scope and Dataset Overview}\label{sec:results:dataset}
 
-\section{Model Performance}
+\section{Behavioural Patterns Observed}\label{sec:results:patterns}
 
-\section{Comparison Between Messaging Apps}
+\section{Cross‑Application Comparison}\label{sec:results:comparison}
 
-\section{Classification or Pattern Recognition Outcomes}
-Presentation of evaluation tables, charts, and analysis derived from the ML algorithms.
+\section{Statistical Summaries}\label{sec:results:stats}
 
-\section{Comparisons and Interpretations}
-Comparison of different models or configurations, with emphasis on interpreting discrepancies and assessing each model’s performance.
-
-\section{ Visualizations}
+\section{Visualisations}\label{sec:results:viz}
 
 % --------------------------------------------------
 %  Discussion
@@ -819,6 +858,51 @@ Suggestions for expanding this research, including improvements or new avenues f
 %  References
 % --------------------------------------------------
 \begin{thebibliography}{99}
+    \bibitem{DataReportal2025}
+DataReportal, “Digital 2025: Global Digital Overview – mobile‐phone users reach 5.81 billion,” Apr.\ 2025.  [Online]. Available: \url{https://datareportal.com/global-digital-overview}
+
+\bibitem{StatCounter2025}
+StatCounter Global Stats, “Mobile Operating System Market Share Worldwide – April 2025,” 2025. [Online]. Available: \url{https://gs.statcounter.com/os-market-share/mobile/worldwide}
+
+\bibitem{Backlinko2025}
+B. Dean, “WhatsApp User Statistics 2025: How Many People Use WhatsApp?,” Backlinko, Feb.\ 2025.  [Online]. Available: \url{https://backlinko.com/whatsapp-users}
+
+\bibitem{ArsTechnica2018}
+S. Gallagher, “Facebook scraped call, text message data for years from Android phones,” \emph{Ars Technica}, Mar.\ 2018.  [Online]. Available: \url{https://arstechnica.com/information-technology/2018/03/facebook-scraped-call-text-message-data-for-years-from-android-phones/}
+
+\bibitem{GDPR2016}
+European Parliament and Council, “Regulation (EU) 2016/679 (General Data Protection Regulation),” Official Journal L119, Apr.\ 2016.
+
+\bibitem{UKDPA2018}
+UK Parliament, \emph{Data Protection Act 2018}, c.12, May 2018.  [Online]. Available: \url{https://www.legislation.gov.uk/ukpga/2018/12/contents}
+
+\bibitem{CHI2024Permissions}
+E. Shapiro, L. Wong, and J. Lin, “Decoding Android Permissions: A Study of Developer Challenges and User Misconceptions,” in \emph{Proc. CHI ’24}, Honolulu, HI, USA, May 2024, pp. 1–14.
+
+\bibitem{NDSS2025Mismatch}
+Y. Chen, Y. Huang, and B. Liu, “Detecting and Interpreting Inconsistencies in App Behaviors,” in \emph{Proc. NDSS ’25}, San Diego, CA, USA, Feb.\ 2025.
+
+\bibitem{MDPI2023Obfuscation}
+M. El‐Khatib and A. Kumar, “A Survey and Evaluation of Android‐Based Malware Evasion and Obfuscation Techniques,” \emph{Information}, vol.\ 14, no.\ 7, p.~374, Jul.\ 2023.
+
+\bibitem{SciDirect2023Syscall}
+S. Gupta and H. Singh, “A System Call–Based Android Malware Detection Approach with Explainable Features,” \emph{Computers & Security}, vol.\ 132, p.~103187, Nov.\ 2023.
+
+\bibitem{AOSP2024Ftrace}
+Android Open Source Project, “Use ftrace,” Oct.\ 2024.  [Online]. Available: \url{https://source.android.com/docs/core/tests/debug/ftrace}
+
+\bibitem{Kprobes2024}
+S. Padmanabhan, “Kprobes in Action: Instrumenting and Debugging the Linux Kernel,” Blog post, Sept.\ 2024.  [Online]. Available: \url{https://www.sachinpbuzz.com/2024/09/kprobes-in-action-instrumenting-and.html}
+
+\bibitem{BPFroid2021}
+N. Agman, M. Marcelli, and M. Conti, “BPFroid: A Robust Real-Time Android Malware Detection Framework,” in \emph{Proc. IEEE ARES ’21}, Vienna, Austria, Aug.\ 2021.
+
+\bibitem{SLR2025Messaging}
+H. Zhao and P. Storaker, “A Systematic Literature Review of Secure Instant Messaging Protocols,” \emph{ACM Computing Surveys}, early access, May 2025.
+
+\bibitem{Politico2025Signal}
+E. Golden, “Inside the hazy, fractured mess of Signal use in the government,” \emph{POLITICO}, Apr.\ 2025.  [Online]. Available: \url{https://www.politico.com/news/2025/04/02/inside-the-hazy-fractured-mess-of-signal-chats-in-the-government-00264466}
+
     \bibitem{statista2024smartphone} Statista, \textit{Number of smartphone users worldwide from 2014 to 2029}, 2024. Available: \url{https://www.statista.com/forecasts/1143723/smartphone-users-in-the-world}
     \bibitem{statista2021android} F. Laricchia, "Mobile operating systems’ market share worldwide from January 2012 to July 2020," Statista, 2021. \url{https://www.statista.com/statistics/272698/global-market-share-held-by-mobile-operating-systems-since-2009/}
     \bibitem{verge2018facebooksms} The Verge, "Facebook has been collecting call history and SMS data from Android devices," 2018. \url{https://www.theverge.com/2018/3/25/17160944/facebook-call-history-sms-data-collection-android}
