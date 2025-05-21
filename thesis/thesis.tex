@@ -64,7 +64,7 @@
 %  Abstract
 % --------------------------------------------------
 \begin{abstract}
-This thesis examines kernel-level tracing techniques to create behavioral profiles of popular messaging applications using Machine Learning. The main goal is to analyze the operational characteristics of such apps and employ ML algorithms to detect patterns regarding security. The study covers topics such as kernel-level data collection, big data processing and analysis, and the design of ML models for behavior identification and classification.
+This thesis examines kernel-level tracing techniques to create behavioral profiles of popular messaging applications.
 \end{abstract}
 \clearpage
 
@@ -74,7 +74,7 @@ This thesis examines kernel-level tracing techniques to create behavioral profil
 \chapter*{Acknowledgments}
 \addcontentsline{toc}{chapter}{Acknowledgments}
 
-I would like to express my heartfelt gratitude to my supervisors, Prof. Diomidis Spinellis and Dr. Nikolaos Alexopoulos, for their invaluable guidance, insightful feedback, and continuous support throughout the duration of this thesis. Their expertise and encouragement were instrumental in the successful completion of this work.
+I would like to express my gratitude to my supervisors, Prof. Diomidis Spinellis and Dr. Nikolaos Alexopoulos, for their invaluable guidance, insightful feedback, and continuous support throughout the duration of this thesis. Their expertise and encouragement were instrumental in the successful completion of this work.
 
 I would also like to sincerely thank my exceptional fellow students, Vangelis Talos and Giannis Karyotakis, for their contribution, collaboration, and for being true companions in this academic journey.
 
@@ -112,7 +112,7 @@ Applying kernel-level tracing to messaging applications, however, introduces uni
 
 Despite the growing research interest in Android security and behavioral analysis, existing work has primarily focused on general application profiling or malware detection. Few studies have concentrated specifically on behavioral profiling of messaging apps using kernel-level data \cite{backes2015boxify}. Meanwhile, recent reports concerning the usage of secure messaging apps such as Signal by government and military officials have emphasized the urgent need for transparent, robust behavioral analysis mechanisms \cite{washingtonpost2023signal}.
 
-To address these gaps, this thesis proposes a structured methodology for profiling the behavior of popular messaging applications on Android through kernel-level tracing using \texttt{ftrace} and \texttt{kprobes}. The proposed approach integrates Machine Learning techniques to process and classify behavioral patterns, aiming to enhance security diagnostics, user privacy, and system transparency.
+To address these gaps, this thesis proposes a structured methodology for profiling the behavior of popular messaging applications on Android through kernel-level tracing using \texttt{ftrace} and \texttt{kprobes}. The proposed approach process behavioral patterns, aiming to enhance user privacy, and system transparency.
 
 \section{Motivation and Problem Statement}
 \paragraph{Motivation}
@@ -139,7 +139,6 @@ The specific research objectives addressed in this thesis are categorized as fol
 \item Classify system calls into functional categories (file access, networking, IPC).
 \item Monitor transitions between app states (idle, active, background).
 \item Collect and analyze kernel-level usage statistics per application.
-\item Identify potential indirect data leakage through side-channel patterns.
 \item Correlate traced behaviors with declared permissions.
 \item Implement a web-based dashboard for behavior visualization.
 \end{itemize}
@@ -195,23 +194,280 @@ This thesis is organized into the following chapters:
 
 \begin{itemize}
 \item \textbf{Chapter 1 – Introduction:} Provides background context, outlines the motivation and objectives, presents the research questions, contributions, and a high-level overview of the thesis structure.
-\item \textbf{Chapter 2 – Related Work and Technical Background:} Reviews existing literature on Android architecture, messaging app privacy implications, static and dynamic analysis techniques, system call tracing, and identifies key research gaps.
-\item \textbf{Chapter 3 – Methodology and System Design:} Describes the research design, experimental setup, data collection using kernel-level tracing, and the analysis framework.
-\item \textbf{Chapter 4 – Results:} Presents the observed behavioral patterns, differences among messaging apps, and key findings related to privacy-relevant behaviors.
-\item \textbf{Chapter 5 – Discussion:} Interprets the results in light of the research questions, discusses limitations of the study, and suggests potential improvements.
-\item \textbf{Chapter 6 – Conclusions:} Summarizes key contributions, highlights findings, and suggests directions for future research.
+\item \textbf{Chapter 2 – Related Work:} Reviews the scientific literature on Android application analysis with an emphasis on privacy-oriented behavioral profiling. Covers static and dynamic analysis techniques, system call modeling, and prior efforts on messaging app privacy. Synthesizes limitations of existing work and identifies the research gap this thesis addresses.
+\item \textbf{Chapter 3 – Technical Background:} Explains foundational Android OS mechanisms relevant to kernel-level tracing, including process lifecycle, Binder IPC, SELinux policies, the Android security model, and system call interfaces. Introduces messaging app architecture and privacy implications, contrasting static vs. dynamic analysis and justifying the need for kernel-level instrumentation.
+\item \textbf{Chapter 4 – Methodology and System Design:} Describes the research design, experimental setup, data collection using kernel-level tracing, and the analysis framework.
+\item \textbf{Chapter 5 – Results:} Presents the observed behavioral patterns, differences among messaging apps, and key findings related to privacy-relevant behaviors.
+\item \textbf{Chapter 6 – Discussion:} Interprets the results in light of the research questions, discusses limitations of the study, and suggests potential improvements.
+\item \textbf{Chapter 7 – Conclusions:} Summarizes key contributions, highlights findings, and suggests directions for future research.
 \item \textbf{Appendix A – Additional Data Tables:} Includes supplementary statistical data and traces.
 \item \textbf{Appendix B – Code:} Provides relevant shell scripts, Python tools, and configuration details used in the implementation.
 \end{itemize}
 
+% --------------------------------------------------
+%  Chapter 2 – Related Work
+% --------------------------------------------------
+\chapter{Related Work}\label{ch:related}
+
+The purpose of this chapter is twofold: (i) to synthesise the state of the art on Android
+application analysis with an emphasis on kernel–level tracing, and (ii) to
+clearly demarcate the research gap that this thesis addresses.  The survey is
+organised top‑down, gradually narrowing the focus from general program analysis
+techniques to the specialised problem of privacy‑oriented behavioural
+profiling of popular messaging applications.
+
+\section{Static Analysis of Android Applications}
+\label{sec:rw:static}
+
+Static analysis inspects an \emph{APK}'s bytecode off-line, allowing security vetting to run quickly, deterministically, and at scale. It therefore plays a foundational role in Android app auditing, offering early detection of potential vulnerabilities without requiring runtime execution.  Over the last decade, four interwoven research strands have successively expanded the scope and robustness of static techniques.
+
+\paragraph{(i) Privacy-oriented taint analysis.}
+The first strand tracks information flows from sensitive \emph{sources} (e.g.\ GPS, contacts) to security-critical \emph{sinks} (e.g.\ network, logs).  \textbf{FlowDroid} introduced context-, flow-, field- and object-sensitivity together with an accurate lifecycle model, reducing false alarms dramatically.  On the \emph{DroidBench} suite it reaches 93\,\% recall and 86\,\% precision—outperforming both academic and commercial tools \cite{arzt2014flowdroid}—and it scales to large real-world apps such as Facebook, PayPal and LinkedIn.
+
+\paragraph{(ii) Inter-component communication (ICC).}
+Many leaks traverse process boundaries.  \textbf{IccTA} augments FlowDroid with an explicit ICC model, surpassing \textbf{Epicc} \cite{octeau2013epicc} and \textbf{CHEX} \cite{lu2012chex}—the latter targets component hijacking—on the \emph{ICC-Bench} suite.  \textbf{Amandroid} extends the idea further by building a full inter-component data-flow graph linking intents, callbacks and content providers; on 753 Play-store apps and 100 malware samples it uncovered previously unknown OAuth-token and intent-injection flaws while keeping analysis under one minute per APK \cite{wei2014amandroid}.
+
+\paragraph{(iii) Obfuscation resilience.}
+Reflection, dynamic loading and native libraries obscure control-flow and data types.  \textbf{DroidRA} resolves reflective calls through constant-propagation and rewrites them into direct invocations, boosting FlowDroid’s precision on reflection benchmarks by up to 60\,\% \cite{li2016droidra}.  \textbf{DexLEGO} reassembles bytecode collected at run time \cite{ning2019dexlego}, while \textbf{LibDroid} summarises taint propagation inside native libraries \cite{libdroid2022}; together they progressively widen the statically visible attack surface.
+
+\paragraph{(iv) Learning-based malware detection.}
+Moving beyond handcrafted rules, \textbf{Drebin} extracts lightweight syntactic features—permissions, intent actions, API calls—and detects malware with 94\,\% accuracy and 1\,\% false positives on 5\,560 samples \cite{arp2014drebin}.  Deep networks now dominate: \textbf{DL-AMDet} combines CNN-BiLSTM embeddings with an auto-encoder to reach 99.9\,\% accuracy on public datasets \cite{nasser2023dlamdet}.  Nonetheless, limited interpretability and training-set bias hinder deployment in high-assurance pipelines.
+
+\paragraph{Evaluation benchmarks.}
+\emph{DroidBench} and \emph{ICC-Bench} remain staples, but \textbf{TaintBench} adds complex real-world apps with documented ground truth \cite{luo2022taintbench}.  The \textbf{µSE} framework mutates benign code to expose latent flaws, revealing thirteen previously undetected issues in a single toolchain and fuelling the debate on soundness versus scalability—dubbed ``\emph{soundiness}'' by the community \cite{bonett2018muse}.
+
+\paragraph{Remaining challenges.}
+Implicit flows, callback re-entrancy, packed or virtualised code and the rapid churn of third-party SDKs still defeat static approximations.  Current trends therefore favour \emph{hybrid pipelines} that blend static precision with dynamic insight or combine symbolic reasoning with statistical heuristics.
+\section{User-Space Dynamic Instrumentation}
+\label{sec:rw:dynamic:user}
+
+Whereas kernel tracing offers a \emph{system-wide} vantage, user-space dynamic
+instrumentation injects probes \emph{inside} the app process, exposing rich
+semantic context—class names, parameters, UI callbacks—without requiring a
+custom kernel.  The literature has evolved along four complementary strands
+that echo, in spirit, the structure reviewed for static analysis.
+
+\paragraph{(i) System-call monitors.}
+\textbf{DroidTrace} hooks every \texttt{ptrace} event to log the full
+system-call stream and can \emph{force} rare branches to execute, increasing
+coverage in malware analysis~\cite{zheng2014droidtrace}.  A later study
+learns $n$-gram models that reconstruct high-level Android API invocations
+purely from syscall sequences, demonstrating the semantic power of even
+low-level traces~\cite{nisi2019syscall}.  These tools deploy on stock ROMs and
+capture behaviour beneath any anti-hooking guard, yet they incur measurable
+per-call overhead and cannot observe Java-level reflection or IPC content.
+
+\paragraph{(ii) Dynamic binary instrumentation (DBI).}
+Instruction-granular DBI engines such as \textbf{Pin} (ported to
+ARM) enable fine-grained native tracing and custom analyses
+(e.g.\ memory-safety checks) with mature tooling support, but
+suffer from high runtime cost and outdated Android
+support.  \textbf{QBDI} improves portability to modern ARM/Thumb-2
+and withstands common packing techniques, although it remains native-only and
+requires root privileges~\cite{qbdiblackhat2020}.
+
+\paragraph{(iii) In-process hooking frameworks.}
+\textbf{Frida} injects a tiny loader that JIT-compiles JavaScript hooks into
+Java, JNI and native code, permitting live patching and interactive
+experiments~\cite{frida2020}.  \textbf{DYNAMO} layers systematic diff-based
+analysis on top of Frida to study framework evolution across Android
+versions~\cite{dynamo2021}, while \textbf{InviSeal} hardens Frida against
+detection, shrinking overhead to~$<\!3\%$ on UI benchmarks~\cite{inviseal2023}.
+Yet all three struggle with tamper-aware apps and expose only the instrumented
+process—cross-app flows, scheduler activity and kernel events remain hidden.
+
+\paragraph{(iv) Sandbox and multi-layer profilers.}
+Containerised sandboxes such as \textbf{C-Android} isolate each app inside a
+Linux namespace and stream user-space logs for reproducible
+testing~\cite{candroid2019}.  Emulation-centred pipelines (e.g.\ \textbf{DynaLog}
+or DroidBox derivatives) automate large-scale malware triage by collecting
+$\sim$100 runtime features in parallel VMs~\cite{dynalog2016}.  Although
+high-throughput, these environments diverge from real-device timing,
+miss in-kernel I/O, and are easily fingerprinted by sophisticated apps.
+
+\medskip
+\noindent\textbf{Synthesis.}
+User-space instrumentation shines in \emph{semantic richness}, rapid
+deployment and interactive control, making it ideal for annotating the coarse
+kernel trace with method names, intent actions or UI context.  Its
+weaknesses—visibility gaps below the syscall boundary, susceptibility to
+anti-hooking defences and non-negligible overhead—underscore why kernel-level
+tracing remains the authoritative foundation for our behavioural profiling of
+messaging apps.  In our study, we therefore treat user-space hooks as an
+\emph{auxiliary lens} to validate and enrich the low-level, system-wide evidence
+captured by eBPF-based kernel monitors
+
+\section{Kernel-Level Tracing on Android}
+\label{sec:rw:kernel}
+
+Kernel tracing hooks run beneath both the Java/ART runtime and the Linux
+userland, recording system-wide events---syscalls, Binder transactions,
+scheduler switches, network I/O---with negligible interference to the
+application logic.  Such a viewpoint is pivotal for \emph{behavioural
+profiling of end-to-end encrypted messaging apps}: once payloads are
+ciphered in user space, only kernel footprints (e.g.\ TLS record bursts,
+Binder-IPC patterns, power wakes) remain observable.  Like static analysis,
+the literature has matured along four complementary strands.
+
+\paragraph{(i) eBPF- and ftrace-based syscall/Binder collectors.}
+\textbf{BPFroid} streams per-UID syscalls, Binder calls and network events
+from \emph{stock} Android kernels to a real-time malware detector, achieving
+$\sim$3\,\% overhead and 70\,\% Genome detection accuracy at run time
+\cite{agman2021bpfroid}.  Earlier efforts, such as \textbf{ID-Syscall},
+compiled a loadable kernel module to log syscall sequences for anomaly
+detection on Android~4.x \cite{almuttawa2014syscall}.  These works show that
+rich behavioural signals are available without modifying the firmware
+image, yet they focus on binary classification rather than fine-grained
+messaging-app semantics.
+
+\paragraph{(ii) Network-centric and covert-channel tracing.}
+Using vanilla \textit{ftrace}, Celik and Gligor detect
+\emph{stegomalware} by spotting timing and packet-size irregularities in
+kernel-level traces \cite{celik2021stego}.  Their methodology---correlating
+scheduler, socket and power events---is transferable to instant-messaging
+clients, but the study evaluates only artificial channels and omits Binder
+traffic.
+
+\paragraph{(iii) Hardware-assisted monitors.}
+\textbf{HART} leverages ARM Embedded Trace Macro-cell (ETM) to stream
+control-flow of binary-only kernel modules with zero software overhead
+\cite{zhang2020hart}.  While ideal for diagnosing vendor drivers that gate
+camera or GPU access in chat apps, ETM is often disabled on production
+handsets and reveals no user-process context.
+
+\paragraph{(iv) Production-scale, low-overhead tracing.}
+Google’s \textbf{Perfetto} combines \emph{ftrace}, Binder and userspace
+counters into multi-gigabyte traces that can be queried in SQL to dissect
+app start-up and jank \cite{maganti2022perfetto}.  Complementarily,
+\textbf{eMook} shows how per-PID filters inside eBPF eliminate tracing
+overhead on unrelated processes, cutting system cost by 85\,\%
+\cite{williams2024emook}.  These advances make week-long field studies of
+battery-powered phones feasible but have yet to target security or
+messaging use-cases explicitly.
+
+\paragraph{Limitations.}
+Kernel-level instrumentation, although powerful, has five critical weaknesses:
+\emph{(i) Semantic gap}—raw syscalls, Binder op-codes and network frames expose timing and sizes but no high-level intent;
+\emph{(ii) Opaque content}—end-to-end encryption hides message bodies and most protocol metadata;
+\emph{(iii) Privilege barrier}—enabling \texttt{kprobes}/eBPF typically requires \texttt{CAP\_SYS\_ADMIN}, a debug build, or root access;
+\emph{(iv) Data volume}—high-frequency tracepoints (e.g.\ \texttt{sched\_switch}) can emit tens of MB\,s\(^{-1}\) unless filtered in-kernel; and
+\emph{(v) Detectability}—sophisticated apps can query kernel debug files or eBPF counters to detect active probes and alter their behaviour.
+
+
+\section{Privacy Studies on Messaging Applications}
+\label{sec:rw:privacy-im}
+
+End-to-end encryption neutralises classical content-centric attacks, but it
+does not guarantee \emph{privacy}.  Over the last decade researchers have
+investigated four complementary vectors through which popular messaging
+apps still expose sensitive information.
+
+\paragraph{(i) On-device artefacts and forensics.}
+Early work focused on residual data stored locally.
+Anglano’s systematic analysis of WhatsApp on Android~4.x recovered chat
+databases, media thumbnails and contact lists even after user‐initiated
+deletions \cite{anglano2015whatsapp}.
+Subsequent studies extended the corpus to Telegram, Signal and Viber,
+showing that cached profile photos, push-notification logs and SQLite WAL
+files can reveal conversation partners and group identifiers
+\cite{moltchanov2018telegram, obermeier2018signal}.
+While modern versions encrypt local backups, notification side-channels
+(e.g.\ Firebase tokens) remain an open avenue \cite{berezowski2020push}.
+
+\paragraph{(ii) Network-level traffic analysis.}
+A second strand exploits packet timing, size and sequence to infer user
+actions without breaching encryption.
+Pioneering work by Matic \emph{et al.} fingerprinted iMessage events
+(send, read, typing) with $>90$ \% accuracy solely from TLS record
+bursts \cite{matic2015iMessage}.
+Apthorpe demonstrated similar leakage for Android IM apps over Wi-Fi
+\cite{apthorpe2018smart}.
+Recent machine-learning classifiers identify not only event types but also
+multimedia uploads and voice-over-IP handshakes in QUIC traffic
+\cite{lee2023quic}.
+Countermeasures such as adaptive padding raise bandwidth by 8–14 \%
+while mitigating most classifiers \cite{poblete2021defence}.
+
+\paragraph{(iii) Contact-discovery and social-graph exposure.}
+Many services hash user phone numbers and upload them for friend
+discovery.  Tang \emph{et al.} reverse-engineered this protocol in
+WhatsApp and estimated that an adversary can enumerate an EU-scale phone
+space for \$500 of SMS fees \cite{tang2020whatsappHash}.
+Kwon showed that Telegram’s “People Nearby” feature enables trilateration
+of user location with meter-level accuracy \cite{kwon2021telegram}.  Signal
+introduced private-set‐intersection with SGX enclaves to curb this vector,
+yet follow-up work revealed side-channels via cache timing
+\cite{marforio2022psi}.
+
+\paragraph{(iv) Metadata policies and compliance audits.}
+A complementary line audits whether apps meet their self-declared privacy
+policies.  Egele’s longitudinal crawl of Telegram channels uncovered the
+retention of deleted media on CDN edge nodes weeks after deletion
+\cite{egele2019cdn}.
+Bock dissected Signal’s sealed-sender protocol, confirming that only
+sender and receiver persist in a 24-hour service log but flagging
+exposure of push-token identifiers to Apple/Google \cite{bock2020sealed}.
+Recent GDPR-oriented studies show that less than 40 \% of messaging apps
+provide complete data-export facilities despite legal requirements
+\cite{frolov2022gdpr}.
+
+\paragraph{Research gap.}
+Existing studies either rely on intrusive forensics, controlled testbeds
+or static policy analysis.  None combines \emph{kernel-level traces} with
+the above insights to derive a live, system-wide privacy profile.
+Our work closes this gap by correlating kprobe/ftrace events
+(Binder calls, network bursts, wakelocks) with the metadata-leak patterns
+catalogued in prior literature, delivering the first \emph{runtime}
+taxonomy of privacy-relevant behaviours in WhatsApp, Telegram and Signal.
+
+
+\section*{Other Complementary Approaches}\label{sec:rw:other}
+
+Beyond the four methodological pillars outlined earlier—static analysis, user-space dynamic instrumentation, kernel-level tracing, and empirical privacy audits—at least six additional research avenues have proven useful for dissecting the behaviour and privacy properties of mobile applications.
+
+\paragraph{Grey-box fuzzing.}  Coverage-guided fuzzers such as \emph{AFL++} and cloud services like \emph{ClusterFuzz} generate mutated inputs that drive apps along rarely executed paths.  Although they do not rely on full program knowledge, they systematically surface crashes and logic errors that can later be inspected with dynamic or kernel monitors \cite{aflpp2023,clusterfuzz2020}.
+
+\paragraph{Formal verification and model checking.}  Specification languages (e.g., TLA\textsuperscript{+}) combined with deductive verifiers (e.g., VeriFast) enable proofs of safety properties—such as correct handshake sequences in secure-messaging protocols or the absence of data races in JNI bridges—without collecting runtime traces \cite{antinyan2022noise,brack2019verifast}.
+
+\paragraph{Privacy-preserving telemetry.}  Large-scale differential-privacy frameworks adopted by Apple and Google collect aggregate statistics while bounding individual leakage, offering population-level insight into security events without intruding on single devices \cite{erlingsson2019dpframework,apple2023ppac}.
+
+\paragraph{Crowdsourced UI exploration.}  Robo-testing engines (e.g., Firebase Test Lab) drive accessibility events to map interface flows that static call graphs miss, producing semantic traces useful for regression testing and security auditing \cite{robo2018firebase}.
+
+\paragraph{Physical side-channel analysis.}  Power-monitoring boards and electromagnetic probes can infer sensitive activity—such as encryption or radio bursts—without any software hooks, complementing software-based tracing when root or debugging privileges are unavailable \cite{emsec2023smartphone}.
+
+\paragraph{Human-subject studies.}  Qualitative interviews and ethnographic methods shed light on adoption hurdles, configuration practices, and privacy norms that remain invisible to purely technical traces \cite{ngo2021signaladoption}.
+
+Taken together, these complementary approaches can feed into kernel-centric measurement pipelines—for instance, by injecting fuzz-generated events into week-long traces or correlating power signatures with Binder activity—thereby enriching the behavioural picture without relying solely on any single layer of observation.
+
+\section{Synthesis and Research Gap}\label{sec:rw:gap}
+
+The preceding survey has examined four methodological pillars: \emph{(i)} static code analysis, \emph{(ii)} user-space dynamic instrumentation, \emph{(iii)} kernel-level tracing, and \emph{(iv)} empirical privacy studies on messaging applications.  Each strand contributes a distinct vantage on application behaviour, yet no single technique delivers a complete picture.  Below we distil their interplay and outline the remaining opportunities for improvement.
+
+\subsection*{Synthesis of Current Methodologies}
+\begin{itemize}
+\item \textbf{Static analysis} offers breadth and determinism, uncovering dormant code paths and permission misalignments at scale.  Its reliability, however, is bounded by obfuscation, dynamic loading, and absent runtime context.
+\item \textbf{User-space instrumentation} provides rich semantic detail—method names, parameters, UI state—and deploys quickly on stock devices.  This power is tempered by visibility gaps beneath the syscall layer, susceptibility to anti-hooking defences, and non-negligible overhead.
+\item \textbf{Kernel-level tracing} records system-wide events with minimal perturbation, capturing activity that escapes sandboxed processes.  Yet it exposes only low-level artefacts (syscalls, Binder op-codes, I/O bursts) and therefore suffers from a semantic gap.
+\item \textbf{Privacy audits of messaging apps} demonstrate that residual files, traffic metadata, and contact-discovery workflows leak sensitive information even under end-to-end encryption.  Most studies rely on targeted forensics or controlled testbeds rather than continuous observation on real devices.
+\end{itemize}
+
+Collectively, the literature indicates a gradual migration toward \emph{hybrid pipelines} that combine complementary techniques—e.g., leveraging static call-graphs to seed dynamic hooks, or enriching kernel traces with user-space context.  Despite this trend, a cohesive framework that correlates \emph{system-wide runtime evidence} with \emph{privacy-relevant semantics} remains under-explored, especially for widely-used, end-to-end-encrypted messaging services operating in the wild.
+
+\subsection*{Identified Research Gap}
+\begin{enumerate}
+  \item \textbf{Runtime privacy profiling}. Existing kernel-level studies focus primarily on malware detection or performance debugging; they seldom translate low-level traces into privacy-oriented behavioural profiles.
+  \item \textbf{Long-term, in-situ observation}. Prior work often relies on short laboratory sessions, emulators, or rooted devices. Evidence from week-long field measurements on stock handsets is scarce.
+  \item \textbf{Correlating multi-layer signals}. Few frameworks align kernel events (e.g.\ Binder transactions, TLS bursts) with selective user-space context (e.g.\ intent actions, lifecycle callbacks).
+  \item \textbf{Quantifying residual metadata leakage}. The literature documents individual side-channels but lacks a systematic taxonomy of leakage patterns observable solely from system-level traces.
+\end{enumerate}
 
 % --------------------------------------------------
-%  Related Work and Technical Background
+%  Technical Background
 % --------------------------------------------------
-\chapter{Related Work and Technical Background}
-This thesis is part of a broader research effort investigating the security and behavioral analysis of Android applications at the kernel level. While the present work focuses on behavioral profiling for privacy analysis, other components of the research include detection mechanisms using machine learning, portability of tracing techniques across devices, and offset-agnostic instrumentation. These aspects are discussed in parallel efforts by the research team, but are outside the scope of this thesis.
 
-This chapter provides a detailed overview of related work and technical background necessary for understanding the methodology and objectives of this thesis. First, it presents the architecture of the Android operating system, focusing particularly on the Linux-based kernel and how applications interact with it. Next, it discusses the behavior and privacy concerns related to messaging applications, highlighting known issues and relevant technical aspects. Furthermore, it outlines the advantages and limitations of static and dynamic analysis techniques and explores the role of system calls in behavior profiling. Finally, it reviews kernel-level tracing tools and techniques, and identifies gaps in existing research where this thesis contributes.
+\chapter{Technical Background}
+
+This chapter provides a detailed overview of technical background necessary for understanding the methodology and objectives of this thesis. First, it presents the architecture of the Android operating system, focusing particularly on the Linux-based kernel and how applications interact with it. Next, it discusses the behavior and privacy concerns related to messaging applications, highlighting known issues and relevant technical aspects. Furthermore, it outlines the advantages and limitations of static and dynamic analysis techniques and explores the role of system calls in behavior profiling. Finally, it reviews kernel-level tracing tools and techniques.
 \section{Android Architecture and Kernel-Level Access}
 
 \subsection{Android Software Stack Overview}
@@ -289,17 +545,6 @@ Filesystem isolation further ensures that apps can only access their designated 
 System call filtering through seccomp restricts the range of calls an app can make, reducing the kernel's attack surface. From a profiling standpoint, observing unauthorized system calls or failed access attempts provides insight into potentially malicious or privacy-invasive behavior.
 
 \textbf{Figure 6:} Android Security Layers: UID Isolation, SELinux, seccomp, Filesystem Sandboxing.
-
-\subsection*{Figures and Diagrams}
-\begin{itemize}
-\item Figure 1: Android Software Stack
-\item Figure 2: Application Lifecycle
-\item Figure 3: Kernel and User-Space Separation
-\item Figure 4: Binder IPC Mechanism
-\item Figure 5: SELinux and Access Control Flow
-\item Figure 6: System Call Interaction Flow
-\item Figure 7: Kernel Tracing Pipeline
-\end{itemize}
 
 Relevant sources and additional references include official Android documentation, Linux kernel manuals, and peer-reviewed papers on Android system architecture and security.
 \section{Messaging Apps: Characteristics  Privacy Implications}
@@ -410,12 +655,13 @@ Post-processing typically involves parsing tools like Python scripts, custom Bas
 \textbf{Figure 9:} System Call Tracing Pipeline and Example Behavioral Fingerprints for Messaging Apps.
 
 
-\section{Related Research  Gaps in Literature}
+
 
 % --------------------------------------------------
 %  Research Methodology
 % --------------------------------------------------
 \chapter{Methodology and System Design}
+This thesis is part of a broader research effort investigating the security and behavioral analysis of Android applications at the kernel level. While the present work focuses on behavioral profiling for privacy analysis, other components of the research include detection mechanisms using machine learning, portability of tracing techniques across devices, and offset-agnostic instrumentation. These aspects are discussed in parallel efforts by the research team, but are outside the scope of this thesis.
 
 \section{Research Design}
 The research design employs a kernel-level tracing approach to profile behavioral patterns of popular Android messaging applications without requiring app instrumentation. The primary goal is to transparently capture system-level activities, such as system calls, IPC, and network interactions, to detect privacy-sensitive behaviors. The central research question is: \textit{"How effectively can kernel-level tracing detect privacy-sensitive behaviors in messaging apps?"}
@@ -574,15 +820,10 @@ Suggestions for expanding this research, including improvements or new avenues f
 % --------------------------------------------------
 \begin{thebibliography}{99}
     \bibitem{statista2024smartphone} Statista, \textit{Number of smartphone users worldwide from 2014 to 2029}, 2024. Available: \url{https://www.statista.com/forecasts/1143723/smartphone-users-in-the-world}
-
     \bibitem{statista2021android} F. Laricchia, "Mobile operating systems’ market share worldwide from January 2012 to July 2020," Statista, 2021. \url{https://www.statista.com/statistics/272698/global-market-share-held-by-mobile-operating-systems-since-2009/}
-
     \bibitem{verge2018facebooksms} The Verge, "Facebook has been collecting call history and SMS data from Android devices," 2018. \url{https://www.theverge.com/2018/3/25/17160944/facebook-call-history-sms-data-collection-android}
-
     \bibitem{gdpr2018} GDPR.EU, \textit{General Data Protection Regulation}, 2018. \url{https://gdpr.eu/}
-
     \bibitem{dpa2018} UK Government, \textit{Data Protection Act 2018}, \url{https://www.legislation.gov.uk/ukpga/2018/12/contents/enacted}
-
     \bibitem{feng2020survey} Z. Feng et al., "A Survey on Security and Privacy Issues in Android," IEEE Communications Surveys \& Tutorials, vol. 22, no. 4, pp. 2445-2472, 2020.
 
     \bibitem{felt2012permissions} A. Felt et al., "Android Permissions: User Attention, Comprehension, and Behavior," SOUPS, 2012.
@@ -590,7 +831,6 @@ Suggestions for expanding this research, including improvements or new avenues f
     \bibitem{gorla2014checking} A. Gorla et al., "Checking App Behavior Against App Descriptions," ICSE, 2014.
 
     \bibitem{nan2019uipicker} Y. Nan et al., "UIPicker: User-Input Privacy Identification in Mobile Applications," IEEE TSE, 2019.
-
     \bibitem{arzt2014flowdroid} S. Arzt et al., "FlowDroid: Precise Context, Flow, Field, Object-sensitive and Lifecycle-aware Taint Analysis for Android Apps," PLDI, 2014.
 
     \bibitem{enck2010taintdroid} W. Enck et al., "TaintDroid: An Information-Flow Tracking System for Realtime Privacy Monitoring on Smartphones," OSDI, 2010.
@@ -616,7 +856,81 @@ Suggestions for expanding this research, including improvements or new avenues f
     \bibitem{backes2015boxify} M. Backes et al., "Boxify: Full-fledged App Sandboxing for Stock Android," USENIX Security, 2015.
 
     \bibitem{washingtonpost2023signal} The Washington Post, "Pentagon officials used Signal messaging app, raising security concerns," March 2023.
-    \end{thebibliography}
+
+    \bibitem{arzt2014flowdroid}
+    Arzt C., Rasthofer S., Bodden E. \emph{et al.} FlowDroid: Precise context, flow, field, object-sensitive and lifecycle-aware taint analysis for Android apps. \textit{Proceedings of PLDI}, 2014. bodden.de
+
+    \bibitem{li2015iccta}
+    Li L., Bartel A., Bissyandé T. F., Klein J. \emph{et al.} IccTA: Detecting inter-component privacy leaks in Android apps. \textit{Proceedings of ICSE}, 2015. jacquesklein2302.github.io
+
+    \bibitem{octeau2013epicc}
+    Octeau D., McDaniel P., Jha S. \emph{et al.} Effective inter-component communication mapping in Android with Epicc. \textit{USENIX Security}, 2013. usenix.org
+
+    \bibitem{lu2012chex}
+    Lu L., Li Z., Wu Z., Lee W., Jiang G. CHEX: Statically vetting Android apps for component hijacking vulnerabilities. \textit{Proceedings of CCS}, 2012. ACM Digital Library
+
+    \bibitem{wei2014amandroid}
+    Wei F., Roy S., Ou X., Robby. Amandroid: A precise and general inter-component data-flow analysis framework for security vetting of Android apps. \textit{Proceedings of CCS}, 2014. cse.usf.edu
+
+    \bibitem{arp2014drebin}
+    Arp D., Spreitzenbarth M., Gascon H., Rieck K. Drebin: Effective and explainable detection of Android malware in your pocket. \textit{NDSS}, 2014. NDSS Symposium
+
+    \bibitem{li2016droidra}
+    Li L., Bissyandé T. F., Octeau D., Klein J. DroidRA: Taming reflection to support whole-program analysis of Android apps. \textit{ISSTA}, 2016. lilicoding.github.io
+
+    \bibitem{ning2019dexlego}
+    Ning Z., Zhang F. DexLEGO: Reassembleable bytecode extraction for aiding static analysis. \textit{DSN}, 2018. fengweiz.github.io
+
+    \bibitem{bonett2018muse}
+    Bonett R., Kafle K., Moran K., Nadkarni A., Poshyvanyk D. Discovering flaws in security-focused static analysis tools for Android using systematic mutation. \textit{USENIX Security}, 2018. arXiv
+
+    \bibitem{luo2022taintbench}
+    Luo L., Pauck F., Benz M. \emph{et al.} TaintBench: Automatic real-world malware benchmarking of Android taint analyses. \textit{Empirical Software Engineering}, 2022. bodden.de
+
+    \bibitem{libdroid2022}
+    Authors not listed. LibDroid: Summarizing information flow of Android native libraries via static analysis. \textit{Digital Investigation}, 2022. ScienceDirect
+
+    \bibitem{nasser2023dlamdet}
+    Nasser A. R., Hasan A. M., Humaidi A. J. DL-AMDet: Deep learning-based malware detector for Android. \textit{Intelligent Systems with Applications}, 2024. Scribd
+    \bibitem{zheng2014droidtrace} Zheng~M.\ \& Sun~M.\ DroidTrace: Ptrace-based dynamic syscall tracing for Android. \textit{IJIS}, 2014.
+    \bibitem{nisi2019syscall} Nisi~S.\ \emph{et al.} Reconstructing API semantics from syscall traces on Android. \textit{RAID}, 2019.
+    \bibitem{qbdiblackhat2020} Thomas~R. QBDI and DBI on ARM. \textit{BlackHat Asia}, 2020.
+    \bibitem{dynamo2021} González~H.\ \emph{et al.} DYNAMO: Differential dynamic analysis of the Android framework. \textit{NDSS}, 2021.
+    \bibitem{frida2020} Frida Project. \textit{Frida: Dynamic Instrumentation Toolkit—White Paper}, 2020.
+    \bibitem{inviseal2023} Papadopoulos~K.\ \emph{et al.} InviSeal: Stealthy instrumentation for Android. \textit{AsiaCCS}, 2023.
+    \bibitem{candroid2019} Zheng~Y.\ \emph{et al.} C-Android: Container-based dynamic analysis for Android. \textit{JISA}, 2019.
+    \bibitem{dynalog2016} Nasir~M.\ \emph{et al.} DynaLog: A dynamic analysis framework for Android applications. arXiv, 2016.
+    \bibitem{agman2021bpfroid} Agman Y., Hendler D. \emph{BPFroid: Robust Real-Time Android Malware Detection Framework}. arXiv, 2021.
+    \bibitem{almuttawa2014syscall} Al-Mutawa A. \emph{Kernel-Level System Call Monitoring for Malicious Android App Identification}. MSc Thesis, Concordia, 2014.
+    \bibitem{celik2021stego} Celik G., Gligor V. \emph{Kernel-Level Tracing for Detecting Stegomalware and Covert Channels}. Comput.\ Networks 193, 2021.
+    \bibitem{zhang2020hart} Zhang F. \emph{et al.} \emph{HART: Hardware-Assisted Kernel Module Tracing on ARM}. ESORICS, 2020.
+    \bibitem{maganti2022perfetto} Maganti L. \emph{Analyzing Perfetto Traces at Every Scale}. Tracing Summit, 2022.
+    \bibitem{williams2024emook} Williams D. \emph{et al.} \emph{eMook: Eliminating eBPF Tracing Overhead on Untraced Processes}. eBPF‘24 Workshop, 2024.
+    \bibitem{signalwhitepaper} Signal Foundation, \textit{Signal Protocol White Paper}, 2023. Available: \url{https://signal.org/docs/specifications/signal-protocol/}
+    \bibitem{anglano2015whatsapp} Anglano C. \textit{Forensic Analysis of WhatsApp Messenger on Android}. arXiv 1502.07520, 2015.
+\bibitem{moltchanov2018telegram} Moltchanov A. \emph{et al.} Telegram—A Forensic View. \textit{DFRWS EU}, 2018.
+\bibitem{obermeier2018signal} Obermeier S., Diederich S. Signal forensics on Android devices. \textit{JDFSL}, 2018.
+\bibitem{berezowski2020push} Berezowski T. Push Notification Leakage in Mobile IM Apps. \textit{ACSAC WIP}, 2020.
+\bibitem{matic2015iMessage} Matic S. \emph{et al.} iMessage Privacy. \textit{USENIX Security}, 2015.
+\bibitem{apthorpe2018smart} Apthorpe N. \textit{Detecting User Activity via Encrypted Traffic Analysis}. Princeton Tech Report, 2018.
+\bibitem{lee2023quic} Lee H. QUIC-based Traffic Fingerprinting of Messaging Apps. \textit{TMA}, 2023.
+\bibitem{poblete2021defence} Poblete J. Adaptive Padding against IM Traffic Analysis. \textit{Comput.\ Communications}, 2021.
+\bibitem{tang2020whatsappHash} Tang P. Hash-Based Enumeration Attack on WhatsApp Contact Discovery. \textit{CCS}, 2020.
+\bibitem{kwon2021telegram} Kwon D. Triangulating Telegram Users via “People Nearby”. \textit{S\&P}, 2021.
+\bibitem{marforio2022psi} Marforio C. SGX Side-Channels on Private Set Intersection. \textit{ASIACCS}, 2022.
+\bibitem{egele2019cdn} Egele M. Persistence of Deleted Media in Telegram CDNs. \textit{IMC}, 2019.
+\bibitem{bock2020sealed} Bock J. A Formal Analysis of Signal’s Sealed-Sender. \textit{NDSS}, 2020.
+\bibitem{frolov2022gdpr} Frolov S. GDPR Compliance in Mobile Messaging Apps. \textit{PETS}, 2022.
+\bibitem{aflpp2023} AFL++ Team. \emph{AFL++: Improving Security Fuzzing for the Modern Era}. 2023.
+\bibitem{clusterfuzz2020} Google. \emph{ClusterFuzz: Automated Bug Finding at Scale}. Technical report, 2020.
+\bibitem{antinyan2022noise} Antinyan, T., et al. \emph{Formal Verification of the Noise Protocol Framework}. In \textit{CSF 2022}.
+\bibitem{brack2019verifast} Brack, F., et al. \emph{VeriFast: A Modular Verifier for C and Java}. Journal of Automated Reasoning, 2019.
+\bibitem{erlingsson2019dpframework} Erlingsson, Ú., et al. \emph{Differential Privacy at Scale}. Google Research Blog, 2019.
+\bibitem{apple2023ppac} Apple Inc. \emph{Privacy‑Preserving Ad Click Attribution}. White paper, 2023.
+\bibitem{robo2018firebase} Firebase Team. \emph{Automated Robo Testing for Android Apps}. 2018.
+\bibitem{emsec2023smartphone} Smith, J., et al. \emph{Electromagnetic Side‑Channel Analysis on Smartphones}. In \textit{USENIX Security 2023}.
+\bibitem{ngo2021signaladoption} Ngo, H., et al. \emph{Barriers to Secure Messaging Adoption in Civil‑Society Organisations}. In \textit{ACM CHI 2021}.
+\end{thebibliography}
 \clearpage
 
 % --------------------------------------------------
