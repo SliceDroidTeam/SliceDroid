@@ -14,6 +14,37 @@
 \usepackage{listings}        % Code listings
 \usepackage{xcolor}
 
+% Define JSON language for listings
+\lstdefinelanguage{json}{
+    basicstyle=\ttfamily\small,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=5pt,
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    literate=
+     *{0}{{{\color{blue}0}}}{1}
+      {1}{{{\color{blue}1}}}{1}
+      {2}{{{\color{blue}2}}}{1}
+      {3}{{{\color{blue}3}}}{1}
+      {4}{{{\color{blue}4}}}{1}
+      {5}{{{\color{blue}5}}}{1}
+      {6}{{{\color{blue}6}}}{1}
+      {7}{{{\color{blue}7}}}{1}
+      {8}{{{\color{blue}8}}}{1}
+      {9}{{{\color{blue}9}}}{1}
+      {:}{{{\color{red}:}}}{1}
+      {,}{{{\color{red},}}}{1}
+      {"}{{{\color{orange}"}}}{1},
+    keywordstyle=\color{blue},
+    stringstyle=\color{orange},
+    commentstyle=\color{gray},
+    morecomment=[l][\color{magenta}]{//},
+}
+
 % Page margins
 \geometry{
     left=3cm,
@@ -92,16 +123,24 @@ This thesis examines kernel-level tracing techniques to create behavioral profil
 \chapter*{Acknowledgments}
 \addcontentsline{toc}{chapter}{Acknowledgments}
 
-I would like to express my gratitude to my supervisors, Prof. Diomidis Spinellis and Dr. Nikolaos Alexopoulos, for their invaluable guidance, insightful feedback, and continuous support throughout the duration of this thesis. Their expertise and encouragement were instrumental in the successful completion of this work.
+I would like to express my gratitude to my supervisors, Prof. Diomidis Spinellis
+and Dr. Nikolaos Alexopoulos, for their invaluable guidance, insightful feedback,
+and continuous support throughout the duration of this thesis. Their expertise and
+encouragement were instrumental in the successful completion of this work.
 
-I would also like to sincerely thank my exceptional fellow students, Vangelis Talos and Giannis Karyotakis, for their contribution, collaboration, and for being true companions in this academic journey.
+I would also like to sincerely thank my exceptional fellow students, Vangelis Talos
+and Giannis Karyotakis, for their contribution, collaboration, and for being true companions
+in this academic journey.
 
-A special thanks goes to my family, whose unwavering support, both emotional and practical, made this endeavor not only possible but also deeply meaningful. Their presence and encouragement were a constant source of strength.
+A special thanks goes to my family, whose unwavering support, both emotional and practical,
+made this endeavor not only possible but also deeply meaningful. Their presence and
+encouragement were a constant source of strength.
+
 \clearpage
-
 % --------------------------------------------------
 %  Table of Contents
 % --------------------------------------------------
+
 \tableofcontents
 \clearpage
 
@@ -139,7 +178,15 @@ remains insufficient. Users frequently misinterpret the scope and implications o
 the permissions they grant, inadvertently exposing sensitive data to misuse
 \cite{CHI2024Permissions}.
 
-Furthermore, while end-to-end encryption (E2EE) provides strong guarantees for content confidentiality, it is neither a necessary nor sufficient condition for overall application security. The effectiveness of E2EE depends heavily on implementation correctness, device-level protections, and metadata handling practices \cite{arxiv2020metadata, wired2023signalhack}. Messaging apps may still leak sensitive information through metadata such as message timing, connection patterns, or system-level behavior—even when message content is encrypted. Notably, recent work has demonstrated how compromised implementations or poorly configured server components can undermine the protections offered by E2EE protocols \cite{wired2023signalhack}.
+Furthermore, while end-to-end encryption (E2EE) provides strong guarantees for content
+confidentiality, it is neither a necessary nor sufficient condition for overall application
+security. The effectiveness of E2EE depends heavily on implementation correctness,
+device-level protections, and metadata handling practices \cite{arxiv2020metadata,
+wired2023signalhack}. Messaging apps may still leak sensitive information through
+metadata such as message timing, connection patterns, or system-level behavior—even
+when message content is encrypted. Notably, recent work has demonstrated how compromised
+implementations or poorly configured server components can undermine the protections
+offered by E2EE protocols \cite{wired2023signalhack}.
 
 To address these challenges, it is essential to analyze application behavior—that
 is, the actual operations performed by an app, both in the foreground and
@@ -160,7 +207,8 @@ valuable, offering fine-grained visibility into application interactions with
 hardware and OS-level services \cite{SciDirect2023Syscall}.
 
 Kernel-level tracing is a powerful form of dynamic analysis, capable of capturing
-low-level system interactions with high precision \cite{BPFroid2021}. Android is built on a modified
+low-level system interactions with high precision \cite{BPFroid2021}. Android is
+built on a modified
 Linux kernel that orchestrates resource management and system processes via
 system calls \cite{AOSP2024Ftrace}. Tools such as \texttt{ftrace} and
 \texttt{kprobes} enable developers and researchers to trace kernel-level function
@@ -188,16 +236,36 @@ transparent, robust behavioral-analysis mechanisms \cite{Politico2025Signal}.
 
 To address these gaps, this thesis proposes a structured methodology for
 profiling the behavior of popular messaging applications on Android through
-kernel-level tracing using \texttt{ftrace} and \texttt{kprobes}. The proposed approach contributes a small but concrete step toward enhancing our understanding of messaging app behavior on Android, with the broader aim of supporting future efforts to strengthen user privacy and system transparency.
+kernel-level tracing using \texttt{ftrace} and \texttt{kprobes}. The proposed
+approach contributes a small but concrete step toward enhancing our understanding
+of messaging app behavior on Android, with the broader aim of supporting future
+efforts to strengthen user privacy and system transparency.
 
 \section{Motivation and Problem Statement}
+
 \paragraph{Motivation}
-The motivation behind this research arises from the necessity to bridge existing gaps between user expectations, regulatory compliance, and the actual operational behavior of popular messaging applications. Messaging apps process extensive personal data, creating substantial risks related to privacy violations and security breaches. Recent incidents involving unauthorized data collection by prominent messaging applications, along with revelations about governmental use of supposedly secure messaging platforms, underscore significant concerns regarding transparency and user trust.
+The motivation behind this research arises from the necessity to bridge existing
+gaps between user expectations, regulatory compliance, and the actual operational
+behavior of popular messaging applications. Messaging apps process extensive personal
+data, creating substantial risks related to privacy violations and security breaches.
+Recent incidents involving unauthorized data collection by prominent messaging
+applications, along with revelations about governmental use of supposedly secure
+messaging platforms, underscore significant concerns regarding transparency
+and user trust.
 
 \paragraph{Problem Statement}
-Although prior work has explored various aspects of Android application behavior, systematic analyses of messaging applications using kernel-level tracing remain relatively scarce~\cite{DynamicSecurityAnalysis2023}. As a result, certain aspects of runtime behavior—particularly those relevant to privacy and low-level system interactions—are not yet well understood. This study seeks to modestly contribute to this area by examining kernel-level traces of messaging apps under real-world usage conditions, with the aim of informing future research and supporting more transparent application behavior assessments.
+
+Although prior work has explored various aspects of Android application behavior,
+systematic analyses of messaging applications using kernel-level tracing remain
+relatively scarce~\cite{DynamicSecurityAnalysis2023}. As a result, certain aspects
+of runtime behavior—particularly those relevant to privacy and low-level system
+interactions—are not yet well understood. This study seeks to modestly contribute
+to this area by examining kernel-level traces of messaging apps under real-world
+usage conditions, with the aim of informing future research and supporting more
+transparent application behavior assessments.
 
 \section{Research Objectives}
+
 The specific research objectives addressed in this thesis are categorized as follows:
 
 \subsection*{Primary Objectives}
@@ -205,7 +273,8 @@ The specific research objectives addressed in this thesis are categorized as fol
 \item Identify potential violations of the principle of data minimization.
 \item Analyze mismatches between granted permissions and real-time resource usage.
 \item Detect unauthorized or hidden access to sensitive user data.
-\item Compare the behavioral profiles of privacy-focused apps (e.g., Signal) and more commercial alternatives.
+\item Compare the behavioral profiles of privacy-focused apps (e.g., Signal)
+and more commercial alternatives.
 \end{itemize}
 
 \subsection*{Analytical and Technical Sub-Objectives}
@@ -223,48 +292,65 @@ The specific research objectives addressed in this thesis are categorized as fol
 \item Enhance transparency in how messaging apps behave at system level.
 \item Improve user awareness of hidden behaviors executed in the background.
 \item Demonstrate the value of kernel-level tracing for security and privacy evaluation.
-\item Provide a structured and reproducible methodology for privacy-respecting behavior analysis.
+\item Provide a structured and reproducible methodology for privacy-respecting
+behavior analysis.
 \end{itemize}
 
 \section{Research Questions}
-Based on the motivation and objectives, this thesis aims to address the following research questions:
+Based on the motivation and objectives, this thesis aims to address the following
+research questions:
 
 \vspace{0.5em}
 \noindent\fbox{\parbox{\textwidth}{
-\textbf{Q1.} What kernel-level operations do popular messaging applications perform during normal usage?
+\textbf{Q1.} What kernel-level operations do popular messaging applications perform
+during normal usage?
 }}
 
 \vspace{0.5em}
 \noindent\fbox{\parbox{\textwidth}{
-\textbf{Q2.} Are there deviations between the declared permissions of these applications and their actual behavior at runtime?
+\textbf{Q2.} Are there deviations between the declared permissions of these
+applications and their actual behavior at runtime?
 }}
 
 \vspace{0.5em}
 \noindent\fbox{\parbox{\textwidth}{
-\textbf{Q3.} Can kernel-level tracing techniques identify unexpected or potentially invasive operations performed without user interaction?
+\textbf{Q3.} Can kernel-level tracing techniques identify unexpected or potentially
+invasive operations performed without user interaction?
 }}
 
 \vspace{0.5em}
 \noindent\fbox{\parbox{\textwidth}{
-\textbf{Q4.} How does the behavior of privacy-focused apps compare to that of commercial messaging platforms at the kernel level?
+\textbf{Q4.} How does the behavior of privacy-focused apps compare to that of
+commercial messaging platforms at the kernel level?
 }}
 
 \vspace{0.5em}
 \noindent\fbox{\parbox{\textwidth}{
-\textbf{Q5.} What kind of patterns in system calls can be used to characterize privacy-relevant behavior?
+\textbf{Q5.} What kind of patterns in system calls can be used to characterize
+privacy-relevant behavior?
 }}
 
 
 \section{Limitations}
 
-To provide a realistic perspective on the scope of this thesis, we distinguish between constraints that stem from practical project conditions and limitations that are inherent to kernel-level behavioural research.
+To provide a realistic perspective on the scope of this thesis, we distinguish between
+constraints that stem from practical project conditions and limitations that are
+inherent to kernel-level behavioural research.
 
 \subsection*{Project-Specific Constraints}
+
 \begin{itemize}
-    \item \textbf{Timeframe}: The study was conducted within the schedule of an undergraduate thesis, limiting the breadth of experiments (e.g., number of devices, data-collection days, and repetitions).
-    \item \textbf{Hardware Diversity}: Tracing was performed on a small set of consumer devices; the results may not generalise to custom ROMs, tablets, or low-end hardware.
-    \item \textbf{App Selection Bias}: Only three high-profile messaging apps (WhatsApp, Telegram, Signal) were analysed, excluding niche or region-specific platforms.
-    \item \textbf{Resource Budget}: Storage, processing power, and time for post-processing large trace files were constrained by the available personal infrastructure.
+    \item \textbf{Timeframe}: The study was conducted within the schedule of an
+    undergraduate thesis, limiting the breadth of experiments (e.g., number of
+    devices, data-collection days, and repetitions).
+    \item \textbf{Hardware Diversity}: Tracing was performed on a small set of
+    consumer devices; the results may not generalise to custom ROMs, tablets, or
+    low-end hardware.
+    \item \textbf{App Selection Bias}: Only three high-profile messaging apps
+    (WhatsApp, Telegram, Signal) were analysed, excluding niche or region-specific platforms.
+    \item \textbf{Resource Budget}: Storage, processing power, and time for
+    post-processing large trace files were constrained by the available personal
+    infrastructure.
 \end{itemize}
 
 \subsection*{Domain and Methodological Constraints}
@@ -818,11 +904,44 @@ Practically, we represent fingerprints as frequency vectors, n-gram sequences, o
 Ultimately, behavioral fingerprinting based on kernel-level system call patterns enhances our understanding of application behavior, supports precise application identification, and significantly improves privacy and security analysis within the Android ecosystem \cite{felt2011androidprivacy}.
 
 
+
+\subsection{Formal Security and Privacy Models}
+
+The methodology and design decisions presented in this thesis are guided by formal theoretical frameworks for security and privacy. Specifically, we draw upon foundational concepts from Information Flow Control (IFC) and the Bell-LaPadula (BLP) security model, establishing a clear theoretical underpinning for monitoring and analyzing resource access at the kernel level.
+
+\subsubsection{Information Flow Control (IFC)}
+
+Information Flow Control (IFC) is a security paradigm aimed at managing how sensitive information propagates through a computing system. IFC systems enforce explicit policies to restrict data from flowing from sensitive sources (e.g., contacts database, microphone input) to less secure or unauthorized destinations (e.g., network interfaces, file storage). The goal is to prevent unintended or unauthorized information disclosure \cite{myers1999jflow,sabelfeld2003language}.
+
+In the context of this thesis, sensitive databases such as \texttt{contacts2.db} or devices such as microphones and cameras serve as information sources with high confidentiality. Network sockets or files accessible to third-party apps can act as sinks. Our kernel-level tracing infrastructure implicitly implements an IFC-like monitoring mechanism, providing evidence of potential violations when unexpected information flows are observed.
+
+\subsubsection{Bell-LaPadula Security Model (BLP)}
+
+The Bell-LaPadula model is a foundational model in computer security developed to maintain data confidentiality by enforcing mandatory access control (MAC). The core of BLP consists of two primary rules:
+
+\begin{itemize}
+    \item \textbf{No Read Up (NRU)}: A subject cannot read data at a higher security level than its own.
+    \item \textbf{No Write Down (NWD)}: A subject cannot write data to a lower security level, thus preventing leaks of confidential information.
+\end{itemize}
+
+Although BLP was originally developed for military-grade systems, its core principles are applicable to modern mobile platforms. In Android, for instance, apps operate with different privilege levels defined by sandboxing and permission models. A violation of BLP might occur if a low-privilege app manages to read camera or contacts data (a "read up"), or if it writes that data to shared, world-readable files (a "write down").
+
+The tracing framework developed in this thesis enables the identification of such violations by observing which applications interact with which resources, and under what circumstances. While Android does not implement BLP directly, our system draws on its principles to guide the labeling and evaluation of access events.
+
+\bigskip
+
+By integrating insights from IFC and BLP, we are able to frame kernel-level observations within a broader security context, supporting the detection of anomalous and potentially dangerous behaviors through a policy-driven lens.
+
+
+
 % --------------------------------------------------
 %  Research Methodology
 % --------------------------------------------------
 \chapter{Methodology and System Design}
+
 This thesis is part of a broader research effort investigating the security and behavioral analysis of Android applications at the kernel level. While the present work focuses on behavioral profiling for privacy analysis, other components of the research include detection mechanisms using machine learning, portability of tracing techniques across devices, and offset-agnostic instrumentation. These aspects are discussed in parallel efforts by the research team, but are outside the scope of this thesis.
+
+Importantly, this thesis constitutes a natural extension of the SYSDROID framework, an earlier kernel tracing platform developed by Nikos Alexopoulos as part of a research initiative at the Athens University of Economics and Business. SYSDROID laid the foundation for dynamic system-level monitoring of Android applications using tools such as ftrace and kprobes, focusing on syscall-level logging and low-level behavioral capture. The architectural overview that follows is largely based on the design principles and modular structure introduced in that initial work, with substantial refinements, generalizations, and extensions introduced in the context of this thesis.
 
 \section{Research Design}
 The research design employs a kernel-level tracing approach to profile behavioral patterns of popular Android messaging applications without requiring app instrumentation. The primary goal is to transparently capture system-level activities, such as system calls, IPC, and network interactions, to detect privacy-sensitive behaviors.
@@ -866,7 +985,7 @@ This configuration ensured reliable kernel-level data collection, maintaining re
 
 In order to monitor access to sensitive databases (such as \texttt{contacts2.db} or \texttt{mmssms.db}), each target file needed to be uniquely identified using its inode and device ID. The \texttt{stat} command was used to extract this metadata, which provided both the inode number and the major/minor device number of the filesystem hosting the file. An example command is shown in Listing~\ref{lst:db-stat}.
 
-\begin{lstlisting}[caption={Retrieving inode and device ID for a database file},label={lst:db-stat},numbers=left]
+\begin{lstlisting}[language=sh,caption={Retrieving inode and device ID for a database file},label={lst:db-stat},numbers=left]
 adb shell stat /data/data/com.android.providers.contacts/databases/contacts2.db
 \end{lstlisting}
 
@@ -896,8 +1015,25 @@ This encoding was used in the trace parser to associate low-level device accesse
 To automate both processes, a collaborator (Giannis Karyotakis) contributed Bash and Python scripts that programmatically retrieved and serialized this metadata into structured JSON files. These mappings were then used during the trace parsing phase to enrich low-level kernel events with high-level semantic labels.
 
 This structured and collaborative approach enabled high-fidelity kernel tracing while minimizing manual overhead and potential for error.
+An excerpt of the structured metadata format is shown in Listing~\ref{lst:json-metadata}, demonstrating how each sensitive resource is uniquely identified by a combination of its inode, major/minor device numbers, and a descriptive label.
+
+\begin{lstlisting}[caption={Serialized JSON metadata for sensitive resource mapping},label={lst:json-metadata},numbers=left]
+{
+  "contacts": {
+    "st_dev16": 65102,
+    "st_dev32": 266338382,
+    "major": 254,
+    "minor": 78,
+    "inode": 9253,
+    "path": "/data/data/com.android.providers.contacts/databases/contacts2.db",
+    "description": "Contacts database"
+  }
+}
+\end{lstlisting}
+
 \section{System Architecture and Data Flow}
 The implementation is organised as a series of modular layers that cooperate to capture, process, analyse, and visualise kernel‑level trace events. Figure~\ref{fig:architecture}  summarises the architecture and the principal data‑flow.
+
 
 \begin{figure}[ht]
 \centering
@@ -1124,6 +1260,20 @@ E. Golden, “Inside the hazy, fractured mess of Signal use in the government,�
     \bibitem{libdroid2022}
     Authors not listed. LibDroid: Summarizing information flow of Android native libraries via static analysis. \textit{Digital Investigation}, 2022. ScienceDirect
 
+    \bibitem{myers1999jflow}
+Andrew C. Myers.
+\newblock JFlow: Practical mostly-static information flow control.
+\newblock In \emph{Proceedings of the 26th ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages (POPL)}, 1999.
+
+\bibitem{sabelfeld2003language}
+Andrei Sabelfeld and Andrew C. Myers.
+\newblock Language-based information-flow security.
+\newblock \emph{IEEE Journal on Selected Areas in Communications}, 21(1):5–19, 2003.
+
+\bibitem{bell1976secure}
+David E. Bell and Leonard J. LaPadula.
+\newblock Secure computer systems: Unified exposition and multics interpretation.
+\newblock Technical Report MTR-2997, MITRE Corporation, 1976.
     \bibitem{nasser2023dlamdet}
     Nasser A. R., Hasan A. M., Humaidi A. J. DL-AMDet: Deep learning-based malware detector for Android. \textit{Intelligent Systems with Applications}, 2024. Scribd
     \bibitem{zheng2014droidtrace} Zheng~M.\ \& Sun~M.\ DroidTrace: Ptrace-based dynamic syscall tracing for Android. \textit{IJIS}, 2014.
