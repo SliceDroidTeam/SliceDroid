@@ -11,6 +11,8 @@
 \usepackage{graphicx}        % Insert images
 \usepackage{hyperref}        % Hyperlinks in the PDF
 \usepackage{float}           % Improved float handling
+\usepackage{listings}        % Code listings
+\usepackage{xcolor}
 
 % Page margins
 \geometry{
@@ -18,6 +20,22 @@
     right=2.5cm,
     top=2.5cm,
     bottom=2.5cm
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  frame=single,
+  breaklines=true,
+  backgroundcolor=\color{gray!10},
+  captionpos=b,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{red},
+  showstringspaces=false,
+  columns=fullflexible,
+  language=bash
 }
 
 \setstretch{1.3}  % Line spacing
@@ -255,7 +273,6 @@ To provide a realistic perspective on the scope of this thesis, we distinguish b
     \item \textbf{Trace Volume}: High-frequency events can generate gigabyte-scale logs; aggressive filtering risks losing context, whereas full capture challenges storage and analysis pipelines.
     \item \textbf{Root Access Requirements}: The use of \texttt{kprobes} and access to \texttt{debugfs} requires root privileges, limiting applicability on production devices. While suitable for research, real-world deployment would require alternative mechanisms.
     \item \textbf{Noise in Dynamic Tracing}: Background services, OS updates, and vendor processes introduce variability that may mask or mimic app-specific behaviour.
-    \item \textbf{Lack of Ground Truth}: Without labelled datasets indicating benign versus intrusive actions, conclusions are descriptive rather than definitive about intent or policy violations.
 \end{itemize}
 
 \section{Contributions of this Thesis}
@@ -571,8 +588,12 @@ The HAL acts as a bridge between the Android Framework and the hardware drivers 
 
 At the lowest level, the Linux kernel provides essential operating system services such as process scheduling, memory management, networking, and security enforcement. Android extends the kernel with additional features including the Binder IPC driver, ashmem (anonymous shared memory), and wakelocks to manage power usage. This kernel foundation ensures that resource access is isolated and controlled across all system layers.
 
-\textbf{Figure 1:} Updated Diagram of Android Software Stack (source: Android Developers Guide~\cite{androidplatformdoc}).
-
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{android_stack_diagram.png}
+    \caption{Updated Diagram of Android Software Stack (source: Android Developers Guide~\cite{androidplatformdoc}).}
+    \label{fig:android_stack}
+\end{figure}
 
 \subsection{Application Layer and Process Lifecycle}
 At the application layer, Android executes user and system applications packaged in APK format. Each APK includes compiled DEX bytecode, resources, native libraries, and a manifest file that defines app components and permissions. Apps run in sandboxed processes, each forked from the Zygote daemon—a minimal, preloaded system process that speeds up app launch time by sharing memory using copy-on-write.
@@ -584,7 +605,6 @@ Apps follow a component-based model: Activities, Services, Broadcast Receivers, 
 Binder IPC enables structured communication between app components and system services. Messages are serialized as Parcel objects, routed through the Binder driver, and trigger observable kernel events. These include context switches and transaction dispatches, which are measurable using tools like ftrace or kprobes.
 
 Understanding transitions between app states (e.g., from idle to foreground) is vital in syscall-level profiling. For instance, foreground activation often leads to bursts of system calls such as \texttt{open()}, \texttt{stat()}, and \texttt{mmap()}—associated with UI initialization and resource loading. Such behaviors form recognizable patterns in kernel trace logs.
-\textbf{Figure 2:} Android Application Lifecycle and Corresponding Kernel-Level Events.
 
 \subsection{Android Runtime, Native Layer, and JNI}
 The Android Runtime (ART) executes application bytecode using a combination of ahead-of-time (AOT), just-in-time (JIT), and interpretation mechanisms. From a kernel-level tracing perspective, JIT-related memory operations may trigger system calls such as \texttt{mmap()}, \texttt{write()}, and \texttt{mprotect()}, as ART dynamically allocates memory for optimized code.
@@ -594,8 +614,21 @@ Beyond execution, ART interacts with the kernel to manage thread scheduling and 
 JNI further extends the runtime by enabling Java/Kotlin code to invoke native C/C++ libraries. These native operations often bypass standard framework controls, introducing low-level file, network, or cryptographic actions. This is particularly relevant for behavioral profiling, as native code may perform sensitive operations that differ from those visible at the Java level.
 
 In the context of this thesis, which focuses on dynamic kernel-level analysis, capturing system interactions initiated by ART and JNI is essential. It enables the identification of execution phases or modules that deviate from expected behavior—especially in apps that rely heavily on native components for messaging, encryption, or background communication.
-\textbf{Figure 3:} JNI and ART Interaction with Kernel during JIT and Native Execution.
+The sequence of events during JNI initialization is illustrated in Figure~\ref{fig:jni_init}.
+It begins when the VM loads the application class, triggering a static initializer which invokes
+the native \texttt{JNI\_OnLoad()} function. This function registers native methods and returns
+the \texttt{JNI\_Version}, after which Android proceeds with the usual application lifecycle
+(e.g., \texttt{onCreate()}) managed by the \texttt{ActivityManager}.
+This interaction flow is especially relevant in behavioral analysis,
+as native components may introduce low-level behavior patterns not observable through the Java layer alone.
 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{jni_init_flow.png}
+    \caption{Sequence diagram showing the JNI initialization flow in an Android application.}
+    \label{fig:jni_init}
+\end{figure}
 \subsection{Linux Kernel Fundamentals in Android}
 The Android operating system is built upon the Linux kernel, which serves as the foundational layer responsible for resource management, hardware abstraction, and secure process isolation. In the context of behavioral profiling and kernel-level tracing, the Linux kernel plays a pivotal role, as all application interactions with hardware and system resources are mediated through kernel functions and system calls.
 
@@ -677,24 +710,49 @@ These architectural and cryptographic distinctions shape observable syscall beha
 
 \textbf{Figure 7:} Comparative Analysis of Architectural and Cryptographic Models in Signal, Telegram, and Messenger.
 
-
 \section{Static vs. Dynamic Analysis}
 
-The security and behavioral analysis of Android applications can be approached through two primary methodologies: static and dynamic analysis. Each offers unique advantages and limitations, particularly when it comes to uncovering privacy-sensitive behavior in messaging applications. This section contrasts the two approaches and motivates the use of kernel-level dynamic analysis as the foundation for the profiling methodology employed in this thesis.
+The security and behavioral analysis of Android applications typically leverages two main technical approaches: static and dynamic analysis. This section outlines the specific technical methodologies employed in each type of analysis, highlighting their mechanisms, strengths, and limitations from an implementation perspective.
 
 \subsection{Static Analysis}
-Static analysis examines the application code, configuration files, and resources without executing the application. Tools such as JADX, Androguard, and MobSF decompile APKs and provide insights into declared permissions, control flow structures, and third-party library usage. This method is effective for identifying potentially dangerous code paths, hardcoded secrets, or violations of best practices.
 
-However, static analysis suffers from several well-documented limitations. It cannot reliably account for runtime behavior that is conditional, obfuscated, or implemented in dynamically loaded or native code. Additionally, it provides no visibility into real-world execution patterns, user interactions, or background operations initiated through APIs like \texttt{JobScheduler} or \texttt{AlarmManager}. From a privacy standpoint, static analysis cannot reveal whether declared permissions are exercised legitimately or abused in practice.
+Static analysis involves the examination of application binaries and related artifacts without executing the code. Technically, this is performed through decompilation or disassembly of the Android APK files using tools such as JADX \cite{jadx}, Androguard \cite{androguard}, or MobSF \cite{mobsf}. These tools reverse engineer the application's bytecode to produce human-readable source code or intermediate representations, facilitating an inspection of declared permissions, class structures, method calls, and manifest configurations.
 
-\subsection{Dynamic Analysis and Kernel-Level Tracing}
-Dynamic analysis captures application behavior during execution, providing ground-truth data on runtime interactions with the operating system. Techniques range from high-level instrumentation using frameworks like Frida and Xposed, to lower-level monitoring using strace or custom logging APIs. For this thesis, we adopt kernel-level dynamic analysis, specifically through system call tracing using tools such as \texttt{ftrace}, \texttt{kprobes}, and \texttt{debugfs}.
+Static analysis typically includes extraction and inspection of AndroidManifest.xml to verify declared permissions and components, control-flow and data-flow analysis to detect potentially dangerous API usage and insecure coding patterns, and identification of embedded third-party libraries and hardcoded sensitive data such as keys or passwords.
 
-Kernel-level tracing offers a privileged vantage point for observing all user-to-kernel transitions, regardless of the programming language, framework, or runtime environment used by the application. Unlike instrumentation at the application layer, which can be bypassed by obfuscation or native code execution, kernel tracing captures raw syscall activity including file I/O (\texttt{open()}, \texttt{read()}, \texttt{unlink()}), network operations (\texttt{connect()}, \texttt{send()}, \texttt{recvmsg()}), and cryptographic processing (\texttt{getrandom()}, \texttt{mprotect()}, \texttt{write()}).
+However, static analysis is inherently limited by its inability to reflect runtime dynamics. It does not capture behaviors that depend on dynamic loading, obfuscation techniques, reflection, or native code invocation.
 
-This approach is especially relevant for profiling messaging applications, which often perform background operations, access sensitive resources, and engage in encrypted communications without user interaction. By analyzing syscall sequences and their temporal patterns, one can construct behavioral profiles that are resilient to static evasion techniques and indicative of privacy-relevant behavior.
+\subsection{Dynamic Analysis}
 
-\textbf{Figure 8:} Comparison of Static Analysis, Dynamic Instrumentation, and Kernel-Level Tracing Capabilities.
+Dynamic analysis, conversely, involves observing and recording the application's runtime behavior within a controlled execution environment. This approach captures actual interactions with the Android operating system, including system calls, network activities, and file system operations. Dynamic analysis methods include both user-space instrumentation (using tools like Frida \cite{frida} and Xposed Framework \cite{xposed}) and kernel-level tracing.
+
+Kernel-level dynamic analysis, specifically used in this thesis, employs system call tracing facilitated by Linux kernel tools such as \texttt{ftrace} \cite{ftrace}, \texttt{kprobes} \cite{kprobes}, and \texttt{debugfs} \cite{debugfs}. This technique involves enabling kernel-level probes to intercept and log specific system call invocations made by the application, capturing low-level operational details such as file accesses (\texttt{open()}, \texttt{read()}, \texttt{write()}), network communications (\texttt{connect()}, \texttt{sendto()}, \texttt{recvfrom()}), and process management activities, and recording the precise timing and sequence of system calls to reconstruct detailed behavioral profiles of application execution.
+
+This low-level monitoring ensures comprehensive coverage of runtime behaviors, regardless of obfuscation or the execution of native code segments.
+
+\subsection{Technical Comparison}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Feature} & \textbf{Static Analysis} & \textbf{Dynamic Analysis (Kernel-level)} \\
+\hline
+Execution requirement & No execution & Runtime execution required \\ \hline
+Tools examples & JADX, MobSF, Androguard & ftrace, kprobes, debugfs \\ \hline
+Analyzed artifacts & APK, source code, manifest & System calls, runtime behaviors \\ \hline
+Coverage of obfuscation & Limited or none & Comprehensive \\ \hline
+Dynamic behaviors & Not captured & Fully captured \\ \hline
+Detection of native code & Limited & Effective \\ \hline
+Resource consumption & Typically lower & Higher (due to real-time monitoring) \\ \hline
+Granularity & Moderate & High (syscall-level detail) \\ \hline
+\end{tabular}
+\caption{Technical Comparison of Static and Kernel-level Dynamic Analysis}
+\label{table:comparison}
+\end{table}
+
+The inherent strengths of kernel-level dynamic analysis in capturing runtime behavior and its resilience to obfuscation techniques justify its selection as the primary methodological approach for this thesis.
+
 
 \section{System Call Tracing and Behavioral Analysis}
 
@@ -731,11 +789,33 @@ These logs capture syscall names, parameters, timestamps, and context (e.g., PID
 
 Post-processing typically involves parsing tools like Python scripts, custom Bash pipelines, or tools like \texttt{perf}, \texttt{bcc}, and \texttt{Sysdig}. These allow for correlation with app state (foreground/background), event type, and time windows.
 
-\subsubsection*{2.4.3 System Call Pattern Analysis and Behavioral Fingerprinting}
+\subsection{System Call Pattern Analysis and Behavioral Fingerprinting}
 
-\textbf{Figure 9:} System Call Tracing Pipeline and Example Behavioral Fingerprints for Messaging Apps.
+\subsubsection{Pattern Extraction Techniques}
+To accurately analyze the behavior of Android messaging applications at the kernel level, it is crucial to extract meaningful patterns from the collected system call traces. After gathering raw trace data using kernel-level tracing mechanisms such as ftrace or kprobes \cite{gregg2019bpf}, the analysis pipeline proceeds with a structured set of extraction techniques.
 
+Firstly, \textbf{trace preprocessing} is performed to filter irrelevant system calls that may be attributed to background system processes or kernel housekeeping tasks. This stage involves the normalization of syscall logs, removal of duplicates, and categorization into meaningful functional groups such as network operations (\texttt{sendto}, \texttt{recvmsg}), file operations (\texttt{open}, \texttt{read}, \texttt{write}), and memory operations (\texttt{mmap}, \texttt{mprotect}) \cite{tanenbaum2015modern}.
 
+A fundamental step in pattern extraction is the use of \textbf{sliding window analysis} with N-grams, where sequences of consecutive system calls of fixed length (typically 3-5 syscalls) are extracted and analyzed for frequency. For instance, a recurring sequence like \texttt{open → mmap → sendto} can indicate frequent file accesses followed by network transmissions, a characteristic pattern for messaging activities such as sending multimedia files \cite{kim2019syscall}.
+
+Moreover, we apply \textbf{temporal clustering} to detect bursts of system call activity, which are indicative of specific application behaviors like message sending, receiving notifications, or background synchronization. Clustering techniques such as DBSCAN or HDBSCAN help distinguish between typical and anomalous behavioral sequences based on temporal proximity \cite{ester1996density}.
+
+Another valuable approach is constructing \textbf{system call frequency vectors}. Each trace is represented as a numerical vector, with dimensions corresponding to different system calls, facilitating quantitative comparisons between different sessions or different applications. This approach supports both exploratory analysis and automated classification tasks \cite{bishop2007pattern}.
+
+Finally, to model the complex dependencies between system calls, \textbf{graph-based extraction methods} such as directed state-transition graphs are utilized. In these graphs, nodes represent individual syscalls, and directed edges capture the observed transitions between them. Analysis of such graphs, for instance via centrality measures, provides insights into dominant behavioral flows and significant transition points within an application's runtime \cite{newman2010networks}.
+
+\subsubsection{Behavioral Fingerprinting}
+Behavioral fingerprinting refers to constructing distinct behavioral signatures of applications based on their system call patterns. Given the kernel-level granularity of our data, these fingerprints provide robust indicators of application identity, operational phases, and potential privacy-related activities.
+
+A \textbf{behavioral fingerprint} is formally defined as the set of characteristic system call sequences or frequency distributions uniquely associated with an application's operation. To create these fingerprints, multiple execution traces of the same application under controlled conditions (e.g., message sending, multimedia sharing, background synchronization) are aggregated. Frequent and consistent system call patterns are identified using techniques such as frequent subsequence mining or clustering \cite{han2022datamining}.
+
+These fingerprints facilitate several critical analyses. For example, by comparing fingerprints across messaging applications such as Signal, Telegram, and Facebook Messenger, distinct operational behaviors emerge, highlighting differences in their privacy handling and background operations. Fingerprints based on syscall sequences like \texttt{stat → open → sendto} can reliably indicate data transmissions or potential data exfiltration events \cite{enck2014taintdroid}.
+
+Further, fingerprints serve as powerful tools for anomaly detection. By establishing baseline fingerprints under normal operating conditions, deviations can be quickly identified, suggesting unusual behaviors such as increased network activity or unauthorized access to sensitive files. This method enables proactive identification of potential privacy infringements or malicious behavior, complementing traditional security mechanisms \cite{chandola2009anomaly}.
+
+Practically, we represent fingerprints as frequency vectors, n-gram sequences, or transition graphs, each capturing distinct aspects of the application's behavior. Frequency vectors offer a straightforward numerical approach for quick comparisons, while n-gram sequences and transition graphs provide more detailed behavioral context.
+
+Ultimately, behavioral fingerprinting based on kernel-level system call patterns enhances our understanding of application behavior, supports precise application identification, and significantly improves privacy and security analysis within the Android ecosystem \cite{felt2011androidprivacy}.
 
 
 % --------------------------------------------------
@@ -746,41 +826,76 @@ This thesis is part of a broader research effort investigating the security and 
 
 \section{Research Design}
 The research design employs a kernel-level tracing approach to profile behavioral patterns of popular Android messaging applications without requiring app instrumentation. The primary goal is to transparently capture system-level activities, such as system calls, IPC, and network interactions, to detect privacy-sensitive behaviors.
-Kernel-level tracing was chosen over user-level or API-based approaches due to its transparency, accuracy, and non-invasive nature. Experiments were performed on a rooted Android device (OnePlus Nord CE 4 Lite, Android 15) using Magisk and bootloader unlocking for kernel tracing filesystem (tracefs) access.
+Kernel-level tracing was chosen over user-level or API-based approaches due to its transparency, accuracy, and non-invasive nature. Experiments were performed on a rooted Android device using Magisk and bootloader unlocking for kernel tracing filesystem (tracefs) access.
 
 The study follows a minimal intervention, "black-box" methodology with no modifications to apps or OS components, focusing solely on kernel observations. Technical tools used include ftrace, kprobes, ADB, custom shell scripts, and Python scripts for parsing and processing trace data into structured formats (JSON).
 
 An additional design decision was the use of kprobes and ftrace instead of more advanced or emerging technologies such as eBPF. This choice was primarily driven by the principle of simplicity, in line with Occam's razor—opting for the simplest effective solution when more complex alternatives are unnecessary. Since the research objectives could be fully met using established, low-level tracing tools, there was no compelling need to adopt or upgrade to more sophisticated frameworks. This approach facilitated ease of deployment, lower learning curve, and minimized potential system instability or compatibility issues, while still ensuring comprehensive data collection for the study's requirements.
 
-Design principles such as reproducibility, low overhead, and the detection capability for IPC, sensitive resource access, and network activities are prioritized. A sliding window approach (5000 events per window, 1000-event overlap) is applied for detailed temporal analysis.
+Design principles such as reproducibility, low overhead, and the detection capability for IPC, sensitive resource access, and network activities are prioritized. A sliding window approach is applied for detailed temporal analysis.
 
-Data quality is ensured via validation and heuristic cleaning to filter irrelevant daemon activities. Special attention is given to privacy protection, ensuring sensitive resource monitoring without data compromise. Comprehensive downstream analysis, including statistical evaluation, visualization, and a web-based interface, will be thoroughly detailed in subsequent sections.
+Data quality is ensured via validation and heuristic cleaning to filter irrelevant daemon activities. Comprehensive downstream analysis, including statistical evaluation, visualization, and a web-based interface, will be thoroughly detailed in subsequent sections.
 \section{Experimental Setup}
 
-The experimental setup involves detailed technical preparation and precise procedures to ensure kernel-level tracing capability. The device selected was a OnePlus Nord CE 4 Lite (CPH2621, EU variant) running Android 15 (SDK 35). It supports System-as-Root (isSAR=true), features A/B partitioning (isAB=true), and includes an accessible ramdisk.
+The experimental setup involves detailed technical preparation and precise procedures to ensure kernel-level tracing capability. The device selected was a OnePlus Nord CE 4 Lite (CPH2621, EU variant) running Android 15 (SDK 35). It supports System-as-Root (\texttt{isSAR=true}), features A/B partitioning (\texttt{isAB=true}), and includes an accessible ramdisk.
 
-Initially, the device was prepared for root access through Magisk following guidelines from xda-developers. Developer Options, OEM Unlocking, and USB Debugging were activated. Android SDK Platform Tools were installed on the computer, with the path added to environment variables, enabling communication via ADB.
+\subsection{Root Access and Boot Image Preparation}
 
-Using PowerShell, the device was confirmed to be recognized via the command \texttt{adb devices}, followed by booting into bootloader mode using \texttt{adb reboot bootloader}. The bootloader was unlocked with \texttt{fastboot flashing unlock}, confirmed on the device's screen, and rebooted.
+The device was prepared for root access using Magisk, following guidelines from xda-developers. Developer Options, OEM Unlocking, and USB Debugging were activated. Android SDK Platform Tools were installed on the computer, with the path added to environment variables, enabling communication via ADB.
 
-To obtain the boot image, the full OTA zip for the CPH2621 EU variant was downloaded via Oxygen Updater, transferred to the computer using \texttt{adb pull}, and extracted to obtain the \texttt{payload.bin}. The Payload Dumper tool was utilized (\texttt{python payload\_dumper.py payload.bin}) to extract the \texttt{boot.img}.
+After obtaining the full OTA zip for the CPH2621 EU variant via Oxygen Updater, it was transferred to the computer and unpacked to extract the \texttt{payload.bin} file. Using Payload Dumper, the \texttt{boot image} was retrieved. The Magisk APK was then used to patch the image, and the resulting file was flashed to the appropriate partition.
 
-Subsequently, Magisk APK was installed, the boot image was patched, and the patched image was flashed using \texttt{fastboot flash boot\_a magisk\_patched-28100\_4owcs.img}. Despite initial issues, careful attention to documentation led to the correct flash method using the \texttt{init\_boot.img}.
+The sequence of commands used during the rooting process is provided in Listing~\ref{lst:rooting-commands}.
 
-The ADB setup enabled detailed interaction between the computer and the rooted device, allowing the execution of custom shell scripts for tracing (e.g., \texttt{simple\_trace\_sock.sh}) and Python scripts for detailed data parsing and cleaning. Issues regarding portability and trace events were tracked and resolved using a structured GitHub project setup.
+\begin{lstlisting}[caption={Command Sequence for Rooting Procedure},label={lst:rooting-commands},numbers=left]
+adb devices
+adb reboot bootloader
+fastboot flashing unlock
+adb pull /sdcard/Download/OTA.zip
+python payload_dumper.py payload.bin
+fastboot flash boot_a magisk_patched-28100_4owcs.img
+\end{lstlisting}
 
-This comprehensive and precise experimental configuration provided the basis for reliable kernel-level data collection, ensuring reproducibility, accuracy, and minimal system intrusion.
+\subsection{ADB Setup and Execution Environment}
 
-In order to associate kernel-level trace events with high-level resources (e.g., camera, microphone, contacts database), it was necessary to extract device identifiers from the target Android device. This process involved executing shell commands via ADB to map each device class to its corresponding major:minor identifier. Specifically, a custom loop over the /sys/class/**/dev entries was used to enumerate character and block devices, using the formula \texttt{dev\_t = (major << 20) | minor}. This allowed us to collect and encode device IDs such as video0, nq-nci, btpower, pcmC0D0c, and GNSS/NFC interfaces.
+The ADB setup enabled detailed interaction between the computer and the rooted device, allowing the execution of custom shell scripts for tracing and Python scripts for detailed data parsing and cleaning. Issues regarding portability and trace events were tracked and resolved using a structured GitHub project setup.
 
-Additionally, to monitor access to sensitive databases (e.g., contacts2.db, mmssms.db), file paths were manually located, and their inode values were extracted using stat commands. Each resource was annotated with metadata including its full path, description, major, minor, and inode values. These identifiers enabled accurate matching with trace events during analysis.
+This configuration ensured reliable kernel-level data collection, maintaining reproducibility, accuracy, and minimal system intrusion.
 
-To streamline and automate this otherwise manual and error-prone process, a collaborator (Giannis Karyotakis) contributed custom Bash and Python scripts that programmatically retrieved and serialized this metadata into JSON files. These mappings were then used during the parsing phase to label events associated with sensitive resources.
+\subsection{Identifying Sensitive Database Files}
 
-Identifying these device and file descriptors was essential for enabling high-level semantic interpretation of low-level events, supporting accurate privacy-relevant event detection throughout the tracing pipeline.
+In order to monitor access to sensitive databases (such as \texttt{contacts2.db} or \texttt{mmssms.db}), each target file needed to be uniquely identified using its inode and device ID. The \texttt{stat} command was used to extract this metadata, which provided both the inode number and the major/minor device number of the filesystem hosting the file. An example command is shown in Listing~\ref{lst:db-stat}.
 
-This comprehensive and precise experimental configuration provided the basis for reliable kernel-level data collection, ensuring reproducibility, accuracy, and minimal system intrusion.
+\begin{lstlisting}[caption={Retrieving inode and device ID for a database file},label={lst:db-stat},numbers=left]
+adb shell stat /data/data/com.android.providers.contacts/databases/contacts2.db
+\end{lstlisting}
 
+The output of this command includes the \texttt{Device}, \texttt{Inode}, and full path, which were stored as part of a JSON metadata mapping. These values were then used to match trace events against specific sensitive files during analysis.
+
+\subsection{Device Node Mapping for Hardware Resources}
+
+To associate trace events with hardware resources such as the camera, microphone, or NFC module, we identified the corresponding character device nodes exposed by the kernel. Each device node in \texttt{/dev} is linked to a major and minor number pair, which can be extracted from the \texttt{/sys/class/**/dev} entries. A loop was used to recursively enumerate device nodes and extract their metadata, as illustrated in Listing~\ref{lst:device-node-scan}.
+
+\begin{lstlisting}[caption={Enumerating character and block devices with major:minor IDs},label={lst:device-node-scan},numbers=left]
+adb shell
+for f in $(find /sys/class/ -name dev); do
+    echo "$f -> $(cat $f)"
+done
+\end{lstlisting}
+
+Each output entry was parsed to associate paths like \texttt{/dev/video0}, \texttt{/dev/snd/pcmC0D0c}, or \texttt{/dev/nq-nci} with their respective major:minor IDs. These values were encoded using the formula shown in Listing~\ref{lst:devt-calc}.
+
+\begin{lstlisting}[caption={Encoding device number using major and minor},label={lst:devt-calc},numbers=none]
+dev_t = (major << 20) | minor
+\end{lstlisting}
+
+This encoding was used in the trace parser to associate low-level device accesses with high-level categories such as camera or audio input.
+
+\subsection{Automation and Metadata Serialization}
+
+To automate both processes, a collaborator (Giannis Karyotakis) contributed Bash and Python scripts that programmatically retrieved and serialized this metadata into structured JSON files. These mappings were then used during the trace parsing phase to enrich low-level kernel events with high-level semantic labels.
+
+This structured and collaborative approach enabled high-fidelity kernel tracing while minimizing manual overhead and potential for error.
 \section{System Architecture and Data Flow}
 The implementation is organised as a series of modular layers that cooperate to capture, process, analyse, and visualise kernel‑level trace events. Figure~\ref{fig:architecture}  summarises the architecture and the principal data‑flow.
 
@@ -1026,6 +1141,45 @@ E. Golden, “Inside the hazy, fractured mess of Signal use in the government,�
     \bibitem{maganti2022perfetto} Maganti L. \emph{Analyzing Perfetto Traces at Every Scale}. Tracing Summit, 2022.
     \bibitem{williams2024emook} Williams D. \emph{et al.} \emph{eMook: Eliminating eBPF Tracing Overhead on Untraced Processes}. eBPF‘24 Workshop, 2024.
     \bibitem{signalwhitepaper} Signal Foundation, \textit{Signal Protocol White Paper}, 2023. Available: \url{https://signal.org/docs/specifications/signal-protocol/}
+\bibitem{jadx} Jadx, \textit{Android Dex Decompiler}, \url{https://github.com/skylot/jadx}.
+\bibitem{androguard} Androguard, \textit{Android Reverse Engineering Toolkit}, \url{https://github.com/androguard/androguard}.
+\bibitem{mobsf} Mobile Security Framework (MobSF), \url{https://github.com/MobSF/Mobile-Security-Framework-MobSF}.
+\bibitem{frida} Frida, \textit{Dynamic instrumentation toolkit}, \url{https://frida.re}.
+\bibitem{xposed} Xposed Framework, \url{https://github.com/rovo89/Xposed}.
+\bibitem{ftrace} ftrace, \textit{Linux Kernel tracing framework}, \url{https://www.kernel.org/doc/html/latest/trace/ftrace.html}.
+\bibitem{kprobes} kprobes, \textit{Kernel probes}, \url{https://www.kernel.org/doc/html/latest/trace/kprobes.html}.
+\bibitem{debugfs} debugfs, \textit{Linux debug file system}, \url{https://www.kernel.org/doc/html/latest/filesystems/debugfs.html}.
+
+\bibitem{gregg2019bpf}
+B. Gregg, \textit{BPF Performance Tools}, Addison-Wesley, 2019.
+
+\bibitem{tanenbaum2015modern}
+A.S. Tanenbaum and H. Bos, \textit{Modern Operating Systems}, 4th Edition, Pearson, 2015.
+
+\bibitem{kim2019syscall}
+Kim, H., \textit{System Call Analysis Techniques for Android Applications}, IEEE Transactions on Information Forensics and Security, 2019.
+
+\bibitem{ester1996density}
+M. Ester, H.P. Kriegel, J. Sander, and X. Xu, \textit{A density-based algorithm for discovering clusters in large spatial databases with noise}, Proceedings of the Second International Conference on Knowledge Discovery and Data Mining (KDD-96), 1996.
+
+\bibitem{bishop2007pattern}
+C.M. Bishop, \textit{Pattern Recognition and Machine Learning}, Springer, 2007.
+
+\bibitem{newman2010networks}
+M.E.J. Newman, \textit{Networks: An Introduction}, Oxford University Press, 2010.
+
+\bibitem{han2022datamining}
+J. Han, M. Kamber, and J. Pei, \textit{Data Mining: Concepts and Techniques}, 4th Edition, Morgan Kaufmann, 2022.
+
+\bibitem{enck2014taintdroid}
+W. Enck et al., \textit{TaintDroid: An Information-Flow Tracking System for Realtime Privacy Monitoring on Smartphones}, ACM Transactions on Computer Systems, 2014.
+
+\bibitem{chandola2009anomaly}
+V. Chandola, A. Banerjee, and V. Kumar, \textit{Anomaly Detection: A Survey}, ACM Computing Surveys, 2009.
+
+\bibitem{felt2011androidprivacy}
+A.P. Felt et al., \textit{Android Permissions Demystified}, Proceedings of the 18th ACM Conference on Computer and Communications Security, 2011.
+
     \bibitem{anglano2015whatsapp} Anglano C. \textit{Forensic Analysis of WhatsApp Messenger on Android}. arXiv 1502.07520, 2015.
 \bibitem{moltchanov2018telegram} Moltchanov A. \emph{et al.} Telegram—A Forensic View. \textit{DFRWS EU}, 2018.
 \bibitem{obermeier2018signal} Obermeier S., Diederich S. Signal forensics on Android devices. \textit{JDFSL}, 2018.
