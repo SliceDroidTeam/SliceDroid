@@ -1032,17 +1032,18 @@ An excerpt of the structured metadata format is shown in Listing~\ref{lst:json-m
 \end{lstlisting}
 
 \section{System Architecture and Data Flow}
-The implementation is organised as a series of modular layers that cooperate to capture, process, analyse, and visualise kernel‑level trace events. Figure~\ref{fig:architecture}  summarises the architecture and the principal data‑flow.
+The implementation is organised as a series of modular layers that cooperate to capture, process, analyse, and visualise kernel‑level trace events. Figure~\ref{fig:architecture} summarises the architecture and the principal data flow. The system comprises a mobile-side tracing engine, a resource resolution layer, on-device metadata storage, compute-side analysis modules, and a web-based visualisation dashboard.
 
-
-\begin{figure}[ht]
+The tracing engine employs low-level kernel instrumentation mechanisms, such as \texttt{kprobes} and \texttt{tracefs}, to extract system call activity. These events are subsequently enriched with contextual metadata, including inode information, socket identifiers, and file mapping details. The annotated trace data is then exported for offline analysis, behavioural fingerprinting, and interactive visualisation.
+\begin{figure}[H]
 \centering
-
-\caption{High‑level modular architecture and data‑flow pipeline.}
+\includegraphics[width=1\textwidth]{xsysdroid.png}
+\caption{High-level modular architecture and data-flow pipeline of xSYSDROID.}
 \label{fig:architecture}
 \end{figure}
 
 \subsection{Codebase Structure}
+
 The repository is divided into coherent top‑level modules:
 \begin{description}
 \item[\texttt{config\_files/}] Declarative lists of tracepoints and kprobe hooks; filters for processes, devices, and events.
