@@ -1081,15 +1081,28 @@ This modular pipeline facilitates future extensions—e.g., substituting a graph
 
 
 \section{Data Visualization and User Interface Design}
-To facilitate high-level understanding of kernel-level behaviors, the visualization strategy incorporates:
+
+To facilitate high-level interpretation of low-level system behavior, the visual interface offers:
+
 \begin{itemize}
-\item \textbf{Interactive Event Timelines}: Provide detailed temporal views of categorized system activities.
-\item \textbf{Statistical Summaries and Graphs}: Depict device usage patterns, frequency of access, and event-type distributions using charts (pie, bar, heatmaps).
-\item \textbf{Dynamic Filtering and Interaction}: Allow users to filter visualizations dynamically based on PID, event types, and accessed devices.
+  \item \textbf{Interactive Timelines:} Rich visual representations of syscall events over time, segmented by process or resource.
+  \item \textbf{Statistical Charts:} Bar and pie charts summarising the distribution of syscall types, frequency of resource access, and cross-process interaction.
+  \item \textbf{Dynamic Filtering:} Real-time filtering by PID, syscall category, device type, and time interval, enabling targeted exploration.
 \end{itemize}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{system_events_timeline.png}
+\caption{Interactive event timeline displaying categorized syscall activity over time. Users can zoom, filter by PID and device, and focus on specific syscall types.}
+\label{fig:event_timeline}
+\end{figure}
 
-
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{device_event_statistics.png}
+\caption{Aggregate statistics panel showing device usage and syscall distribution. The interface displays counts and percentages, updating dynamically as filters are applied.}
+\label{fig:statistics_view}
+\end{figure}
 % --------------------------------------------------
 %  Results
 % --------------------------------------------------
