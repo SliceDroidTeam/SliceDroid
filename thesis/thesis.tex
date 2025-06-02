@@ -944,16 +944,22 @@ This thesis is part of a broader research effort investigating the security and 
 Importantly, this thesis constitutes a natural extension of the SYSDROID framework, an earlier kernel tracing platform developed by Nikos Alexopoulos as part of a research initiative at the Athens University of Economics and Business. SYSDROID laid the foundation for dynamic system-level monitoring of Android applications using tools such as ftrace and kprobes, focusing on syscall-level logging and low-level behavioral capture. The architectural overview that follows is largely based on the design principles and modular structure introduced in that initial work, with substantial refinements, generalizations, and extensions introduced in the context of this thesis.
 
 \section{Research Design}
-The research design employs a kernel-level tracing approach to profile behavioral patterns of popular Android messaging applications without requiring app instrumentation. The primary goal is to transparently capture system-level activities, such as system calls, IPC, and network interactions, to detect privacy-sensitive behaviors.
-Kernel-level tracing was chosen over user-level or API-based approaches due to its transparency, accuracy, and non-invasive nature. Experiments were performed on a rooted Android device using Magisk and bootloader unlocking for kernel tracing filesystem (tracefs) access.
 
-The study follows a minimal intervention, "black-box" methodology with no modifications to apps or OS components, focusing solely on kernel observations. Technical tools used include ftrace, kprobes, ADB, custom shell scripts, and Python scripts for parsing and processing trace data into structured formats (JSON).
+The research design employs a kernel-level tracing approach to profile behavioral patterns of popular Android messaging applications without requiring app instrumentation. The primary goal is to transparently capture system-level activities, such as system calls, IPC, and network interactions, to detect privacy-sensitive behaviors. Kernel-level tracing was chosen over user-level or API-based approaches due to its transparency, accuracy, and non-invasive nature. Experiments were performed on a rooted Android device using Magisk and bootloader unlocking for kernel tracing filesystem (\texttt{tracefs}) access.
 
-An additional design decision was the use of kprobes and ftrace instead of more advanced or emerging technologies such as eBPF. This choice was primarily driven by the principle of simplicity, in line with Occam's razor—opting for the simplest effective solution when more complex alternatives are unnecessary. Since the research objectives could be fully met using established, low-level tracing tools, there was no compelling need to adopt or upgrade to more sophisticated frameworks. This approach facilitated ease of deployment, lower learning curve, and minimized potential system instability or compatibility issues, while still ensuring comprehensive data collection for the study's requirements.
+The study follows a minimal intervention, ``black-box'' methodology with no modifications to apps or OS components, focusing solely on kernel observations. Technical tools used include \texttt{ftrace}, \texttt{kprobes}, ADB, custom shell scripts, and Python scripts for parsing and processing trace data into structured formats (JSON).
+
+An additional design decision was the use of \texttt{kprobes} and \texttt{ftrace} instead of more advanced or emerging technologies such as eBPF. This choice was primarily driven by the principle of simplicity, in line with Occam's razor---opting for the simplest effective solution when more complex alternatives are unnecessary. Since the research objectives could be fully met using established, low-level tracing tools, there was no compelling need to adopt or upgrade to more sophisticated frameworks. This approach facilitated ease of deployment, lower learning curve, and minimized potential system instability or compatibility issues, while still ensuring comprehensive data collection for the study's requirements.
 
 Design principles such as reproducibility, low overhead, and the detection capability for IPC, sensitive resource access, and network activities are prioritized. A sliding window approach is applied for detailed temporal analysis.
 
 Data quality is ensured via validation and heuristic cleaning to filter irrelevant daemon activities. Comprehensive downstream analysis, including statistical evaluation, visualization, and a web-based interface, will be thoroughly detailed in subsequent sections.
+
+In particular, the tracing process is initiated through a set of \texttt{bash} scripts executed directly on the Android device. These scripts dynamically configure and activate \texttt{kprobes} and \texttt{tracepoints} to monitor relevant kernel-level events, targeting specific system calls and function entries of interest. The resulting raw trace data is collected from the \texttt{tracefs} interface and securely exported to the host system.
+
+Once exported, custom Python scripts are used to process and clean the raw logs. These scripts apply PID-based filtering and heuristic techniques to isolate information flows originating from the specific messaging application under analysis, while removing noise introduced by unrelated background system processes. The cleaned data is transformed into structured formats such as JSON or CSV to support downstream processing.
+
+The final stage of the pipeline involves visualization. Static visualizations are generated using Python plotting libraries (e.g., \texttt{matplotlib}), providing summary statistics and event distributions. In parallel, an interactive web-based visualization tool has been developed using \texttt{Flask} and \texttt{D3.js}. This interface offers dynamic filtering by PID, event type, and timestamps, along with timeline-based views and graph-based summaries of system interactions.
 \section{Experimental Setup}
 
 The experimental setup involves detailed technical preparation and precise procedures to ensure kernel-level tracing capability. The device selected was a OnePlus Nord CE 4 Lite (CPH2621, EU variant) running Android 15 (SDK 35). It supports System-as-Root (\texttt{isSAR=true}), features A/B partitioning (\texttt{isAB=true}), and includes an accessible ramdisk.
@@ -1032,46 +1038,93 @@ An excerpt of the structured metadata format is shown in Listing~\ref{lst:json-m
 \end{lstlisting}
 
 \section{System Architecture and Data Flow}
-The implementation is organised as a series of modular layers that cooperate to capture, process, analyse, and visualise kernel‑level trace events. Figure~\ref{fig:architecture} summarises the architecture and the principal data flow. The system comprises a mobile-side tracing engine, a resource resolution layer, on-device metadata storage, compute-side analysis modules, and a web-based visualisation dashboard.
 
-The tracing engine employs low-level kernel instrumentation mechanisms, such as \texttt{kprobes} and \texttt{tracefs}, to extract system call activity. These events are subsequently enriched with contextual metadata, including inode information, socket identifiers, and file mapping details. The annotated trace data is then exported for offline analysis, behavioural fingerprinting, and interactive visualisation.
+The system is architected as a multi-layered pipeline for capturing, processing, and analysing kernel-level behavioural data on Android devices. Figure~\ref{fig:architecture} illustrates the overall architecture and the principal data flow across its components.
+
+At a high level, the pipeline begins with a mobile-side tracing engine, which leverages configurable instrumentation via \texttt{kprobes}, \texttt{tracefs}, and declarative tracing policies. The engine is supported by a resource resolution layer that augments raw trace events with context such as inode paths, socket identifiers, and mapping metadata. This layer plays a critical role in enabling high-level semantic interpretation of low-level events. In particular, it facilitates the identification of accesses to sensitive device resources such as the camera or microphone, as well as interactions with privacy-critical application components, including contact lists, messaging services, and storage providers.
+
+The collected data is stored temporarily on the device and later transferred to the host system for processing. There, a sequence of Python utilities and analysis notebooks is employed to parse, filter, flatten, and segment the traces. These components enable information flow tracking for specific applications and generate both static and interactive outputs.
+
+Visualisation is handled through a modular dashboard consisting of a Flask-based backend and a D3.js-driven frontend. This dashboard supports dynamic filtering, event inspection, and behavioural summaries via timeline and statistical charts.
+
+Each component of the system—ranging from mobile-side tracing and contextual enrichment, to host-side processing and web-based presentation—will be described in detail in the following sections, with direct reference to the layers depicted in Figure~\ref{fig:architecture}.
 \begin{figure}[H]
 \centering
-\includegraphics[width=1\textwidth]{xsysdroid.png}
+\includegraphics[width=1\textwidth]{architecture.png}
 \caption{High-level modular architecture and data-flow pipeline of xSYSDROID.}
 \label{fig:architecture}
 \end{figure}
 
+
+
 \subsection{Codebase Structure}
 
-The repository is divided into coherent top‑level modules:
+The implementation is organised into logically separated top-level modules, reflecting the core phases of the data collection, processing, and visualisation pipeline. The structure is designed to promote modularity, reproducibility, and ease of experimentation. The main directories are described below:
+
 \begin{description}
-\item[\texttt{config\_files/}] Declarative lists of tracepoints and kprobe hooks; filters for processes, devices, and events.
-\item[\texttt{scripts/}] On‑device shell utilities: \texttt{simple\_trace\_sock.sh} (start/stop tracing), \texttt{find\_rdev\_stdev\_inode.sh} (enumerate major:minor and inode mappings), and helper Python wrappers.
-\item[\texttt{data/traces/}] Raw \texttt{*.trace} logs collected from the device; \texttt{data/mappings/} stores JSON maps of logical resource categories (\emph{camera}, \emph{bluetooth}, \emph{contacts} \ldots).
-\item[\texttt{app/}] Core analysis library (\texttt{myutils.py}), slicing engine, and Jupyter notebooks for exploratory study.
-\item[\texttt{Exports/}] Cleansed and sliced outputs (CSV | JSON) consumed by the visual dashboard or external statistics packages.
-\item[\texttt{webapp/}] Flask backend plus D3.js/Bootstrap front‑end that renders interactive timelines, pie charts, and heat‑maps.
+  \item[\texttt{config\_files/}] Contains declarative configuration files specifying enabled tracepoints, \texttt{kprobe} targets, and filtering rules for process names, device access types, and system events.
+
+  \item[\texttt{scripts/}] Includes shell scripts executed on the Android device. Key components include \texttt{simple\_trace\_sock.sh} (start/stop tracing session) and \texttt{find\_rdev\_stdev\_inode.sh} (resolves resource identifiers such as \texttt{major:minor} device numbers and inode values). Python wrapper scripts are also provided for automation and data export.
+
+  \item[\texttt{data/traces/}] Stores raw kernel trace logs (\texttt{*.trace}) collected during experiments. The subfolder \texttt{data/mappings/} includes JSON-based mappings between low-level identifiers and logical resource categories (e.g., \emph{camera}, \emph{bluetooth}, \emph{contacts}).
+
+  \item[\texttt{app/}] Hosts the core data processing and analysis utilities. This includes the main library (\texttt{myutils.py}) for parsing and filtering, slicing logic for temporal analysis, and a series of Jupyter notebooks for exploratory behavioural studies.
+
+  \item[\texttt{Exports/}] Contains cleaned and transformed outputs in CSV or JSON format. These files are consumed either by the web dashboard or by external statistical analysis tools.
+
+  \item[\texttt{webapp/}] Implements the web-based visualisation dashboard. It includes a Flask-based backend (\texttt{app.py}) and a D3.js/Bootstrap-powered frontend for interactive rendering of behavioural timelines, event summaries, and heatmaps.
 \end{description}
 
-\subsection{Instrumentation Layer}
-Tracing scripts load \texttt{kprobes} via \texttt{tracefs} to intercept syscall entry/exit points (\texttt{read\_probe}, \texttt{write\_probe}, \texttt{ioctl\_probe}) and network or IPC events (\texttt{inet\_sock\_set\_state}, Binder transaction tracepoints). Configuration files permit selective activation per device, process, or resource, while nanosecond timestamps preserve causal ordering.
 
-\subsection{Parsing and Pre‑processing}
-A two‑stage parser converts raw ftrace lines to structured Python dictionaries. A primary regex extracts static fields; a secondary pass tokenises \texttt{key=value} pairs and casts numeric values (decimal or hexadecimal). Three graded cleaners remove noise—system daemons, ephemeral file descriptors, spurious Binder ioctl cycles—retaining only semantically meaningful user‑level events.
+\section{Implementation Details}
 
-\subsection{Heuristic Slicing Engine}
-The slicing engine applies forward and backward analyses around each API invocation window.
-\begin{itemize}
-\item \emph{Forward slice}: follows writes, ioctls, and socket state transitions originating from the API thread, recursively including child processes contacted via Binder or UNIX sockets.
-\item \emph{Backward slice}: traces reads and ioctls that supply data to the same window.
-\end{itemize}
-Causal graphs are reconstructed implicitly by maintaining dynamic PID sets and Binder transaction IDs. Complexity is $\mathcal{O}(N,M)$ per window ($N$ events, $M$ instances) and is mitigated by aggressive pre‑filtering.
+\subsection{Instrumentation Layer (Mobile-Side Tracing Engine)}
+
+The instrumentation layer is responsible for capturing low-level system interactions occurring on the Android device. The initial implementation of the tracing subsystem was developed by Nikos Alexopoulos as part of the SYSDROID project at AUEB, and forms the foundational backbone of this thesis. This base layer leverages dynamic kernel probes (\texttt{kprobes}) and static \texttt{tracepoints} exposed via the \texttt{ftrace} interface, allowing efficient interception of system call and function-level activity in the kernel.
+
+The original setup includes probes on core I/O functions such as \texttt{vfs\_read}, \texttt{vfs\_write}, and \texttt{do\_vfs\_ioctl}, enabling access to internal kernel structures (e.g., \texttt{file}, \texttt{inode}, \texttt{super\_block}) and extraction of metadata such as device and inode identifiers, file types, and access credentials. In addition, Binder transactions are captured using the static tracepoints \texttt{binder\_transaction} and \texttt{binder\_transaction\_received}.
+
+In the context of this thesis, we extended the instrumentation layer to include additional \texttt{kprobes} targeting network-related operations. Specifically, probes were added on functions such as \texttt{\_\_tcp\_sendmsg}, \texttt{udp\_sendmsg}, \texttt{inet\_sendmsg}, \texttt{sys\_sendto}, \texttt{sys\_bind}, and \texttt{tcp\_connect}, enabling the reconstruction of socket-level behaviors and outbound communication events. This augmentation allows for the detection of privacy-sensitive network transmissions and complements the I/O and IPC tracing pipeline with external data flow visibility.
+
+An example of a \texttt{kprobe} used to trace write operations through the \texttt{vfs\_write} function is shown below:
+
+\begin{lstlisting}[language=bash,caption={Example kprobe for vfs\_write in tracefs syntax}]
+p:kprobes/write_probe vfs_write file=$arg1 buf=$arg2 count=$arg3
+  inode=+64(+32($arg1)):u64
+  k_dev=+76(+32($arg1)):u32
+  s_dev=+16(+40(+32($arg1))):u32
+  i_mode=+0(+32($arg1)):u16
+  kuid=+4(+32($arg1)):u32
+  kgid=+8(+32($arg1)):u32
+  name=+0(+40(+24($arg1))):string
+\end{lstlisting}
+
+Instrumentation is activated through on-device \texttt{bash} scripts, which dynamically configure and manage the tracing session using declarative configuration files. These files specify the enabled probes, filter targets (e.g., process names, syscalls), and logging preferences. All events are timestamped with nanosecond precision to enable accurate temporal correlation during analysis.
+
+This modular instrumentation layer is lightweight, compatible with existing Android kernels, and deployable without kernel recompilation or Android framework modifications. It provides the raw behavioral signal that drives the parsing, slicing, and behavior reconstruction pipeline described in the following sections.
+
+\subsection{Resource Resolver Layer}
+
+\subsection{Device Storage and Export Formats}
+
+
+\subsection{Parsing and Pre-Processing (Computer-Side)}
+
+
+
+
+\subsection{Slicing and Information Flow Tracking}
+
+
+
 
 \subsection{Export and Visual Analytics}
-Sliced sequences are serialised as compact JSON maps (\texttt{api\_code → [in,out]}) and tabular CSV. A Flask API exposes timeline and summary statistics, while a D3.js front‑end offers interactive filtering by PID, device ID, or time range.
 
-\subsection{End‑to‑End Flow}
+
+
+\subsection{Pipeline Summary}
+
+
 \begin{center}
 \texttt{config\_files/ + scripts/} $\rightarrow$ raw trace via \texttt{tracefs} $\rightarrow$ parsing $\rightarrow$ cleaning/indexing $\rightarrow$ slicing $\rightarrow$ JSON/CSV export $\rightarrow$ Flask API $\rightarrow$ D3.js visualisation
 \end{center}
