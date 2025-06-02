@@ -13,6 +13,7 @@
 \usepackage{float}           % Improved float handling
 \usepackage{listings}        % Code listings
 \usepackage{xcolor}
+\usepackage[ruled,vlined]{algorithm2e}
 
 % Define JSON language for listings
 \lstdefinelanguage{json}{
@@ -1103,7 +1104,110 @@ Instrumentation is activated through on-device \texttt{bash} scripts, which dyna
 
 This modular instrumentation layer is lightweight, compatible with existing Android kernels, and deployable without kernel recompilation or Android framework modifications. It provides the raw behavioral signal that drives the parsing, slicing, and behavior reconstruction pipeline described in the following sections.
 
+
 \subsection{Resource Resolver Layer}
+
+The \emph{Resource Resolver Layer} bridges the semantic gap between
+raw kernel identifiers and human–readable resource categories.  It
+accepts two heterogeneous streams that originate from the
+Instrumentation Layer:
+
+\begin{enumerate}
+  \item \textbf{Special‐device nodes}\,: 32-bit packed
+        \texttt{dev\_t} values (\texttt{k\_dev}) extracted from
+        \texttt{vfs\_read}/\texttt{vfs\_write}/\texttt{ioctl} probes.
+  \item \textbf{Regular files}\,: \texttt{(st\_dev,\;inode)} tuples
+        identifying SQLite databases that hold privacy-critical data
+        (\texttt{contacts2.db}, \texttt{mmssms.db}, \textit{etc.}).
+\end{enumerate}
+
+Its task is to emit a many-to-one mapping
+\texttt{\{category $\rightarrow$ [identifiers]\}} where
+\texttt{category}~$\in$~\{\textit{camera}, \textit{audio\_in},
+\textit{bluetooth}, \textit{gnss}, \textit{nfc},
+\textit{contacts}, \textit{sms}, \textit{calllog},
+\textit{calendar}\}.
+Down-stream modules can then reason about ``use camera’’ or ``read
+contacts’’ instead of opaque major/minor numbers.
+
+For completeness we include the helper artefacts that realise this
+layer in our prototype:
+
+\begin{itemize}
+  \item \texttt{find\_rdev\_stdev\_inode.sh} (Listing~\ref{lst:rdev})
+        runs \texttt{stat(1)} on every character/block device under
+        \texttt{/dev} and on selected SQLite databases, producing two
+        sorted lists:
+        \texttt{rdevs.txt}~and~\texttt{regular\_files.txt}.
+  \item \texttt{run\_stdev\_rdev\_trace.py} pushes the shell script to
+        the phone, executes it under \texttt{su}, pulls the outputs,
+        and feeds them to
+        \texttt{create\_cat2\_devs.py}.
+  \item \texttt{create\_cat2\_devs.py} applies a set of deterministic
+        heuristics (string matching on path names, owners, and device
+        labels) and writes a JSON dictionary
+        \texttt{cat2\_dev\_\$manufacturer.json} under
+        \texttt{data/mappings/}.
+\end{itemize}
+
+Algorithm~\ref{alg:resolver} captures the essence of the resolver logic
+independently of the concrete implementation language.
+
+\begin{algorithm}[H]
+\footnotesize
+\caption{Resolve low-level identifiers to high-level categories}
+\label{alg:resolver}
+\DontPrintSemicolon
+\KwIn{$D$ : list of device entries $(\text{name},\ \text{rdev},\ \text{owner},\ \text{group})$\\
+\phantom{\KwIn{}}$F$ : list of file entries $(\text{path},\ \text{st\_dev},\ \text{inode})$}
+\KwOut{Dictionary $M$ : category $\rightarrow$ list of identifiers}
+$M \leftarrow \{\}$
+\BlankLine
+\ForEach{$(name, rdev, owner, group) \in D$}{
+    \uIf{$\texttt{camera} \in name$ \textbf{or} $owner = \texttt{camera}$}{
+        $M[\text{camera}] \gets M[\text{camera}] \cup \{rdev\}$
+    }
+    \uElseIf{$name$ starts with \texttt{pcm} \textbf{and} ends with \texttt{c}}{
+        $M[\text{audio\_in}] \gets M[\text{audio\_in}] \cup \{rdev\}$
+    }
+    \ElseIf{$\texttt{bluetooth} \in name$}{
+        $M[\text{bluetooth}] \gets M[\text{bluetooth}] \cup \{rdev\}$
+    }
+    \ElseIf{$\texttt{nfc} \in name$}{
+        $M[\text{nfc}] \gets M[\text{nfc}] \cup \{rdev\}$
+    }
+    \ElseIf{$\texttt{gps} \in name$ \textbf{or} $\texttt{gnss} \in name$}{
+        $M[\text{gnss}] \gets M[\text{gnss}] \cup \{rdev\}$
+    }
+}
+\BlankLine
+\ForEach{$(path, dev, ino) \in F$}{
+    \uIf{$\texttt{contacts} \in path$}{
+        $M[\text{contacts}] \gets M[\text{contacts}] \cup \{(dev, ino)\}$
+    }
+    \uElseIf{$\texttt{mmssms} \in path$}{
+        $M[\text{sms}] \gets M[\text{sms}] \cup \{(dev, ino)\}$
+    }
+    \uElseIf{$\texttt{calllog} \in path$}{
+        $M[\text{calllog}] \gets M[\text{calllog}] \cup \{(dev, ino)\}$
+    }
+    \uElseIf{$\texttt{calendar} \in path$}{
+        $M[\text{calendar}] \gets M[\text{calendar}] \cup \{(dev, ino)\}$
+    }
+}
+\Return{$M$}
+\end{algorithm}
+
+
+\paragraph{Scope within this thesis.}
+For the purposes of the present dissertation the creation of
+\texttt{cat2\_dev\_*.json} was performed manually and
+\emph{once-off}; full automation of the resolver workflow (ADB push,
+execution, pull, JSON synthesis) was contributed by collaborating
+team-members and therefore falls outside the strict scope of this
+thesis.  The layer is nevertheless documented here for completeness
+as it supplies essential metadata to the behaviour-reconstruction
+pipeline described in the following sections.
 
 \subsection{Device Storage and Export Formats}
 
