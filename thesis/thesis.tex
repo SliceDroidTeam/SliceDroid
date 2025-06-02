@@ -14,6 +14,12 @@
 \usepackage{listings}        % Code listings
 \usepackage{xcolor}
 \usepackage[ruled,vlined]{algorithm2e}
+\usepackage{booktabs}        % For \midrule, \toprule, \bottomrule in tables
+\usepackage{paralist}        % For compact lists and enumerate*
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shadows.blur}
+
 
 % Define JSON language for listings
 \lstdefinelanguage{json}{
@@ -334,32 +340,25 @@ privacy-relevant behavior?
 
 \section{Limitations}
 
-To provide a realistic perspective on the scope of this thesis, we distinguish between
-constraints that stem from practical project conditions and limitations that are
-inherent to kernel-level behavioural research.
+To provide a realistic perspective on the scope of this thesis, we distinguish between constraints that stem from practical project conditions and limitations inherent to kernel-level behavioral analysis.
 
 \subsection*{Project-Specific Constraints}
 
 \begin{itemize}
-    \item \textbf{Timeframe}: The study was conducted within the schedule of an
-    undergraduate thesis, limiting the breadth of experiments (e.g., number of
-    devices, data-collection days, and repetitions).
-    \item \textbf{Hardware Diversity}: Tracing was performed on a small set of
-    consumer devices; the results may not generalise to custom ROMs, tablets, or
-    low-end hardware.
-    \item \textbf{App Selection Bias}: Only three high-profile messaging apps
-    (WhatsApp, Telegram, Signal) were analysed, excluding niche or region-specific platforms.
-    \item \textbf{Resource Budget}: Storage, processing power, and time for
-    post-processing large trace files were constrained by the available personal
-    infrastructure.
+\item \textbf{Timeframe}: The study was conducted within the schedule of an undergraduate thesis, limiting the breadth of experiments (e.g., number of devices, sessions, and repetitions).
+\item \textbf{Hardware Diversity}: Tracing was performed on a small set of consumer-grade devices; results may not generalize to tablets, custom ROMs, or low-end hardware with limited kernel visibility.
+\item \textbf{App Selection}: The analysis focused on three major messaging applications (WhatsApp, Telegram, Signal), leaving out lesser-known or region-specific apps that may exhibit different interaction patterns.
+\item \textbf{Infrastructure Limitations}: The available storage and compute resources constrained long-term tracing, especially for large volumes of high-frequency events.
 \end{itemize}
 
 \subsection*{Domain and Methodological Constraints}
+
 \begin{itemize}
-    \item \textbf{Semantic Gap}: Kernel traces expose low-level events (syscalls, Binder transactions) but lack direct mapping to high-level user actions, complicating interpretation.
-    \item \textbf{Trace Volume}: High-frequency events can generate gigabyte-scale logs; aggressive filtering risks losing context, whereas full capture challenges storage and analysis pipelines.
-    \item \textbf{Root Access Requirements}: The use of \texttt{kprobes} and access to \texttt{debugfs} requires root privileges, limiting applicability on production devices. While suitable for research, real-world deployment would require alternative mechanisms.
-    \item \textbf{Noise in Dynamic Tracing}: Background services, OS updates, and vendor processes introduce variability that may mask or mimic app-specific behaviour.
+\item \textbf{Semantic Granularity}: The tracing layer captures low-level kernel events (e.g., syscalls, Binder transactions), which do not directly map to user-level actions. Bridging this semantic gap remains a challenge and requires contextual or learned associations.
+\item \textbf{Trace Volume and Overhead}: Continuous tracing generates substantial data, with redundant or low-entropy segments increasing the storage footprint. While filters can reduce size, they risk omitting relevant context.
+\item \textbf{Privilege Requirements}: Full access to tracepoints and instrumentation mechanisms (e.g., \texttt{kprobes}, tracefs) demands root privileges, limiting deployability on unmodified devices.
+\item \textbf{Attribution Noise}: Shared system components such as the \texttt{servicemanager} may introduce inter-process noise in IPC traces, leading to occasional misattribution of events between apps. While this is mitigated by observing behavior over extended sessions, it remains a source of uncertainty.
+\item \textbf{Ground Truth Approximation}: Behavioral labels were inferred by interacting with known applications and observing corresponding kernel activity. Although indicative, this approximation may miss subtle or undocumented app behavior.
 \end{itemize}
 
 \section{Contributions of this Thesis}
@@ -846,35 +845,75 @@ The inherent strengths of kernel-level dynamic analysis in capturing runtime beh
 Kernel-level system call tracing provides a low-level, ground-truth view of how Android applications interact with the operating system. In this section, we explore both the technical mechanisms available for capturing such interactions and the analytical methods used to extract meaningful behavioral insights—particularly in the context of privacy-sensitive mobile applications such as messaging platforms.
 
 \subsection{Tracing Interfaces and Instrumentation Tools}
-Several kernel-level tracing tools are available in Android and Linux-based systems, each offering a distinct trade-off between overhead, observability, and programmability:
 
+Modern Linux/Android kernels expose \emph{three orthogonal instrumentation surfaces}: (i) \textbf{static hooks} that are compiled into the kernel (tracepoints), (ii) \textbf{dynamic probes} that can be inserted at run time (k{,u}probes, eBPF), and (iii) \textbf{ptrace--based syscall interception} (strace).  Table~\ref{tab:tracing-tools} highlights their comparative properties, while the text that follows groups them by abstraction level and expected use-case.
+
+\paragraph{Static, zero-copy tracepoints.}
+Tracepoints are compile-time hooks maintained by kernel developers; they guarantee ABI stability and negligible overhead because the tracing payload is copied once into a per-CPU ring buffer.  Tools such as \texttt{perf}, \texttt{ftrace} and \texttt{bcc} attach to them for scheduler, VFS, or networking events with no kernel patching.
+
+\paragraph{Dynamic probes and in-kernel programs.}
+\texttt{kprobes} (kernel) and \texttt{uprobes} (user space) allow on-the-fly instrumentation of arbitrary function symbols, making them ideal when a suitable tracepoint is missing.  eBPF generalises this idea by allowing verified byte-code programs to run in kernel context, enabling stateful filtering, histograms, and user-space export with minimal context switches.  Because Android’s common kernels (\,$\ge$~5.10) now ship with BPF Type Format (BTF) enabled, eBPF is increasingly the default for production-grade observability.
+
+\paragraph{Function and syscall tracers.}
+\texttt{ftrace} is a built-in tracer that can log every kernel entry/exit or a filtered subset (e.g.\ only \texttt{vfs\_write}); it underpins higher-level front-ends such as \texttt{systrace} and \texttt{Perfetto}.  At user level, \texttt{strace} leverages \texttt{ptrace(2)} to record syscall arguments, but incurs high per-event latency and is straightforward for malware to detect—hence unsuitable for long-running, stealth monitoring.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\caption{Comparison of kernel tracing mechanisms on Android/Linux}
+\label{tab:tracing-tools}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Interface}      & \textbf{Granularity} & \textbf{Runtime insert?} & \textbf{Avg.\ overhead} & \textbf{Best use-case} \\ \midrule
+Tracepoints             & fixed events        & --                      & $\sim$0.3–1\% cpu       & Scheduler / VFS stats  \\
+ftrace (func tracer)    & any kernel func.    & enable/disable          & 1–5\% with filter       & Call-stack profiling   \\
+kprobes / uprobes       & any symbol          & \checkmark              & 2–8\% (filtered)        & Ad-hoc instrumentation \\
+eBPF + BTF              & prog.\ byte-code    & \checkmark              & $<$2\% (JITed)          & Stateful, low loss      \\
+strace (ptrace)         & syscalls only       & user-space              & 30–100\%                & Debug / unit tests     \\ \bottomrule
+\end{tabular}
+\end{table}
+
+The thesis adopts a \emph{hybrid strategy}: lightweight \texttt{ftrace} for ubiquitous, low-volume events; targeted \texttt{kprobes} for missing hooks (e.g.\ \texttt{vfs\_write}); and optional eBPF programs when on-device filtering is required.  High-overhead \texttt{strace} is reserved solely for differential debugging and is never enabled in production experiments.
+
+
+\subsection{Raw Trace Data}
+
+Kernel tracing tools (\texttt{ftrace}, \texttt{kprobes}, eBPF, \textit{etc.}) stream their output to \texttt{tracefs} as \textbf{fixed-width, one-line records}.
+Each record encodes—without additional parsing—the CPU on which the event was recorded, the task name and PID, a flag block (IRQ state, pre-emption depth), a high-resolution timestamp, and finally the probe payload.
+
+\begin{lstlisting}[language={},caption={Excerpt from \texttt{trace\_pipe}}]
+<photo_app>-1234  [003] d..2 10234.567890: sys_enter_openat:
+    dfd=AT_FDCWD filename="/data/user/0/app/cache/img.jpg" flags=O_RDONLY
+<photo_app>-1234  [003] d..2 10234.567905: sys_exit_openat:  = 42
+<nfc_service>-285   [001] d..2 10235.001122: sys_enter_ioctl:
+    fd=22 cmd=0x4004667E arg=0x7fff31ff
+\end{lstlisting}
+
+\noindent
+\textbf{Field semantics}
 \begin{itemize}
-\item \textbf{ftrace}: Integrated into the Linux kernel, ftrace provides function-level and syscall-level tracing, context switches, scheduling events, and filtering by PID or syscall. It is accessible via \texttt{/sys/kernel/debug/tracing} and optimized for minimal overhead.
-\item \textbf{kprobes and uprobes}: Support dynamic, on-the-fly instrumentation at both kernel and user-space function addresses. Useful for attaching probes at points like \texttt{do\_sys\_open}, logging file accesses and argument values.
-\item \textbf{tracepoints}: Provide predefined hook points in the kernel source that offer safe, efficient monitoring of events such as process creation, file access, or scheduler activity. Often used with tools like perf or BCC.
-\item \textbf{strace}: A user-space syscall tracer that uses ptrace to log syscall invocations. Ideal for debugging but with high overhead and poor stealth, making it unsuitable for continuous profiling.
-\item \textbf{eBPF (Extended Berkeley Packet Filter)}: A modern programmable tracing interface allowing safe kernel extensions at runtime. It supports dynamic filtering, per-event logic, aggregation, and export to user space. Its adoption in Android is growing with newer kernels.
+  \item \textit{Task‐PID}: user-level thread that triggered the event.
+  \item \textit{\,[CPU] flags}: per-CPU core and execution context (\texttt{d}~=~kernel mode, \texttt{2} = IRQ depth).
+  \item \textit{Timestamp}: monotonic clock in micro-seconds by default; nanosecond precision available.
+  \item \textit{Event tag}: probe name (\texttt{sys\_enter\_openat}) followed by key–value arguments captured directly from CPU registers or kernel structures.
 \end{itemize}
 
-\textbf{Table 1: Comparison of Kernel Tracing Tools}
-
-
-\subsection{Raw Trace Data and Post-Processing}
-The output from syscall tracing tools typically consists of structured logs, such as:
-
-\begin{verbatim}
-<...>-1234 [000] .... 10000.123456: sys_enter_openat: dfd=AT_FDCWD filename="/data/user/0/app/cache/image.jpg"
-\end{verbatim}
-
-These logs capture syscall names, parameters, timestamps, and context (e.g., PID, thread state). To extract insights:
-
+\paragraph{Why keep the raw stream}
 \begin{itemize}
-\item Data is filtered and cleaned to isolate app-specific syscall events.
-\item Features such as syscall frequency, argument patterns, and return codes are extracted.
-\item Aggregated traces are converted to higher-level representations (e.g., n-grams, histograms) for machine learning or statistical analysis.
+  \item Loss-less: \texttt{tracefs} writes to a per-CPU ring buffer before any filtering—crucial for forensics.
+  \item Deterministic ordering: timestamps are emitted in-kernel, avoiding user-space re-ordering.
+  \item Re-playable: the same raw lines can be re-parsed with new heuristics (e.g.\ different PID filters) without re-tracing the device.
 \end{itemize}
 
-Post-processing typically involves parsing tools like Python scripts, custom Bash pipelines, or tools like \texttt{perf}, \texttt{bcc}, and \texttt{Sysdig}. These allow for correlation with app state (foreground/background), event type, and time windows.
+\paragraph{Immediate post-processing steps}
+\begin{enumerate}[label=(\roman*)]
+  \item \emph{PID filtering} to retain only application or system-service PIDs of interest.
+  \item \emph{Field decoding} (hex → decimal, bit-fields) via a lightweight Python lexer.
+  \item \emph{Chunking} into sliding windows (size $\sim$200–500 events) to bound causal slicing.
+\end{enumerate}
+
+\noindent
+These cleaned slices are then forwarded to the \textit{Heuristic Slicing Engine}, which reconstructs information flows, and finally exported as CSV/JSON or rendered as PDF visualisations.
 
 \subsection{System Call Pattern Analysis and Behavioral Fingerprinting}
 
@@ -973,7 +1012,7 @@ After obtaining the full OTA zip for the CPH2621 EU variant via Oxygen Updater, 
 
 The sequence of commands used during the rooting process is provided in Listing~\ref{lst:rooting-commands}.
 
-\begin{lstlisting}[caption={Command Sequence for Rooting Procedure},label={lst:rooting-commands},numbers=left]
+\begin{lstlisting}[language=bash,caption={Rooting commands for device setup},label={lst:rooting-commands},numbers=left]
 adb devices
 adb reboot bootloader
 fastboot flashing unlock
@@ -1209,35 +1248,103 @@ thesis.  The layer is nevertheless documented here for completeness
 as it supplies essential metadata to the behaviour-reconstruction
 pipeline described in the following sections.
 
-\subsection{Device Storage and Export Formats}
-
 
 \subsection{Parsing and Pre-Processing (Computer-Side)}
 
+After raw traces are pulled from the device, a lightweight two-phase
+parser converts each \texttt{tracefs} line into a structured Python
+object:
+
+\begin{enumerate}[label=(\roman*)]
+  \item \textbf{Tokenisation:} A single \texttt{regex} separates the
+        fixed header \emph{(task--PID, CPU, flags, timestamp,
+        event-name)} from the variable key--value payload.
+
+  \item \textbf{Field casting:} Numerical fields are normalized
+        (\texttt{hex}~$\rightarrow$~\texttt{decimal},
+        bit-flags~$\rightarrow$~boolean), and path arguments are de-quoted.
+\end{enumerate}
 
 
 
-\subsection{Slicing and Information Flow Tracking}
+\noindent
+Three incremental “cleaners’’ are then applied:
+
+\begin{compactitem}
+  \item \emph{Daemon filter} — drops events whose \texttt{TASK} belongs
+        to ubiquitous Android services (\texttt{zygote}, \texttt{surfaceflinger}, …).
+  \item \emph{Ephemeral-FD filter} — removes events on short-lived
+        pipes/sockets that never propagate beyond the same PID tree.
+  \item \emph{Binder-noise filter} — collapses tight
+        \texttt{ioctl(BINDER\_WRITE\_READ)} ping-pong cycles.
+\end{compactitem}
+
+\noindent
+Clean events are partitioned into overlapping windows
+($200$–$500$~records, $20\%$ overlap).
+This bound on temporal scope mitigates dependence explosion while
+preserving IPC causality, mirroring the empirical setting of
+SysDroid~\cite{sysdroid2025}.
+
+
+\subsection{Slicing and Information-Flow Tracking}
+
+For each window and seed PID $p$, we reconstruct per-process
+information flows using the dual-pass IPC slicing algorithm adapted
+from SysDroid (Algorithms 1–2):
+
+\begin{enumerate}
+  \item \textbf{Forward slice (out-flows).}
+        Scan events in chronological order; maintain a dynamic set
+        $P$ of “reachable’’ PIDs (initially $\{p\}$).
+        \emph{IPC $\rightarrow$} events add the destination PID to $P$;
+        \emph{write/ioctl/net-send} events emitted by any
+        $q\!\in\!P$ are recorded as outward dataflows.
+  \item \textbf{Backward slice (in-flows).}
+        Repeat in reverse time order; \emph{IPC~$\rightarrow$} adds
+        the source PID, and \emph{read/net-recv} events supply the
+        inbound dependencies.
+\end{enumerate}
+
+Each slice yields a directed, per-window causal graph
+$G=(V,E)$ where
+$V$ = PIDs and $E$ = \{read, write, ioctl, socket, binder\}.
+Graphs are merged across consecutive windows via identical
+transaction IDs (Binder) and socket tuples, producing a
+whole-session trace of:
+
+\[
+  \text{API call} \;\xrightarrow{\;G\;}\;
+  \Bigl\{\,
+     \text{device nodes},\;
+     \text{files},\;
+     \text{sockets}
+  \Bigr\}
+\]
+
+\noindent
+The resulting flow descriptors are serialised to
+\texttt{JSON/CSV} for downstream analytics and drive both the static
+PDF plots and the interactive Flask–D3 dashboard.
+
+
+\subsection{Device Storage and Export Formats}
+
+Raw trace data is initially stored on the device under filenames that reflect the target process under observation (e.g., \texttt{photo\_remote\_phone.child2024.trace}). These files are produced by the instrumentation layer and capture low-level kernel events relevant to the selected application.
+
+In parallel, the output of the Resource Resolver Layer is saved as JSON files (e.g., \texttt{cat2\_dev\_Nothing.json}, \texttt{cat2\_dev\_OnePlus.json}), mapping device identifiers and inode values to high-level semantic categories such as \emph{camera}, \emph{contacts}, or \emph{bluetooth}.
+
+After processing and slicing, final outputs are stored in two formats:
+\begin{itemize}
+  \item \texttt{Exports/}: structured datasets in \texttt{CSV} and \texttt{JSON} format, suitable for further analysis or feeding into the dashboard.
+  \item \texttt{Figures/}: visual summaries of behavioral patterns in \texttt{PDF} format, including timelines and resource access distributions.
+\end{itemize}
+
+This layered output structure supports traceability, modular analysis, and easy visual inspection across all stages of the pipeline.
 
 
 
-
-\subsection{Export and Visual Analytics}
-
-
-
-\subsection{Pipeline Summary}
-
-
-\begin{center}
-\texttt{config\_files/ + scripts/} $\rightarrow$ raw trace via \texttt{tracefs} $\rightarrow$ parsing $\rightarrow$ cleaning/indexing $\rightarrow$ slicing $\rightarrow$ JSON/CSV export $\rightarrow$ Flask API $\rightarrow$ D3.js visualisation
-\end{center}
-
-
-This modular pipeline facilitates future extensions—e.g., substituting a graph‑database backend or integrating user‑space probes—without perturbing the upstream instrumentation layer.
-
-
-\section{Data Visualization and User Interface Design}
+\subsection{Data Visualization and User Interface Design}
 
 To facilitate high-level interpretation of low-level system behavior, the visual interface offers:
 
@@ -1260,6 +1367,48 @@ To facilitate high-level interpretation of low-level system behavior, the visual
 \caption{Aggregate statistics panel showing device usage and syscall distribution. The interface displays counts and percentages, updating dynamically as filters are applied.}
 \label{fig:statistics_view}
 \end{figure}
+
+\subsection{Pipeline Summary}
+
+To close this architecture chapter, Figure \ref{fig:pipeline} condenses the entire workflow into eight blocks: configuration and probe activation, low-overhead collection via \texttt{tracefs}, host-side parsing, cleaning, IPC slicing, export, a Flask API, and finally a D3.js dashboard.  Each block is self-contained, so downstream components can be swapped without touching the upstream instrumentation layer.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  box/.style={
+     rectangle, rounded corners=3pt,
+     draw=black!65, very thick,
+     fill=gray!20,
+     text width=3cm, align=center,
+     minimum height=1.0cm},
+  arrow/.style={-{Latex[length=3mm,width=2mm]}, thick},
+  node distance=1.3cm and 0.8cm]
+% first row
+\node[box] (cfg)   {\texttt{config\_files}\\\texttt{+ scripts}};
+\node[box,right=of cfg]  (raw)   {raw trace\\(\texttt{tracefs})};
+\node[box,right=of raw]  (parse) {parsing};
+\node[box,right=of parse] (clean) {cleaning\\\& indexing};
+% second row
+\node[box,below=1.1cm of clean] (slice) {slicing};
+\node[box,left=of slice]        (exp)   {JSON / CSV\\export};
+\node[box,left=of exp]          (api)   {Flask API};
+\node[box,left=of api]          (viz)   {D3.js\\visualisation};
+% arrows
+\path[arrow]
+  (cfg) edge (raw)
+  (raw) edge (parse)
+  (parse) edge (clean)
+  (clean) edge[below] (slice)
+  (slice) edge (exp)
+  (exp) edge (api)
+  (api) edge (viz);
+\end{tikzpicture}
+\caption{End-to-end data flow from probe configuration to interactive analytics.}
+\label{fig:pipeline}
+\end{figure}
+
+
 % --------------------------------------------------
 %  Results
 % --------------------------------------------------
