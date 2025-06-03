@@ -27,9 +27,9 @@ events/kprobes/tcp_sendmsg
 events/kprobes/tcp_recvmsg
 events/kprobes/udp_sendmsg
 events/kprobes/udp_recvmsg
-events/kprobes/sys_ptrace
-events/kprobes/sys_mprotect
-events/kprobes/sys_setuid
-events/kprobes/sys_setresgid
-events/kprobes/sys_setresuid
-events/kprobes/sys_capset
+events/kprobes/__arm64_sys_ptrace
+events/kprobes/__arm64_sys_mprotect
+events/kprobes/__arm64_sys_setuid
+events/kprobes/__arm64_sys_setresgid
+events/kprobes/__arm64_sys_setresuid
+events/kprobes/__arm64_sys_capset
