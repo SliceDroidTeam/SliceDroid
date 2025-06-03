@@ -53,12 +53,7 @@
 }
 
 % Page margins
-\geometry{
-    left=3cm,
-    right=2.5cm,
-    top=2.5cm,
-    bottom=2.5cm
-}
+\geometry{margin=2.5cm, bindingoffset=0.8cm, twoside}
 
 \lstset{
   basicstyle=\ttfamily\small,
@@ -362,6 +357,7 @@ To provide a realistic perspective on the scope of this thesis, we distinguish b
 \end{itemize}
 
 \section{Contributions of this Thesis}
+% TODO
 
 \section{Thesis Outline}
 This thesis is organized into the following chapters:
@@ -816,7 +812,7 @@ Kernel-level dynamic analysis, specifically used in this thesis, employs system 
 
 This low-level monitoring ensures comprehensive coverage of runtime behaviors, regardless of obfuscation or the execution of native code segments.
 
-\subsection{Technical Comparison}
+\subsection{Comparative Summary}
 
 \begin{table}[h]
 \centering
@@ -1116,8 +1112,6 @@ The implementation is organised into logically separated top-level modules, refl
 \end{description}
 
 
-\section{Implementation Details}
-
 \subsection{Instrumentation Layer (Mobile-Side Tracing Engine)}
 
 The instrumentation layer is responsible for capturing low-level system interactions occurring on the Android device. The initial implementation of the tracing subsystem was developed by Nikos Alexopoulos as part of the SYSDROID project at AUEB, and forms the foundational backbone of this thesis. This base layer leverages dynamic kernel probes (\texttt{kprobes}) and static \texttt{tracepoints} exposed via the \texttt{ftrace} interface, allowing efficient interception of system call and function-level activity in the kernel.
@@ -1407,6 +1401,23 @@ To close this architecture chapter, Figure \ref{fig:pipeline} condenses the enti
 \caption{End-to-end data flow from probe configuration to interactive analytics.}
 \label{fig:pipeline}
 \end{figure}
+
+\section{Workload Setup and Usage Scenarios}
+\subsection{Target Applications}\label{sec:apps}
+
+
+\textbf{Selection criteria}
+
+
+\subsection{Interaction Scenarios}\label{sec:scenarios}
+
+\noindent
+
+
+\subsection{Session Schedule and Duration}\label{sec:schedule}
+
+
+\subsection{Trace Volume and Storage Footprint}\label{sec:trace-volume}
 
 
 % --------------------------------------------------
