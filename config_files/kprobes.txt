@@ -15,4 +15,14 @@ p:kprobes/__sys_connect __sys_connect sockfd=$arg1 addr=$arg2 addrlen=$arg3
 p:kprobes/__sys_sendto __sys_sendto sockfd=$arg1 buf=$arg2 len=$arg3 flags=$arg4 to=$arg5 tolen=$arg6
 p:kprobes/__sys_recvfrom __sys_recvfrom sockfd=$arg1 buf=$arg2 len=$arg3 flags=$arg4 from=$arg5 fromlen=$arg6
 p:kprobes/__sys_bind __sys_bind sockfd=$arg1 addr=$arg2 addrlen=$arg3
+p:kprobes/tcp_sendmsg tcp_sendmsg sk=$arg1 msg=$arg2 size=$arg3
+p:kprobes/tcp_recvmsg tcp_recvmsg sk=$arg1 msg=$arg2 len=$arg3 nonblock=$arg4 flags=$arg5 addr_len=$arg6
+p:kprobes/sys_mprotect sys_mprotect start=$arg1 len=$arg2 prot=$arg3
+p:kprobes/udp_sendmsg udp_sendmsg sock=$arg1  msghdr=$arg2 len=$arg3
+p:kprobes/udp_recvmsg udp_recvmsg sk=$arg1 msg=$arg2 len=$arg3 noblock=$arg4 flags=$arg5 addr_len=$arg6
+p:kprobes/sys_ptrace sys_ptrace request=$arg1 pid=$arg2 addr=$arg3 data=$arg4
+p:kprobes/sys_setuid sys_setuid uid=$arg1
+p:kprobes/sys_capset sys_capset header=$arg1 data=$arg2
+p:kprobes/sys_setresuid sys_setresuid ruid=$arg1 euid=$arg2 suid=$arg3
+p:kprobes/sys_setresgid sys_setresgid rgid=$arg1 egid=$arg2 sgid=$arg3
 p:kprobes/mmap_probe vm_mmap_pgoff file=$arg1 inode=+64(+32($arg1)):u64 s_dev_inode=+16(+40(+32($arg1))):u32 pathname=+0(+40(+24($arg1))):string

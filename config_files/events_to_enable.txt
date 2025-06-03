@@ -21,3 +21,15 @@ events/kprobes/__sys_bind
 events/mmap
 events/net/net_dev_xmit
 events/net/netif_receive_skb
+events/sched/sched_process_fork
+events/sched/sched_process_exec
+events/kprobes/tcp_sendmsg
+events/kprobes/tcp_recvmsg
+events/kprobes/udp_sendmsg
+events/kprobes/udp_recvmsg
+events/kprobes/sys_ptrace
+events/kprobes/sys_mprotect
+events/kprobes/sys_setuid
+events/kprobes/sys_setresgid
+events/kprobes/sys_setresuid
+events/kprobes/sys_capset
