@@ -26,4 +26,5 @@ p:kprobes/__arm64_sys_capset __arm64_sys_capset header=$arg1 data=$arg2
 p:kprobes/__arm64_sys_setresuid __arm64_sys_setresuid ruid=$arg1 euid=$arg2 suid=$arg3
 p:kprobes/__arm64_sys_setresgid __arm64_sys_setresgid rgid=$arg1 egid=$arg2 sgid=$arg3
 p:kprobes/load_elf_binary load_elf_binary bprm=$arg1
+p:kprobes/__arm64_sys_execve __arm64_sys_execve filename=$arg1 argv=$arg2 envp=$arg3
 p:kprobes/mmap_probe vm_mmap_pgoff file=$arg1 inode=+64(+32($arg1)):u64 s_dev_inode=+16(+40(+32($arg1))):u32 pathname=+0(+40(+24($arg1))):string

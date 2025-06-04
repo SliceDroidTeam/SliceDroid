@@ -21,6 +21,7 @@ events/kprobes/__sys_bind
 events/mmap
 events/net/net_dev_xmit
 events/net/netif_receive_skb
+events/kprobes/__arm64_sys_execve
 events/sched/sched_process_fork
 events/sched/sched_process_exec
 events/kprobes/tcp_sendmsg
