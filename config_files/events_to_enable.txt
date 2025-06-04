@@ -27,7 +27,8 @@ events/kprobes/tcp_sendmsg
 events/kprobes/tcp_recvmsg
 events/kprobes/udp_sendmsg
 events/kprobes/udp_recvmsg
-events/kprobes/__arm64_sys_ptrace
+events/kprobes/ptrace_attach
+events/kprobes/load_elf_binary
 events/kprobes/__arm64_sys_mprotect
 events/kprobes/__arm64_sys_setuid
 events/kprobes/__arm64_sys_setresgid

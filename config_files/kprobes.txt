@@ -20,9 +20,10 @@ p:kprobes/tcp_recvmsg tcp_recvmsg sk=$arg1 msg=$arg2 len=$arg3 nonblock=$arg4 fl
 p:kprobes/__arm64_sys_mprotect __arm64_sys_mprotect start=$arg1 len=$arg2 prot=$arg3
 p:kprobes/udp_sendmsg udp_sendmsg sock=$arg1  msghdr=$arg2 len=$arg3
 p:kprobes/udp_recvmsg udp_recvmsg sk=$arg1 msg=$arg2 len=$arg3 noblock=$arg4 flags=$arg5 addr_len=$arg6
-p:kprobes/__arm64_sys_ptrace __arm64_sys_ptrace request=$arg1 pid=$arg2 addr=$arg3 data=$arg4
+p:kprobes/ptrace_attach ptrace_attach task=$arg1 request=$arg2 addr=$arg3 flags=$arg4
 p:kprobes/__arm64_sys_setuid __arm64_sys_setuid uid=$arg1
 p:kprobes/__arm64_sys_capset __arm64_sys_capset header=$arg1 data=$arg2
 p:kprobes/__arm64_sys_setresuid __arm64_sys_setresuid ruid=$arg1 euid=$arg2 suid=$arg3
 p:kprobes/__arm64_sys_setresgid __arm64_sys_setresgid rgid=$arg1 egid=$arg2 sgid=$arg3
+p:kprobes/load_elf_binary load_elf_binary bprm=$arg1
 p:kprobes/mmap_probe vm_mmap_pgoff file=$arg1 inode=+64(+32($arg1)):u64 s_dev_inode=+16(+40(+32($arg1))):u32 pathname=+0(+40(+24($arg1))):string
