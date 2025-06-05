@@ -53,7 +53,7 @@
 }
 
 % Page margins
-\geometry{margin=2.5cm, bindingoffset=0.8cm, twoside}
+\geometry{margin=2.5cm, bindingoffset=0.8cm}
 
 \lstset{
   basicstyle=\ttfamily\small,
@@ -157,91 +157,49 @@ of global users surpassing 5 billion and continuing to grow rapidly
 open-source operating system developed by Google—holds a stable global market
 share of approximately 75 \% \cite{StatCounter2025}. Its open-source nature,
 flexibility, and widespread adoption have cultivated a vast ecosystem of
-applications that enhance user productivity and social interaction across various
-domains.
+applications that enhance user productivity and social interaction across
+various domains.
 
 Among these applications, messaging platforms such as WhatsApp, Telegram,
 Facebook Messenger, and Signal have gained significant popularity, playing a
 central role in both personal and professional communication. However, the
 ubiquitous use of smartphones for such purposes has led to the accumulation of
-sensitive personal data on user devices, including photos, contact lists, location
-history, and financial information, thereby raising serious privacy and security
-concerns \cite{ArsTechnica2018}.
+sensitive personal data on user devices, including photos, contact lists,
+location history, and financial information, thereby raising serious privacy and
+security concerns \cite{ArsTechnica2018}.
 
 Incidents such as Facebook’s unauthorized collection of SMS texts and call logs
-from Android devices \cite{ArsTechnica2018} underscore the vulnerabilities within
-existing mobile ecosystems. In response, regulatory frameworks like the General
-Data Protection Regulation (GDPR) and national laws such as the UK Data
-Protection Act 2018 aim to enforce principles of transparency, data minimization,
-and user consent in data processing \cite{GDPR2016,UKDPA2018}.
+from Android devices \cite{ArsTechnica2018} underscore the vulnerabilities
+within existing mobile ecosystems. In response, regulatory frameworks like the
+General Data Protection Regulation (GDPR) and national laws such as the UK Data
+Protection Act 2018 aim to enforce principles of transparency, data
+minimization, and user consent in data processing
+\cite{GDPR2016,UKDPA2018}. Despite these efforts, Android’s permission model
+often fails in practice—users frequently misinterpret the scope of the
+privileges they grant, inadvertently exposing sensitive data \cite{CHI2024Permissions}.
 
-Despite these legislative efforts, Android’s current permission management system
-remains insufficient. Users frequently misinterpret the scope and implications of
-the permissions they grant, inadvertently exposing sensitive data to misuse
-\cite{CHI2024Permissions}.
+End-to-end encryption (E2EE) provides strong guarantees for content
+confidentiality, yet its effectiveness ultimately depends on correct
+implementation, device-level protections, and careful metadata handling
+\cite{arxiv2020metadata,wired2023signalhack}. Messaging apps may still leak
+information through patterns such as message timing or background system
+activity—even when message payloads are encrypted.
 
-Furthermore, while end-to-end encryption (E2EE) provides strong guarantees for content
-confidentiality, it is neither a necessary nor sufficient condition for overall application
-security. The effectiveness of E2EE depends heavily on implementation correctness,
-device-level protections, and metadata handling practices \cite{arxiv2020metadata,
-wired2023signalhack}. Messaging apps may still leak sensitive information through
-metadata such as message timing, connection patterns, or system-level behavior—even
-when message content is encrypted. Notably, recent work has demonstrated how compromised
-implementations or poorly configured server components can undermine the protections
-offered by E2EE protocols \cite{wired2023signalhack}.
+Capturing and understanding this low-level behavior requires runtime analysis.
+Kernel-level tracing is a powerful technique for that purpose: tools such as
+\texttt{ftrace} and \texttt{kprobes} record system-call activity with minimal
+overhead, offering fine-grained visibility into how an application interacts
+with operating-system resources \cite{BPFroid2021,AOSP2024Ftrace}. Yet only a
+handful of studies have focused on applying such tracing specifically to
+messaging apps \cite{SLR2025Messaging}, despite their widespread and sensitive
+use—including by government and military officials
+\cite{Politico2025Signal}.
 
-To address these challenges, it is essential to analyze application behavior—that
-is, the actual operations performed by an app, both in the foreground and
-background. Research has shown that discrepancies often exist between user
-expectations and actual app behavior, with applications executing hidden or
-unauthorized tasks \cite{NDSS2025Mismatch}. Many detection techniques rely on the
-assumption that user-interface (UI) elements accurately represent application
-functionality, an assumption that is not always valid \cite{NDSS2025Mismatch}.
-
-Behavioral-analysis methods are typically divided into static and dynamic
-approaches. Static analysis examines application code without execution,
-identifying known malicious patterns; however, it is susceptible to evasion
-through obfuscation and polymorphism \cite{MDPI2023Obfuscation}. In contrast,
-dynamic analysis evaluates applications during runtime, monitoring behaviors such
-as system calls, resource consumption, and network activity
-\cite{SciDirect2023Syscall}. Among these, system-call analysis is particularly
-valuable, offering fine-grained visibility into application interactions with
-hardware and OS-level services \cite{SciDirect2023Syscall}.
-
-Kernel-level tracing is a powerful form of dynamic analysis, capable of capturing
-low-level system interactions with high precision \cite{BPFroid2021}. Android is
-built on a modified
-Linux kernel that orchestrates resource management and system processes via
-system calls \cite{AOSP2024Ftrace}. Tools such as \texttt{ftrace} and
-\texttt{kprobes} enable developers and researchers to trace kernel-level function
-calls, execution flows, and resource usage \cite{AOSP2024Ftrace,Kprobes2024}.
-
-\texttt{Ftrace} is a built-in tracing utility within the Linux kernel, optimized
-for performance and capable of monitoring execution latency and function-call
-sequences. \texttt{Kprobes}, on the other hand, allows for dynamic instrumentation
-of running kernels, enabling targeted probing of specific code locations during
-runtime \cite{Kprobes2024}.
-
-Applying kernel-level tracing to messaging applications, however, introduces
-unique technical challenges. These apps typically exhibit complex,
-multi-threaded behavior, frequent background processing, and diverse interactions
-with system resources. Accurately profiling such behavior requires collecting and
-interpreting high-volume, high-resolution kernel data \cite{BPFroid2021}.
-
-Despite the growing research interest in Android security and behavioral
-analysis, existing work has primarily focused on general application profiling or
-malware detection. Few studies have concentrated specifically on behavioral
-profiling of messaging apps using kernel-level data \cite{SLR2025Messaging}.
-Meanwhile, recent reports concerning the usage of secure messaging apps such as
-Signal by government and military officials have emphasized the urgent need for
-transparent, robust behavioral-analysis mechanisms \cite{Politico2025Signal}.
-
-To address these gaps, this thesis proposes a structured methodology for
-profiling the behavior of popular messaging applications on Android through
-kernel-level tracing using \texttt{ftrace} and \texttt{kprobes}. The proposed
-approach contributes a small but concrete step toward enhancing our understanding
-of messaging app behavior on Android, with the broader aim of supporting future
-efforts to strengthen user privacy and system transparency.
+This thesis investigates three core aspects:
+(i) whether declared permissions align with runtime resource usage,
+(ii) the extent of background access to privacy–sensitive data,
+and (iii) behavioural differences between privacy-centric and commercial messaging apps.
+The precise research questions are listed in Section~1.3.
 
 \section{Motivation and Problem Statement}
 
@@ -362,25 +320,26 @@ To provide a realistic perspective on the scope of this thesis, we distinguish b
 \section{Thesis Outline}
 This thesis is organized into the following chapters:
 
-\begin{itemize}
-    \item \textbf{Chapter 1 – Introduction:} Establishes the broader context of smartphone use, with emphasis on messaging applications and their privacy implications. Discusses the limitations of permission-based models and end-to-end encryption in ensuring transparency. Motivates the use of kernel-level tracing as a complementary analysis method. Presents the thesis motivation, problem statement, research objectives, research questions, and outlines the scope and limitations. Provides an overview of the thesis structure.
+\begin{itemize}[leftmargin=1.7em]
+  \item \textbf{Chapter 1 – Introduction:} Presents the rise of mobile messaging and privacy risks, highlights limits of Android permissions and E2EE, motivates kernel-level tracing, and states the thesis goals, research questions, and scope.
 
-    \item \textbf{Chapter 2 – Related Work:} Surveys prior literature on Android application analysis, categorized into static analysis, user-space dynamic instrumentation, kernel-level tracing, and empirical studies on messaging app privacy. Discusses complementary methodologies such as fuzzing, formal verification, differential privacy, side-channel analysis, and human-subject studies. Critically examines strengths and limitations of each line of work and identifies a clear research gap in systematic, runtime profiling of encrypted messaging apps using kernel-level methods.
+  \item \textbf{Chapter 2 – Related Work:} Reviews static analysis, user-space and kernel-space dynamic instrumentation, and prior privacy studies on messaging apps, pinpointing the gap in systematic runtime profiling of encrypted services.
 
-    \item \textbf{Chapter 3 – Technical Background:} Introduces technical foundations required to understand the system-level behaviour of Android apps. Covers the Android/Linux architecture, process lifecycle, Binder IPC, SELinux enforcement, and system call interface. Explains the tracing infrastructure (ftrace, kprobes) and their relevance for behavioral profiling. Reviews the internal structure of messaging apps and discusses the “semantic gap” between kernel events and user-level activity.
+  \item \textbf{Chapter 3 – Technical Background:} Summarises Android/Linux architecture, Binder IPC, SELinux, and the system-call interface; explains \texttt{ftrace}/\texttt{kprobes} and the semantic gap between kernel events and user actions.
 
-    \item \textbf{Chapter 4 – Methodology and System Design:} Details the experimental methodology and system architecture. Describes the device setup, trace instrumentation approach using ftrace and kprobes, and session design. Presents the trace parsing pipeline, data pre-processing, feature derivation, and app-state inference. Explains how behaviors are correlated with declared permissions and how the collected data is structured and visualized through a web-based interface.
+  \item \textbf{Chapter 4 – Methodology \& System Design:} Describes device setup, tracing configuration, data-processing pipeline, feature extraction, and the web-based visualisation dashboard.
 
-    \item \textbf{Chapter 5 – Results:} Summarizes empirical findings from real-world usage of WhatsApp, Telegram, and Signal. Presents observed kernel-level behaviors, event frequencies, system-call categories, and deviations between permission declarations and actual system-level activity. Provides side-by-side comparisons, statistical summaries, and visualizations of privacy-relevant patterns, such as background I/O, Binder bursts, and network usage under idle conditions.
+  \item \textbf{Chapter 5 – Results:} Reports empirical findings for WhatsApp, Telegram, and Signal: syscall frequencies, permission-behaviour mismatches, and comparative visuals of privacy-relevant patterns.
 
-    \item \textbf{Chapter 6 – Discussion:} Interprets the results in relation to the original research questions. Reflects on the practical implications of the findings, particularly concerning transparency, metadata exposure, and the role of kernel instrumentation in privacy audits. Discusses known limitations such as root access requirements, semantic ambiguity of low-level traces, data volume constraints, and potential improvements to the framework.
+  \item \textbf{Chapter 6 – Discussion:} Relates results to the research questions, examines implications for transparency and metadata leakage, and outlines methodological limitations and improvements.
 
-    \item \textbf{Chapter 7 – Conclusions:} Recaps the main contributions of the thesis and the insights gained from the study. Emphasizes the value of kernel-level tracing as a supplementary privacy analysis tool. Outlines open questions and proposes future directions, including integration with app-layer tracing, broader app coverage, automated behavior classification, and extending the approach to other app categories.
+  \item \textbf{Chapter 7 – Conclusions:} Recaps contributions, emphasises the value of kernel tracing for privacy audits, and proposes future work (more apps, automated behaviour classification, multi-layer tracing).
 
-    \item \textbf{Appendix A – Additional Data Tables:} Provides supplementary tables, charts, and event frequency breakdowns that support the results chapter. Includes statistics per app and per session, outlier cases, and system-call distribution matrices.
+  \item \textbf{Appendix A – Additional Data Tables:} Supplementary tables and charts supporting Chapter 5.
 
-    \item \textbf{Appendix B – Code:} Contains excerpts from scripts and tools used during data collection and analysis, including shell scripts for instrumentation, Python code for parsing and filtering traces, and the configuration files for kprobes and ftrace session management.
+  \item \textbf{Appendix B – Code:} Selected scripts and configuration files used for tracing and analysis.
 \end{itemize}
+
 
 % --------------------------------------------------
 %  Chapter 2 – Related Work
@@ -473,64 +432,46 @@ tracing remains the authoritative foundation for our behavioural profiling of
 messaging apps.  In our study, we therefore treat user-space hooks as an
 \emph{auxiliary lens} to validate and enrich the low-level, system-wide evidence
 captured by eBPF-based kernel monitors
+\section{Kernel–Level Tracing on Android}
 
-\section{Kernel-Level Tracing on Android}
-\label{sec:rw:kernel}
+\subsection{Tracing Infrastructures}
+Kernel hooks sit beneath both the Java/ART runtime and Linux user-space, capturing syscalls, Binder traffic, scheduler switches and network I/O with negligible perturbation.  Their vantage point is indispensable once payloads are encrypted in user space—TLS bursts, Binder IPC patterns and power wakes are often the only artefacts left to observe.  Prior art clusters into four tool-centric strands:
 
-Kernel tracing hooks run beneath both the Java/ART runtime and the Linux
-userland, recording system-wide events---syscalls, Binder transactions,
-scheduler switches, network I/O---with negligible interference to the
-application logic.  Such a viewpoint is pivotal for \emph{behavioural
-profiling of end-to-end encrypted messaging apps}: once payloads are
-ciphered in user space, only kernel footprints (e.g.\ TLS record bursts,
-Binder-IPC patterns, power wakes) remain observable.  Like static analysis,
-the literature has matured along four complementary strands.
+\begin{enumerate}[label=(\alph*)]
+  \item \textbf{eBPF- and \textit{ftrace}-based collectors.}
+        \emph{BPFroid} streams per-UID syscalls, Binder calls and network events from stock kernels to a malware detector at $\sim$3 % energy cost and 70 % Genome accuracy, without custom firmware.
+        Earlier, \emph{ID-Syscall} logged syscall sequences via a loadable module on Android 4.x, showing that rich behavioural signals are already available on commodity devices—albeit exploited only for coarse binary classification.
 
-\paragraph{(i) eBPF- and ftrace-based syscall/Binder collectors.}
-\textbf{BPFroid} streams per-UID syscalls, Binder calls and network events
-from \emph{stock} Android kernels to a real-time malware detector, achieving
-$\sim$3\,\% overhead and 70\,\% Genome detection accuracy at run time
-\cite{agman2021bpfroid}.  Earlier efforts, such as \textbf{ID-Syscall},
-compiled a loadable kernel module to log syscall sequences for anomaly
-detection on Android~4.x \cite{almuttawa2014syscall}.  These works show that
-rich behavioural signals are available without modifying the firmware
-image, yet they focus on binary classification rather than fine-grained
-messaging-app semantics.
+  \item \textbf{Network-centric and covert-channel tracing.}
+        Celik \& Gligor detect stegomalware solely from timing and packet-size anomalies in vanilla \textit{ftrace} logs, proving that scheduler, socket and power events suffice to expose covert channels—yet Binder traffic is omitted.
 
-\paragraph{(ii) Network-centric and covert-channel tracing.}
-Using vanilla \textit{ftrace}, Celik and Gligor detect
-\emph{stegomalware} by spotting timing and packet-size irregularities in
-kernel-level traces \cite{celik2021stego}.  Their methodology---correlating
-scheduler, socket and power events---is transferable to instant-messaging
-clients, but the study evaluates only artificial channels and omits Binder
-traffic.
+  \item \textbf{Hardware-assisted monitors.}
+        \emph{HART} streams ARM ETM traces of proprietary kernel modules almost for free, but ETM is often fused-off in production phones and lacks user-process context.
 
-\paragraph{(iii) Hardware-assisted monitors.}
-\textbf{HART} leverages ARM Embedded Trace Macro-cell (ETM) to stream
-control-flow of binary-only kernel modules with zero software overhead
-\cite{zhang2020hart}.  While ideal for diagnosing vendor drivers that gate
-camera or GPU access in chat apps, ETM is often disabled on production
-handsets and reveals no user-process context.
+  \item \textbf{Production-scale, low-overhead tracing.}
+        Google’s \emph{Perfetto} unifies \textit{ftrace}, Binder and user-space counters into multi-GB, SQL-queryable traces for start-up and jank analysis, while \emph{eMook} adds per-PID eBPF filters, cutting system cost by 85 %.  These toolchains enable week-long field studies on battery devices but remain untapped for security and messaging use-cases.
+\end{enumerate}
 
-\paragraph{(iv) Production-scale, low-overhead tracing.}
-Google’s \textbf{Perfetto} combines \emph{ftrace}, Binder and userspace
-counters into multi-gigabyte traces that can be queried in SQL to dissect
-app start-up and jank \cite{maganti2022perfetto}.  Complementarily,
-\textbf{eMook} shows how per-PID filters inside eBPF eliminate tracing
-overhead on unrelated processes, cutting system cost by 85\,\%
-\cite{williams2024emook}.  These advances make week-long field studies of
-battery-powered phones feasible but have yet to target security or
-messaging use-cases explicitly.
+\subsection{Bridging the Semantic Gap: Behaviour Reconstruction \& Transparency}
+After tracing primitives matured, attention shifted to re-assembling high-level behaviours from low-level footprints:
+
+\begin{enumerate}[label=(\alph*),resume]
+  \item \textbf{Cross-layer behaviour reconstruction.}
+        \emph{CopperDroid} fuses syscalls with Binder payloads via Virtual-Machine Introspection; \emph{Dagger} builds syscall–IPC provenance graphs; and \emph{SysDroid} slices kernel traces along Binder causality, covering privileged system apps on real devices with minimal overhead.  Multi-layer instrumentation can reach finer granularity but at 5–40 × runtime overhead, making it lab-only :contentReference[oaicite:0]{index=0}.
+
+  \item \textbf{Dynamic taint and information-flow trackers.}
+        TaintDroid, TaintART, ARTist and FSAFlow instrument the ART/Java runtime to propagate taints at object level; they are precise but incur noticeable slowdown, require framework changes and can be detected by malware—limitations avoided by pure kernel tracing :contentReference[oaicite:1]{index=1}.
+
+  \item \textbf{Provenance-system perspectives.}
+        Enterprise frameworks such as CamFlow, Hi-Fi and Spade record lightweight syscall provenance for APT detection on desktop systems; Android’s semantic gap hampers their direct reuse, but Binder-aware kernel tracing (e.g., SysDroid) can supply the missing context and extend host-based detection to mobile :contentReference[oaicite:2]{index=2}.
+
+  \item \textbf{Built-in transparency mechanisms.}
+        Since Android 12, status-bar indicators flag camera/mic use by third-party apps, yet they exclude system services and can be bypassed via permission abuse, overlays or framework bugs.  Kernel-level device-file tracing, as done by SysDroid, closes these blind spots :contentReference[oaicite:3]{index=3}.
+\end{enumerate}
 
 \medskip
 \noindent\textbf{Synthesis.}
-Kernel-level instrumentation, although powerful, has five critical weaknesses:
-\emph{(i) Semantic gap}—raw syscalls, Binder op-codes and network frames expose timing and sizes but no high-level intent;
-\emph{(ii) Opaque content}—end-to-end encryption hides message bodies and most protocol metadata;
-\emph{(iii) Privilege barrier}—enabling \texttt{kprobes}/eBPF typically requires \texttt{CAP\_SYS\_ADMIN}, a debug build, or root access;
-\emph{(iv) Data volume}—high-frequency tracepoints (e.g.\ \texttt{sched\_switch}) can emit tens of MB\,s\(^{-1}\) unless filtered in-kernel; and
-\emph{(v) Detectability}—sophisticated apps can query kernel debug files or eBPF counters to detect active probes and alter their behaviour.
-
+Kernel tracing offers a hard-to-tamper, always-on lens but must still tame five hurdles: \emph{semantic gap, opaque data, privilege requirements, data volume, detectability}.  Recent work narrows these by (i) pairing syscalls with Binder provenance, (ii) granting BPF rights via SELinux instead of root, (iii) summarising high-rate events in-kernel, and (iv) obscuring probes via ETM/PTM or uprobe randomisation—pushing low-overhead, whole-system reconstruction onto stock phones.
 
 \section{Privacy Studies on Messaging Applications}
 \label{sec:rw:privacy-im}
@@ -600,46 +541,13 @@ Our work closes this gap by correlating kprobe/ftrace events
 catalogued in prior literature, delivering the first \emph{runtime}
 taxonomy of privacy-relevant behaviours in WhatsApp, Telegram and Signal.
 
+\section{Research Gap}\label{sec:rw:gap}
+Most prior work approaches Android behaviour analysis from one of three angles.
+\emph{Static inspection} (e.g., code-review and manifest checks) is efficient but often misses behaviours that surface only at run time or behind obfuscation.
+\emph{User-space monitors}—such as taint-tracking or framework hooks—offer richer semantics, yet typically require a modified or rooted runtime, can be noticed by well-crafted apps, and place implicit trust in native code.
+Finally, \emph{kernel-level tracing} delivers low overhead and strong tamper resistance, but the raw syscalls and Binder op-codes it yields expose little intent, leaving a considerable semantic gap.
 
-\section{Other Complementary Approaches}\label{sec:rw:other}
-
-Beyond the four methodological pillars outlined earlier—static analysis, user-space dynamic instrumentation, kernel-level tracing, and empirical privacy audits—at least six additional research avenues have proven useful for dissecting the behaviour and privacy properties of mobile applications.
-
-\paragraph{Grey-box fuzzing.}  Coverage-guided fuzzers such as \emph{AFL++} and cloud services like \emph{ClusterFuzz} generate mutated inputs that drive apps along rarely executed paths.  Although they do not rely on full program knowledge, they systematically surface crashes and logic errors that can later be inspected with dynamic or kernel monitors \cite{aflpp2023,clusterfuzz2020}.
-
-\paragraph{Formal verification and model checking.}  Specification languages (e.g., TLA\textsuperscript{+}) combined with deductive verifiers (e.g., VeriFast) enable proofs of safety properties—such as correct handshake sequences in secure-messaging protocols or the absence of data races in JNI bridges—without collecting runtime traces \cite{antinyan2022noise,brack2019verifast}.
-
-\paragraph{Privacy-preserving telemetry.}  Large-scale differential-privacy frameworks adopted by Apple and Google collect aggregate statistics while bounding individual leakage, offering population-level insight into security events without intruding on single devices \cite{erlingsson2019dpframework,apple2023ppac}.
-
-\paragraph{Crowdsourced UI exploration.}  Robo-testing engines (e.g., Firebase Test Lab) drive accessibility events to map interface flows that static call graphs miss, producing semantic traces useful for regression testing and security auditing \cite{robo2018firebase}.
-
-\paragraph{Physical side-channel analysis.}  Power-monitoring boards and electromagnetic probes can infer sensitive activity—such as encryption or radio bursts—without any software hooks, complementing software-based tracing when root or debugging privileges are unavailable \cite{emsec2023smartphone}.
-
-\paragraph{Human-subject studies.}  Qualitative interviews and ethnographic methods shed light on adoption hurdles, configuration practices, and privacy norms that remain invisible to purely technical traces \cite{ngo2021signaladoption}.
-
-Taken together, these complementary approaches can feed into kernel-centric measurement pipelines—for instance, by injecting fuzz-generated events into week-long traces or correlating power signatures with Binder activity—thereby enriching the behavioural picture without relying solely on any single layer of observation.
-
-\section{Synthesis and Research Gap}\label{sec:rw:gap}
-
-The preceding survey has examined four methodological pillars: \emph{(i)} static code analysis, \emph{(ii)} user-space dynamic instrumentation, \emph{(iii)} kernel-level tracing, and \emph{(iv)} empirical privacy studies on messaging applications.  Each strand contributes a distinct vantage on application behaviour, yet no single technique delivers a complete picture.  Below we distil their interplay and outline the remaining opportunities for improvement.
-
-\subsection*{Synthesis of Current Methodologies}
-\begin{itemize}
-\item \textbf{Static analysis} offers breadth and determinism, uncovering dormant code paths and permission misalignments at scale.  Its reliability, however, is bounded by obfuscation, dynamic loading, and absent runtime context.
-\item \textbf{User-space instrumentation} provides rich semantic detail—method names, parameters, UI state—and deploys quickly on stock devices.  This power is tempered by visibility gaps beneath the syscall layer, susceptibility to anti-hooking defences, and non-negligible overhead.
-\item \textbf{Kernel-level tracing} records system-wide events with minimal perturbation, capturing activity that escapes sandboxed processes.  Yet it exposes only low-level artefacts (syscalls, Binder op-codes, I/O bursts) and therefore suffers from a semantic gap.
-\item \textbf{Privacy audits of messaging apps} demonstrate that residual files, traffic metadata, and contact-discovery workflows leak sensitive information even under end-to-end encryption.  Most studies rely on targeted forensics or controlled testbeds rather than continuous observation on real devices.
-\end{itemize}
-
-Collectively, the literature indicates a gradual migration toward \emph{hybrid pipelines} that combine complementary techniques—e.g., leveraging static call-graphs to seed dynamic hooks, or enriching kernel traces with user-space context.  Despite this trend, a cohesive framework that correlates \emph{system-wide runtime evidence} with \emph{privacy-relevant semantics} remains under-explored, especially for widely-used, end-to-end-encrypted messaging services operating in the wild.
-
-\subsection*{Identified Research Gap}
-\begin{enumerate}
-  \item \textbf{Runtime privacy profiling}. Existing kernel-level studies focus primarily on malware detection or performance debugging; they seldom translate low-level traces into privacy-oriented behavioural profiles.
-  \item \textbf{Long-term, in-situ observation}. Prior work often relies on short laboratory sessions, emulators, or rooted devices. Evidence from week-long field measurements on stock handsets is scarce.
-  \item \textbf{Correlating multi-layer signals}. Few frameworks align kernel events (e.g.\ Binder transactions, TLS bursts) with selective user-space context (e.g.\ intent actions, lifecycle callbacks).
-  \item \textbf{Quantifying residual metadata leakage}. The literature documents individual side-channels but lacks a systematic taxonomy of leakage patterns observable solely from system-level traces.
-\end{enumerate}
+Taken together, these observations suggest there is still room for techniques that keep the light footprint and robustness of kernel tracing while adding just enough context to make the resulting signals useful for privacy and security reasoning—ideally without demanding special firmware or extensive system modifications.
 
 % --------------------------------------------------
 %  Technical Background
@@ -792,50 +700,6 @@ These architectural and cryptographic distinctions shape observable syscall beha
 
 \textbf{Figure 7:} Comparative Analysis of Architectural and Cryptographic Models in Signal, Telegram, and Messenger.
 
-\section{Static vs. Dynamic Analysis}
-
-The security and behavioral analysis of Android applications typically leverages two main technical approaches: static and dynamic analysis. This section outlines the specific technical methodologies employed in each type of analysis, highlighting their mechanisms, strengths, and limitations from an implementation perspective.
-
-\subsection{Static Analysis}
-
-Static analysis involves the examination of application binaries and related artifacts without executing the code. Technically, this is performed through decompilation or disassembly of the Android APK files using tools such as JADX \cite{jadx}, Androguard \cite{androguard}, or MobSF \cite{mobsf}. These tools reverse engineer the application's bytecode to produce human-readable source code or intermediate representations, facilitating an inspection of declared permissions, class structures, method calls, and manifest configurations.
-
-Static analysis typically includes extraction and inspection of AndroidManifest.xml to verify declared permissions and components, control-flow and data-flow analysis to detect potentially dangerous API usage and insecure coding patterns, and identification of embedded third-party libraries and hardcoded sensitive data such as keys or passwords.
-
-However, static analysis is inherently limited by its inability to reflect runtime dynamics. It does not capture behaviors that depend on dynamic loading, obfuscation techniques, reflection, or native code invocation.
-
-\subsection{Dynamic Analysis}
-
-Dynamic analysis, conversely, involves observing and recording the application's runtime behavior within a controlled execution environment. This approach captures actual interactions with the Android operating system, including system calls, network activities, and file system operations. Dynamic analysis methods include both user-space instrumentation (using tools like Frida \cite{frida} and Xposed Framework \cite{xposed}) and kernel-level tracing.
-
-Kernel-level dynamic analysis, specifically used in this thesis, employs system call tracing facilitated by Linux kernel tools such as \texttt{ftrace} \cite{ftrace}, \texttt{kprobes} \cite{kprobes}, and \texttt{debugfs} \cite{debugfs}. This technique involves enabling kernel-level probes to intercept and log specific system call invocations made by the application, capturing low-level operational details such as file accesses (\texttt{open()}, \texttt{read()}, \texttt{write()}), network communications (\texttt{connect()}, \texttt{sendto()}, \texttt{recvfrom()}), and process management activities, and recording the precise timing and sequence of system calls to reconstruct detailed behavioral profiles of application execution.
-
-This low-level monitoring ensures comprehensive coverage of runtime behaviors, regardless of obfuscation or the execution of native code segments.
-
-\subsection{Comparative Summary}
-
-\begin{table}[h]
-\centering
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Feature} & \textbf{Static Analysis} & \textbf{Dynamic Analysis (Kernel-level)} \\
-\hline
-Execution requirement & No execution & Runtime execution required \\ \hline
-Tools examples & JADX, MobSF, Androguard & ftrace, kprobes, debugfs \\ \hline
-Analyzed artifacts & APK, source code, manifest & System calls, runtime behaviors \\ \hline
-Coverage of obfuscation & Limited or none & Comprehensive \\ \hline
-Dynamic behaviors & Not captured & Fully captured \\ \hline
-Detection of native code & Limited & Effective \\ \hline
-Resource consumption & Typically lower & Higher (due to real-time monitoring) \\ \hline
-Granularity & Moderate & High (syscall-level detail) \\ \hline
-\end{tabular}
-\caption{Technical Comparison of Static and Kernel-level Dynamic Analysis}
-\label{table:comparison}
-\end{table}
-
-The inherent strengths of kernel-level dynamic analysis in capturing runtime behavior and its resilience to obfuscation techniques justify its selection as the primary methodological approach for this thesis.
-
-
 \section{System Call Tracing and Behavioral Analysis}
 
 Kernel-level system call tracing provides a low-level, ground-truth view of how Android applications interact with the operating system. In this section, we explore both the technical mechanisms available for capturing such interactions and the analytical methods used to extract meaningful behavioral insights—particularly in the context of privacy-sensitive mobile applications such as messaging platforms.
@@ -938,36 +802,6 @@ Further, fingerprints serve as powerful tools for anomaly detection. By establis
 Practically, we represent fingerprints as frequency vectors, n-gram sequences, or transition graphs, each capturing distinct aspects of the application's behavior. Frequency vectors offer a straightforward numerical approach for quick comparisons, while n-gram sequences and transition graphs provide more detailed behavioral context.
 
 Ultimately, behavioral fingerprinting based on kernel-level system call patterns enhances our understanding of application behavior, supports precise application identification, and significantly improves privacy and security analysis within the Android ecosystem \cite{felt2011androidprivacy}.
-
-
-
-\subsection{Formal Security and Privacy Models}
-
-The methodology and design decisions presented in this thesis are guided by formal theoretical frameworks for security and privacy. Specifically, we draw upon foundational concepts from Information Flow Control (IFC) and the Bell-LaPadula (BLP) security model, establishing a clear theoretical underpinning for monitoring and analyzing resource access at the kernel level.
-
-\subsubsection{Information Flow Control (IFC)}
-
-Information Flow Control (IFC) is a security paradigm aimed at managing how sensitive information propagates through a computing system. IFC systems enforce explicit policies to restrict data from flowing from sensitive sources (e.g., contacts database, microphone input) to less secure or unauthorized destinations (e.g., network interfaces, file storage). The goal is to prevent unintended or unauthorized information disclosure \cite{myers1999jflow,sabelfeld2003language}.
-
-In the context of this thesis, sensitive databases such as \texttt{contacts2.db} or devices such as microphones and cameras serve as information sources with high confidentiality. Network sockets or files accessible to third-party apps can act as sinks. Our kernel-level tracing infrastructure implicitly implements an IFC-like monitoring mechanism, providing evidence of potential violations when unexpected information flows are observed.
-
-\subsubsection{Bell-LaPadula Security Model (BLP)}
-
-The Bell-LaPadula model is a foundational model in computer security developed to maintain data confidentiality by enforcing mandatory access control (MAC). The core of BLP consists of two primary rules:
-
-\begin{itemize}
-    \item \textbf{No Read Up (NRU)}: A subject cannot read data at a higher security level than its own.
-    \item \textbf{No Write Down (NWD)}: A subject cannot write data to a lower security level, thus preventing leaks of confidential information.
-\end{itemize}
-
-Although BLP was originally developed for military-grade systems, its core principles are applicable to modern mobile platforms. In Android, for instance, apps operate with different privilege levels defined by sandboxing and permission models. A violation of BLP might occur if a low-privilege app manages to read camera or contacts data (a "read up"), or if it writes that data to shared, world-readable files (a "write down").
-
-The tracing framework developed in this thesis enables the identification of such violations by observing which applications interact with which resources, and under what circumstances. While Android does not implement BLP directly, our system draws on its principles to guide the labeling and evaluation of access events.
-
-\bigskip
-
-By integrating insights from IFC and BLP, we are able to frame kernel-level observations within a broader security context, supporting the detection of anomalous and potentially dangerous behaviors through a policy-driven lens.
-
 
 
 % --------------------------------------------------
