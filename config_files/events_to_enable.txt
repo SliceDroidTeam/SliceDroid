@@ -15,8 +15,6 @@ events/kprobes/l2cap_sock_sendmsg
 events/kprobes/sock_sendmsg
 events/kprobes/__sys_socket
 events/kprobes/__sys_connect
-events/kprobes/__sys_sendto
-events/kprobes/__sys_recvfrom
 events/kprobes/__sys_bind
 events/mmap
 events/net/net_dev_xmit
