@@ -7,7 +7,6 @@
     <title>System Events Analysis</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
         .chart-container {
             width: 100%;
@@ -71,6 +70,46 @@
 <body>
     <div class="container-fluid mt-3">
         <h1 class="text-center mb-4">System Events Analysis</h1>
+
+        <!-- Upload Section -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4><i class="fas fa-upload"></i> Upload Trace File</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="trace-file-input" class="form-label">Select .trace file to analyze:</label>
+                                    <input type="file" class="form-control" id="trace-file-input" accept=".trace" />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">&nbsp;</label>
+                                <div>
+                                    <button id="upload-btn" class="btn btn-primary btn-lg" disabled>
+                                        <i class="fas fa-cloud-upload-alt"></i> Process Trace
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="upload-progress" class="mt-3" style="display: none;">
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" id="progress-bar"></div>
+                            </div>
+                            <div class="mt-2">
+                                <small id="upload-status" class="text-muted">Processing...</small>
+                            </div>
+                        </div>
+                        <div id="upload-result" class="mt-3" style="display: none;">
+                            <div class="alert" id="upload-alert"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Filters -->
         <div class="row mb-4">
@@ -232,244 +271,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 
-    <script>
-    // Add this script to ensure charts are properly initialized
-    document.addEventListener('DOMContentLoaded', function() {
-        // Function to create pie charts using D3
-        function createPieChart(containerId, data, title) {
-            // Clear any existing content
-            d3.select(`#${containerId}`).html("");
-
-            const width = document.getElementById(containerId).clientWidth;
-            const height = 400;
-            const radius = Math.min(width, height) / 2;
-
-            const svg = d3.select(`#${containerId}`)
-                .append("svg")
-                .attr("width", width)
-                .attr("height", height)
-                .append("g")
-                .attr("transform", `translate(${width / 2}, ${height / 2})`);
-
-            const color = d3.scaleOrdinal(d3.schemeCategory10);
-
-            const pie = d3.pie()
-                .value(d => d.value)
-                .sort(null);
-
-            const arc = d3.arc()
-                .innerRadius(0)
-                .outerRadius(radius - 50);
-
-            const outerArc = d3.arc()
-                .innerRadius(radius * 0.9)
-                .outerRadius(radius * 0.9);
-
-            // Add title
-            svg.append("text")
-                .attr("text-anchor", "middle")
-                .attr("y", -height/2 + 20)
-                .attr("font-size", "16px")
-                .attr("font-weight", "bold")
-                .text(title);
-
-            const arcs = svg.selectAll(".arc")
-                .data(pie(data))
-                .enter()
-                .append("g")
-                .attr("class", "arc");
-
-            arcs.append("path")
-                .attr("d", arc)
-                .attr("fill", (d, i) => color(i))
-                .attr("stroke", "white")
-                .style("stroke-width", "2px");
-
-            // Add labels
-            arcs.append("text")
-                .attr("transform", d => {
-                    const pos = outerArc.centroid(d);
-                    const midAngle = d.startAngle + (d.endAngle - d.startAngle) / 2;
-                    pos[0] = radius * 0.7 * (midAngle < Math.PI ? 1 : -1);
-                    return `translate(${pos})`;
-                })
-                .attr("text-anchor", d => {
-                    const midAngle = d.startAngle + (d.endAngle - d.startAngle) / 2;
-                    return midAngle < Math.PI ? "start" : "end";
-                })
-                .text(d => `${d.data.label} (${d.data.value})`);
-
-            // Add polylines between arcs and labels
-            arcs.append("polyline")
-                .attr("points", d => {
-                    const pos = outerArc.centroid(d);
-                    const midAngle = d.startAngle + (d.endAngle - d.startAngle) / 2;
-                    pos[0] = radius * 0.7 * (midAngle < Math.PI ? 1 : -1);
-                    return [arc.centroid(d), outerArc.centroid(d), pos];
-                })
-                .attr("fill", "none")
-                .attr("stroke", "black")
-                .style("stroke-width", "1px");
-        }
-
-        // Example data - replace this with your actual data fetching logic
-        // In a real implementation, you would likely fetch this data via AJAX
-        const deviceData = [
-            {label: "Device 1", value: 150},
-            {label: "Device 2", value: 90},
-            {label: "Device 3", value: 75},
-            {label: "Device 4", value: 45}
-        ];
-
-        const eventData = [
-            {label: "Read", value: 120},
-            {label: "Write", value: 80},
-            {label: "IOCTL", value: 60},
-            {label: "Binder", value: 50},
-            {label: "Network", value: 40},
-            {label: "Other", value: 10}
-        ];
-
-        // Create the charts
-        createPieChart("device-chart-container", deviceData, "Device Usage");
-        createPieChart("event-chart-container", eventData, "Event Type Distribution");
-
-        // Function to initialize the timeline
-        function initializeTimeline() {
-            const width = document.getElementById('timeline-container').clientWidth;
-            const height = 500;
-
-            // Create SVG
-            const svg = d3.select('#timeline-container')
-                .append('svg')
-                .attr('width', width)
-                .attr('height', height);
-
-            // Example timeline data - replace with your actual data
-            const timelineData = [];
-            const now = new Date();
-
-            // Generate some sample data
-            for (let i = 0; i < 100; i++) {
-                const eventTime = new Date(now.getTime() - Math.random() * 3600000);
-                const eventType = ['read', 'write', 'ioctl', 'binder', 'network'][Math.floor(Math.random() * 5)];
-                const pid = Math.floor(Math.random() * 5000) + 1000;
-
-                timelineData.push({
-                    time: eventTime,
-                    type: eventType,
-                    pid: pid,
-                    device: `Device ${Math.floor(Math.random() * 4) + 1}`
-                });
-            }
-
-            // Sort by time
-            timelineData.sort((a, b) => a.time - b.time);
-
-            // Set up scales
-            const xScale = d3.scaleTime()
-                .domain([d3.min(timelineData, d => d.time), d3.max(timelineData, d => d.time)])
-                .range([50, width - 50]);
-
-            const yScale = d3.scaleLinear()
-                .domain([0, 5])  // For the different event types
-                .range([50, height - 50]);
-
-            // Add axes
-            const xAxis = d3.axisBottom(xScale);
-            svg.append('g')
-                .attr('transform', `translate(0, ${height - 40})`)
-                .call(xAxis);
-
-            // Add title
-            svg.append('text')
-                .attr('x', width / 2)
-                .attr('y', 20)
-                .attr('text-anchor', 'middle')
-                .style('font-size', '16px')
-                .text('Event Timeline');
-
-            // Add events to timeline
-            const eventColorScale = d3.scaleOrdinal()
-                .domain(['read', 'write', 'ioctl', 'binder', 'network'])
-                .range(['#28a745', '#007bff', '#6f42c1', '#fd7e14', '#17a2b8']);
-
-            svg.selectAll('circle')
-                .data(timelineData)
-                .enter()
-                .append('circle')
-                .attr('cx', d => xScale(d.time))
-                .attr('cy', d => {
-                    const types = ['read', 'write', 'ioctl', 'binder', 'network'];
-                    return yScale(types.indexOf(d.type));
-                })
-                .attr('r', 5)
-                .attr('fill', d => eventColorScale(d.type))
-                .attr('stroke', 'black')
-                .attr('stroke-width', 1)
-                .on('mouseover', function(event, d) {
-                    d3.select(this)
-                        .attr('r', 8);
-
-                    // Show tooltip
-                    svg.append('text')
-                        .attr('id', 'tooltip')
-                        .attr('x', xScale(d.time) + 10)
-                        .attr('y', yScale(['read', 'write', 'ioctl', 'binder', 'network'].indexOf(d.type)) - 10)
-                        .text(`${d.type} - PID: ${d.pid} - ${d.device} - ${d.time.toLocaleTimeString()}`);
-                })
-                .on('mouseout', function() {
-                    d3.select(this)
-                        .attr('r', 5);
-
-                    // Remove tooltip
-                    svg.select('#tooltip').remove();
-                });
-
-            // Add legend
-            const legend = svg.selectAll('.legend')
-                .data(['read', 'write', 'ioctl', 'binder', 'network'])
-                .enter()
-                .append('g')
-                .attr('class', 'legend')
-                .attr('transform', (d, i) => `translate(${width - 150}, ${i * 20 + 50})`);
-
-            legend.append('rect')
-                .attr('width', 15)
-                .attr('height', 15)
-                .attr('fill', d => eventColorScale(d));
-
-            legend.append('text')
-                .attr('x', 20)
-                .attr('y', 12)
-                .text(d => d);
-
-            // Zoom functionality
-            const zoom = d3.zoom()
-                .scaleExtent([1, 10])
-                .on('zoom', function(event) {
-                    svg.select('g').attr('transform', event.transform);
-                });
-
-            // Initialize zoom buttons
-            document.getElementById('zoom-in').addEventListener('click', function() {
-                svg.transition().call(zoom.scaleBy, 1.5);
-            });
-
-            document.getElementById('zoom-out').addEventListener('click', function() {
-                svg.transition().call(zoom.scaleBy, 0.75);
-            });
-
-            document.getElementById('reset-zoom').addEventListener('click', function() {
-                svg.transition().call(zoom.transform, d3.zoomIdentity);
-            });
-        }
-
-        // Initialize the timeline
-        initializeTimeline();
-    });
-    </script>
 </body>
 </html>

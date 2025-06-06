@@ -1,29 +1,60 @@
-// static/js/main.js
-
 // Global variables
 let timelineData = [];
 let zoomLevel = 1;
-const eventColors = {
-    'read': '#28a745',
-    'write': '#007bff',
-    'ioctl': '#6f42c1',
-    'binder': '#fd7e14',
-    'network': '#17a2b8',
-    'other': '#6c757d'
-};
+let eventColors = {};
+let appConfig = {};
 
 // DOM ready
 $(document).ready(function() {
-    // Load initial data
-    loadAllData();
+    // Load configuration first, then data
+    loadConfiguration().then(function() {
+        loadAllData();
+        setupEventListeners();
+    }).catch(function(error) {
+        console.error('Failed to load configuration:', error);
+        // Use fallback configuration
+        setFallbackConfiguration();
+        loadAllData();
+        setupEventListeners();
+    });
+});
 
-    // Setup event listeners
+// Load app configuration from server
+function loadConfiguration() {
+    return $.getJSON('/api/config')
+        .done(function(config) {
+            appConfig = config;
+            eventColors = config.event_categories || {};
+            zoomLevel = config.default_zoom || 1;
+        });
+}
+
+// Fallback configuration if server config fails
+function setFallbackConfiguration() {
+    eventColors = {
+        'read': '#28a745',
+        'write': '#007bff',
+        'ioctl': '#6f42c1',
+        'binder': '#fd7e14',
+        'network': '#17a2b8',
+        'other': '#6c757d'
+    };
+    appConfig = {
+        timeline_max_events: 1000,
+        default_zoom: 1.0,
+        top_devices: 10,
+        top_events: 10
+    };
+}
+
+// Setup event listeners
+function setupEventListeners() {
     $('#apply-filters').click(loadAllData);
     $('#reset-filters').click(resetFilters);
     $('#zoom-in').click(zoomIn);
     $('#zoom-out').click(zoomOut);
     $('#reset-zoom').click(resetZoom);
-});
+}
 
 // Load all data based on current filters
 function loadAllData() {
@@ -36,7 +67,6 @@ function loadAllData() {
     // Load statistics
     loadDeviceStats(pid);
     loadEventStats(pid, device);
-    // Replace loadTcpStats with loadStatsSummary
     loadStatsSummary(pid, device);
 
     // Load charts
@@ -45,122 +75,80 @@ function loadAllData() {
 }
 
 function loadStatsSummary(pid, device) {
-    // In a real implementation, you would fetch this data from an API
-    // For now, we'll use the sample data you provided
-    const summaryData = {
-        totalWindows: 16,
-        totalCategoriesUsed: 2,
-        totalUniqueDevices: 35,
-        mostUsedCategory: {
-            name: 'camera',
-            count: 97
-        },
-        topDevices: [
-            { device: 10485885, count: 13 },
-            { device: 512753665, count: 13 },
-            { device: 260046858, count: 11 },
-            { device: 10485855, count: 9 },
-            { device: 508559371, count: 9 }
-        ]
-    };
+    // Build API URL with parameters
+    let url = '/api/device_stats';
+    let params = [];
+    if (pid) params.push(`pid=${pid}`);
+    if (device) params.push(`device=${device}`);
+    if (params.length > 0) url += '?' + params.join('&');
 
-    renderStatsSummary(summaryData);
-    renderTopDevicesChart(summaryData.topDevices);
+    $.getJSON(url, function(deviceData) {
+        // Also get event stats for more comprehensive summary
+        let eventUrl = '/api/event_stats';
+        if (params.length > 0) eventUrl += '?' + params.join('&');
+        
+        $.getJSON(eventUrl, function(eventData) {
+            const summaryData = calculateSummaryFromData(deviceData, eventData);
+            renderStatsSummary(summaryData);
+            renderTopDevicesChart(summaryData.topDevices);
+        }).fail(function() {
+            showError('Failed to load event statistics');
+        });
+    }).fail(function() {
+        showError('Failed to load device statistics');
+    });
+}
+
+// Show error message
+function showError(message) {
+    console.error(message);
+    const errorHtml = `<div class="alert alert-danger">${message}</div>`;
+    $('#stats-summary-table tbody').html(`<tr><td colspan="2">${errorHtml}</td></tr>`);
+}
+
+// Calculate summary statistics from actual data
+function calculateSummaryFromData(deviceData, eventData) {
+    const totalDevices = deviceData.length;
+    const totalEvents = eventData.reduce((sum, item) => sum + item.count, 0);
+    
+    // Find most used event type
+    const mostUsedEvent = eventData.length > 0 ? eventData[0] : { event: 'none', count: 0 };
+    
+    // Get top devices (limit based on config)
+    const topN = appConfig.top_devices || 5;
+    const topDevices = deviceData.slice(0, topN).map(d => ({
+        device: d.device,
+        count: d.count
+    }));
+    
+    return {
+        totalEvents: totalEvents,
+        totalEventTypes: eventData.length,
+        totalUniqueDevices: totalDevices,
+        mostUsedEvent: {
+            name: mostUsedEvent.event,
+            count: mostUsedEvent.count
+        },
+        topDevices: topDevices
+    };
 }
 
 // Function to render the top devices chart
 function renderTopDevicesChart(topDevices) {
-    // Clear existing content
-    d3.select('#top-devices-chart-container').html("");
+    if (!topDevices || topDevices.length === 0) {
+        $('#top-devices-chart-container').html('<div class="alert alert-info">No data found</div>');
+        return;
+    }
 
-    const width = document.getElementById('top-devices-chart-container').clientWidth;
-    const height = 400;
-    const margin = { top: 30, right: 30, bottom: 70, left: 60 };
-    const chartWidth = width - margin.left - margin.right;
-    const chartHeight = height - margin.top - margin.bottom;
+    const chartData = topDevices.map(device => ({
+        label: `Device ${device.device}`,
+        value: device.count
+    }));
 
-    // Create SVG
-    const svg = d3.select('#top-devices-chart-container')
-        .append('svg')
-        .attr('width', width)
-        .attr('height', height)
-        .append('g')
-        .attr('transform', `translate(${margin.left}, ${margin.top})`);
-
-    // Add title
-    svg.append('text')
-        .attr('x', chartWidth / 2)
-        .attr('y', -10)
-        .attr('text-anchor', 'middle')
-        .style('font-size', '16px')
-        .style('font-weight', 'bold')
-        .text('Top 5 Devices by Usage');
-
-    // X scale
-    const x = d3.scaleBand()
-        .domain(topDevices.map(d => d.device.toString()))
-        .range([0, chartWidth])
-        .padding(0.2);
-
-    // Y scale
-    const y = d3.scaleLinear()
-        .domain([0, d3.max(topDevices, d => d.count) * 1.1])
-        .range([chartHeight, 0]);
-
-    // Add X axis
-    svg.append('g')
-        .attr('transform', `translate(0, ${chartHeight})`)
-        .call(d3.axisBottom(x))
-        .selectAll('text')
-        .style('text-anchor', 'end')
-        .attr('dx', '-.8em')
-        .attr('dy', '.15em')
-        .attr('transform', 'rotate(-45)');
-
-    // Add Y axis
-    svg.append('g')
-        .call(d3.axisLeft(y));
-
-    // Add X axis label
-    svg.append('text')
-        .attr('x', chartWidth / 2)
-        .attr('y', chartHeight + margin.bottom - 5)
-        .attr('text-anchor', 'middle')
-        .text('Device ID');
-
-    // Add Y axis label
-    svg.append('text')
-        .attr('transform', 'rotate(-90)')
-        .attr('y', -margin.left + 15)
-        .attr('x', -chartHeight / 2)
-        .attr('text-anchor', 'middle')
-        .text('Count');
-
-    // Add bars
-    svg.selectAll('rect')
-        .data(topDevices)
-        .enter()
-        .append('rect')
-        .attr('x', d => x(d.device.toString()))
-        .attr('y', d => y(d.count))
-        .attr('width', x.bandwidth())
-        .attr('height', d => chartHeight - y(d.count))
-        .attr('fill', '#4682B4')
-        .attr('stroke', 'black')
-        .attr('stroke-width', 1);
-
-    // Add labels on top of bars
-    svg.selectAll('.label')
-        .data(topDevices)
-        .enter()
-        .append('text')
-        .attr('class', 'label')
-        .attr('x', d => x(d.device.toString()) + x.bandwidth() / 2)
-        .attr('y', d => y(d.count) - 5)
-        .attr('text-anchor', 'middle')
-        .text(d => d.count);
+    createBarChart('top-devices-chart-container', chartData, 
+                  `Top ${appConfig.top_devices || 5} Devices by Usage`, 
+                  'Device ID', 'Count');
 }
-
 
 // Function to render the statistics summary table
 function renderStatsSummary(data) {
@@ -170,38 +158,38 @@ function renderStatsSummary(data) {
     // Add rows to the table
     tableBody.append(`
         <tr>
-            <td><strong>Total windows</strong></td>
-            <td>${data.totalWindows}</td>
+            <td><strong>Total Events</strong></td>
+            <td>${data.totalEvents}</td>
         </tr>
         <tr>
-            <td><strong>Total categories used</strong></td>
-            <td>${data.totalCategoriesUsed}</td>
+            <td><strong>Event Types</strong></td>
+            <td>${data.totalEventTypes}</td>
         </tr>
         <tr>
-            <td><strong>Total unique devices</strong></td>
+            <td><strong>Unique Devices</strong></td>
             <td>${data.totalUniqueDevices}</td>
         </tr>
         <tr>
-            <td><strong>Most used category</strong></td>
-            <td>${data.mostUsedCategory.name} (count: ${data.mostUsedCategory.count})</td>
+            <td><strong>Most Used Event</strong></td>
+            <td>${data.mostUsedEvent.name} (${data.mostUsedEvent.count} times)</td>
         </tr>
     `);
 
     // Add top devices as a list in a single row
+    const topN = appConfig.top_devices || 5;
     let topDevicesHtml = '<ul class="list-unstyled mb-0">';
     data.topDevices.forEach(device => {
-        topDevicesHtml += `<li>Device ${device.device}, count ${device.count}</li>`;
+        topDevicesHtml += `<li>Device ${device.device}: ${device.count} events</li>`;
     });
     topDevicesHtml += '</ul>';
 
     tableBody.append(`
         <tr>
-            <td><strong>Top 5 devices by usage</strong></td>
+            <td><strong>Top ${topN} Devices</strong></td>
             <td>${topDevicesHtml}</td>
         </tr>
     `);
 }
-
 
 // Reset all filters
 function resetFilters() {
@@ -219,8 +207,15 @@ function loadTimelineData(pid, device) {
     if (params.length > 0) url += '?' + params.join('&');
 
     $.getJSON(url, function(data) {
+        if (data.error) {
+            showError(`Timeline error: ${data.error}`);
+            return;
+        }
         timelineData = data;
         renderTimeline();
+    }).fail(function(jqXHR) {
+        const errorMsg = jqXHR.responseJSON?.error || 'Failed to load timeline data';
+        showError(errorMsg);
     });
 }
 
@@ -232,7 +227,7 @@ function renderTimeline() {
         d3.select('#timeline-container')
             .append('div')
             .attr('class', 'alert alert-info')
-            .text('Δεν βρέθηκαν δεδομένα για τα επιλεγμένα φίλτρα.');
+            .text('No data found for the selected filters.');
         return;
     }
 
@@ -350,17 +345,17 @@ function showTooltip(event, d) {
     // Format device and pathname information
     let deviceInfo = '';
     if (d.device !== null && d.device !== 0) {
-        deviceInfo = `<strong>Συσκευή:</strong> ${d.device}<br>`;
+        deviceInfo = `<strong>Device:</strong> ${d.device}<br>`;
     }
 
     let pathnameInfo = '';
     if (d.pathname) {
-        pathnameInfo = `<strong>Διαδρομή:</strong> ${d.pathname}<br>`;
+        pathnameInfo = `<strong>Path:</strong> ${d.pathname}<br>`;
     }
 
     tooltip.html(`
-        <strong>Συμβάν:</strong> ${d.event}<br>
-        <strong>Κατηγορία:</strong> ${d.category}<br>
+        <strong>Event:</strong> ${d.event}<br>
+        <strong>Category:</strong> ${d.category}<br>
         <strong>PID:</strong> ${d.pid || 'N/A'}<br>
         <strong>TID:</strong> ${d.tid || 'N/A'}<br>
         ${deviceInfo}
@@ -396,7 +391,14 @@ function loadDeviceStats(pid) {
     if (pid) url += `?pid=${pid}`;
 
     $.getJSON(url, function(data) {
+        if (data.error) {
+            showError(`Device stats error: ${data.error}`);
+            return;
+        }
         renderDeviceStats(data);
+    }).fail(function(jqXHR) {
+        const errorMsg = jqXHR.responseJSON?.error || 'Failed to load device statistics';
+        showError(errorMsg);
     });
 }
 
@@ -405,7 +407,7 @@ function renderDeviceStats(data) {
     tableBody.empty();
 
     if (data.length === 0) {
-        tableBody.append('<tr><td colspan="4" class="text-center">Δεν βρέθηκαν δεδομένα</td></tr>');
+        tableBody.append('<tr><td colspan="4" class="text-center">No data found</td></tr>');
         return;
     }
 
@@ -430,7 +432,14 @@ function loadEventStats(pid, device) {
     if (params.length > 0) url += '?' + params.join('&');
 
     $.getJSON(url, function(data) {
+        if (data.error) {
+            showError(`Event stats error: ${data.error}`);
+            return;
+        }
         renderEventStats(data);
+    }).fail(function(jqXHR) {
+        const errorMsg = jqXHR.responseJSON?.error || 'Failed to load event statistics';
+        showError(errorMsg);
     });
 }
 
@@ -439,7 +448,7 @@ function renderEventStats(data) {
     tableBody.empty();
 
     if (data.length === 0) {
-        tableBody.append('<tr><td colspan="3" class="text-center">Δεν βρέθηκαν δεδομένα</td></tr>');
+        tableBody.append('<tr><td colspan="3" class="text-center">No data found</td></tr>');
         return;
     }
 
@@ -457,86 +466,38 @@ function renderEventStats(data) {
     });
 }
 
-function loadTcpStats(pid) {
-    let url = '/api/tcp_stats';
-    if (pid) url += `?pid=${pid}`;
-
-    $.getJSON(url, function(data) {
-        renderTcpStats(data);
-    });
-}
-
-function renderTcpStats(data) {
-    const tableBody = $('#tcp-stats-table tbody');
-    tableBody.empty();
-
-    if (data.length === 0) {
-        tableBody.append('<tr><td colspan="5" class="text-center">Δεν βρέθηκαν δεδομένα</td></tr>');
-        return;
-    }
-
-    data.forEach(item => {
-        tableBody.append(`
-            <tr>
-                <td>${item.ip_address}</td>
-                <td>${item.port}</td>
-                <td>${item.protocol}</td>
-                <td>${item.bytes_sent}</td>
-                <td>${item.bytes_received}</td>
-            </tr>
-        `);
-    });
-}
-
 // Chart functions
 function loadDevicePieChart(pid) {
     let url = '/api/device_stats';
     if (pid) url += `?pid=${pid}`;
 
     $.getJSON(url, function(data) {
+        if (data.error) {
+            showError(`Device chart error: ${data.error}`);
+            return;
+        }
         renderDevicePieChart(data);
+    }).fail(function(jqXHR) {
+        const errorMsg = jqXHR.responseJSON?.error || 'Failed to load device chart data';
+        showError(errorMsg);
     });
 }
 
 function renderDevicePieChart(data) {
     if (data.length === 0) {
-        $('#device-pie-chart').html('<div class="alert alert-info">Δεν βρέθηκαν δεδομένα</div>');
+        $('#device-chart-container').html('<div class="alert alert-info">No data found</div>');
         return;
     }
 
-    // Prepare data for pie chart
-    const chartData = data.map(item => ({
-        name: item.device,
-        y: item.count
+    // Prepare data for pie chart (top N devices)
+    const topN = appConfig.top_devices || 10;
+    const topDevices = data.slice(0, topN);
+    const chartData = topDevices.map(item => ({
+        label: `Device ${item.device}`,
+        value: item.count
     }));
 
-    // Create the chart
-    Highcharts.chart('device-pie-chart', {
-        chart: {
-            type: 'pie'
-        },
-        title: {
-            text: 'Συχνότητα πρόσβασης συσκευών'
-        },
-        tooltip: {
-            pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
-        },
-        plotOptions: {
-            pie: {
-                allowPointSelect: true,
-                cursor: 'pointer',
-                dataLabels: {
-                    enabled: true,
-                    format: '<b>{point.name}</b>: {point.percentage:.1f} %'
-                }
-            }
-        },
-        series: [{
-            name: 'Πρόσβαση',
-            colorByPoint: true,
-            data: chartData
-        }]
-    });
+    createPieChart('device-chart-container', chartData, 'Device Usage Distribution');
 }
 
 function loadEventPieChart(pid, device) {
@@ -547,48 +508,30 @@ function loadEventPieChart(pid, device) {
     if (params.length > 0) url += '?' + params.join('&');
 
     $.getJSON(url, function(data) {
+        if (data.error) {
+            showError(`Event chart error: ${data.error}`);
+            return;
+        }
         renderEventPieChart(data);
+    }).fail(function(jqXHR) {
+        const errorMsg = jqXHR.responseJSON?.error || 'Failed to load event chart data';
+        showError(errorMsg);
     });
 }
 
 function renderEventPieChart(data) {
     if (data.length === 0) {
-        $('#event-pie-chart').html('<div class="alert alert-info">Δεν βρέθηκαν δεδομένα</div>');
+        $('#event-chart-container').html('<div class="alert alert-info">No data found</div>');
         return;
     }
 
-    // Prepare data for pie chart
-    const chartData = data.map(item => ({
-        name: item.event,
-        y: item.count,
-        color: eventColors[item.category] || eventColors.other
+    // Prepare data for pie chart (top N events)
+    const topN = appConfig.top_events || 10;
+    const topEvents = data.slice(0, topN);
+    const chartData = topEvents.map(item => ({
+        label: item.event,
+        value: item.count
     }));
 
-    // Create the chart
-    Highcharts.chart('event-pie-chart', {
-        chart: {
-            type: 'pie'
-        },
-        title: {
-            text: 'Συχνότητα συμβάντων'
-        },
-        tooltip: {
-            pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
-        },
-        plotOptions: {
-            pie: {
-                allowPointSelect: true,
-                cursor: 'pointer',
-                dataLabels: {
-                    enabled: true,
-                    format: '<b>{point.name}</b>: {point.percentage:.1f} %'
-                }
-            }
-        },
-        series: [{
-            name: 'Συμβάντα',
-            colorByPoint: true,
-            data: chartData
-        }]
-    });
+    createPieChart('event-chart-container', chartData, 'Event Type Distribution');
 }
