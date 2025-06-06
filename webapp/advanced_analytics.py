@@ -631,7 +631,8 @@ class AdvancedAnalytics:
     def _create_network_chart(self, events):
         """Create network activity chart"""
         try:
-            network_events = [e for e in events if 'inet' in e.get('event', '')]
+            # Use the same criteria as _analyze_network_events to find network events
+            network_events = [e for e in events if 'inet' in e.get('event', '') or 'sock' in e.get('event', '') or 'tcp' in e.get('event', '').lower() or 'udp' in e.get('event', '').lower()]
             
             if not network_events:
                 return None

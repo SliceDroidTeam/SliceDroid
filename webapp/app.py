@@ -41,6 +41,24 @@ upload_progress = {}
 trace_processor = TraceProcessor(app.config_class)
 advanced_analytics = AdvancedAnalytics(app.config_class)
 
+# Load device name mapping from rdevs.txt
+device_name_mapping = {}
+try:
+    rdevs_path = app.config_class.PROJECT_ROOT / 'outputs' / 'rdevs.txt'
+    if rdevs_path.exists():
+        with open(rdevs_path, 'r') as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) >= 2:
+                    device_name = parts[0]
+                    device_id = int(parts[1])
+                    device_name_mapping[device_id] = device_name
+        print(f"Loaded {len(device_name_mapping)} device name mappings from {rdevs_path}")
+    else:
+        print(f"Device mapping file not found: {rdevs_path}")
+except Exception as e:
+    print(f"Error loading device name mapping: {e}")
+
 def load_data():
     """Load the processed events from JSON file"""
     events_file = app.config_class.PROCESSED_EVENTS_JSON
@@ -413,6 +431,22 @@ def health_check():
         'data_file_exists': Path(app.config_class.PROCESSED_EVENTS_JSON).exists()
     })
 
+@app.route('/api/preloaded-file')
+def preloaded_file_info():
+    """Return information about the preloaded file if one exists"""
+    default_trace_path = app.config_class.PROJECT_ROOT / 'outputs' / 'trace.trace'
+    processed_file_exists = Path(app.config_class.PROCESSED_EVENTS_JSON).exists()
+    
+    if default_trace_path.exists() and processed_file_exists:
+        return jsonify({
+            'preloaded': True,
+            'filename': default_trace_path.name
+        })
+    else:
+        return jsonify({
+            'preloaded': False
+        })
+
 @app.route('/api/upload', methods=['POST'])
 def upload_trace():
     """Upload and process a trace file"""
@@ -527,6 +561,25 @@ def get_advanced_analytics():
         print(f"Error in advanced analytics: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+# Function to pre-load trace.trace file
+def preload_trace_file():
+    """Pre-load the default trace.trace file if it exists"""
+    default_trace_path = app.config_class.PROJECT_ROOT / 'outputs' / 'trace.trace'
+    
+    if default_trace_path.exists():
+        print(f"Pre-loading default trace file: {default_trace_path}")
+        try:
+            # Process the default trace file
+            result = trace_processor.process_trace_file(str(default_trace_path))
+            if result['success']:
+                print(f"Successfully pre-loaded trace file with {result['events_count']} events")
+            else:
+                print(f"Failed to pre-load trace file: {result.get('error', 'Unknown error')}")
+        except Exception as e:
+            print(f"Error pre-loading trace file: {e}")
+    else:
+        print(f"Default trace file not found: {default_trace_path}")
+
 if __name__ == '__main__':
     # Validate configuration on startup
     config_errors = app.config_class.validate_paths()
@@ -534,6 +587,9 @@ if __name__ == '__main__':
         print("Configuration warnings:")
         for error in config_errors:
             print(f"  - {error}")
+    
+    # Pre-load the default trace file
+    preload_trace_file()
     
     app.run(
         host=app.config_class.HOST,

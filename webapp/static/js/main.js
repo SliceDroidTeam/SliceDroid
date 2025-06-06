@@ -10,14 +10,44 @@ $(document).ready(function() {
     loadConfiguration().then(function() {
         loadAllData();
         setupEventListeners();
+        checkForPreloadedFile();
     }).catch(function(error) {
         console.error('Failed to load configuration:', error);
         // Use fallback configuration
         setFallbackConfiguration();
         loadAllData();
         setupEventListeners();
+        checkForPreloadedFile();
     });
 });
+
+// Check if there's a preloaded file and update the file input
+function checkForPreloadedFile() {
+    $.getJSON('/api/preloaded-file', function(data) {
+        if (data.preloaded) {
+            // Update the file input to show the preloaded file name
+            const fileInput = $('#trace-file-input');
+            
+            // Create a custom label to display the preloaded filename
+            const fileInputContainer = fileInput.parent();
+            
+            // Check if we already have a preloaded file label
+            if (fileInputContainer.find('.preloaded-file-label').length === 0) {
+                fileInputContainer.append(
+                    `<div class="preloaded-file-label mt-2 text-info">
+                        <i class="fas fa-info-circle"></i> 
+                        Preloaded file: <strong>${data.filename}</strong>
+                    </div>`
+                );
+            }
+            
+            // Enable the upload button since we have a preloaded file
+            $('#upload-btn').prop('disabled', false);
+        }
+    }).fail(function(error) {
+        console.error('Failed to check for preloaded file:', error);
+    });
+}
 
 // Load app configuration from server
 function loadConfiguration() {
@@ -551,17 +581,32 @@ function handleFileSelection() {
     const fileInput = $('#trace-file-input')[0];
     const uploadBtn = $('#upload-btn');
     
+    // Remove any existing preloaded file label when user selects a new file
+    $('.preloaded-file-label').remove();
+    
     if (fileInput.files.length > 0) {
         const file = fileInput.files[0];
         if (file.name.endsWith('.trace')) {
             uploadBtn.prop('disabled', false);
             hideUploadResult();
+            
+            // Add a label showing the selected file name
+            const fileInputContainer = $(fileInput).parent();
+            fileInputContainer.append(
+                `<div class="preloaded-file-label mt-2 text-success">
+                    <i class="fas fa-check-circle"></i> 
+                    Selected file: <strong>${file.name}</strong>
+                </div>`
+            );
         } else {
             uploadBtn.prop('disabled', true);
             showUploadError('Please select a .trace file');
         }
     } else {
         uploadBtn.prop('disabled', true);
+        
+        // Check if there's a preloaded file and restore that information
+        checkForPreloadedFile();
     }
 }
 
@@ -683,9 +728,12 @@ function hideUploadResult() {
 }
 
 function resetUploadUI() {
-    $('#upload-btn').prop('disabled', false);
-    $('#trace-file-input').val('');
     $('#upload-btn').prop('disabled', true);
+    $('#trace-file-input').val('');
+    $('.preloaded-file-label').remove();
+    
+    // Check if there's a preloaded file and restore that information
+    checkForPreloadedFile();
 }
 
 // Advanced Analytics functionality

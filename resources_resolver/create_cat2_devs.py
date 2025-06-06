@@ -3,12 +3,12 @@ import json
 import os
 import sys
 # Path to the mappings directory where the JSON file will be saved
-MAPPINGS_DIR = "data/mappings"
+MAPPINGS_DIR = os.path.join("data", "mappings")
 
 # Path to the data directory where the sh output files are located
 DATA_DIR = "outputs"
 
-output_json = os.path.join(MAPPINGS_DIR, f'cat2_dev_{sys.argv[1]}.json')
+output_txt = os.path.join(MAPPINGS_DIR, 'cat2devs.txt')
 
 # Use correct paths to the files
 rdevs_path = os.path.join(DATA_DIR, 'rdevs.txt')
@@ -19,9 +19,9 @@ device_nodes = defaultdict(list)
 # Uses r_dev to identify the device node
 with open(rdevs_path, 'r') as f:
     lines = f.readlines()
+print(lines)
 
 for line in lines:
-    #
     if 'camera'== line.split(' ')[2] or 'camera'== line.split(' ')[3].removesuffix('\n'):
         device_nodes['camera'].append(line.split(' ')[1])
     if 'pcm' in line and line.split(' ')[0].endswith('c') and \
@@ -49,7 +49,7 @@ for line in lines:
         device_nodes['calendar'].append(f"{line.split(' ')[1]} - {line.split(' ')[2]}".replace('\n',''))
 
 # Save the output to the mappings directory
-with open(output_json, 'w') as f:
-    json.dump(device_nodes, f, indent=4)
+with open(output_txt, 'w') as f:
+    f.write(json.dumps(device_nodes, indent=4))
 
-print(f"JSON file created at: {output_json}")
+print(f"TXT file created at: {output_txt}")
