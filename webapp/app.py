@@ -11,6 +11,12 @@ from io import BytesIO
 import re
 from pathlib import Path
 from config import Config
+import tempfile
+import threading
+import uuid
+from werkzeug.utils import secure_filename
+from trace_processor import TraceProcessor
+import shutil
 
 def create_app(config_name='default'):
     """Application factory pattern"""
@@ -28,6 +34,10 @@ def create_app(config_name='default'):
     return app
 
 app = create_app(os.getenv('FLASK_ENV', 'default'))
+
+# Global variables for upload tracking
+upload_progress = {}
+trace_processor = TraceProcessor(app.config_class)
 
 def load_data():
     """Load the processed events from JSON file"""
@@ -400,6 +410,97 @@ def health_check():
         'errors': errors,
         'data_file_exists': Path(app.config_class.PROCESSED_EVENTS_JSON).exists()
     })
+
+@app.route('/api/upload', methods=['POST'])
+def upload_trace():
+    """Upload and process a trace file"""
+    try:
+        if 'trace_file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['trace_file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not file.filename.endswith('.trace'):
+            return jsonify({'error': 'File must have .trace extension'}), 400
+        
+        # Generate unique upload ID
+        upload_id = str(uuid.uuid4())
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_dir = tempfile.mkdtemp()
+        temp_file_path = os.path.join(temp_dir, filename)
+        file.save(temp_file_path)
+        
+        # Initialize progress tracking
+        upload_progress[upload_id] = {
+            'progress': 0,
+            'status': 'Starting...',
+            'completed': False,
+            'error': None,
+            'result': None
+        }
+        
+        # Start processing in background thread
+        def process_file():
+            def progress_callback(progress, status):
+                upload_progress[upload_id]['progress'] = progress
+                upload_progress[upload_id]['status'] = status
+            
+            try:
+                result = trace_processor.process_trace_file(temp_file_path, progress_callback)
+                upload_progress[upload_id]['result'] = result
+                upload_progress[upload_id]['completed'] = True
+                
+                if not result['success']:
+                    upload_progress[upload_id]['error'] = result.get('error', 'Unknown error')
+                    
+            except Exception as e:
+                upload_progress[upload_id]['error'] = str(e)
+                upload_progress[upload_id]['completed'] = True
+            finally:
+                # Clean up temporary file
+                try:
+                    shutil.rmtree(temp_dir)
+                except:
+                    pass
+        
+        thread = threading.Thread(target=process_file)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'upload_id': upload_id,
+            'message': 'Upload started, processing in background'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Upload failed: {str(e)}'}), 500
+
+@app.route('/api/upload/progress/<upload_id>')
+def upload_progress_check(upload_id):
+    """Check upload progress"""
+    if upload_id not in upload_progress:
+        return jsonify({'error': 'Upload ID not found'}), 404
+    
+    progress_data = upload_progress[upload_id]
+    
+    # Clean up completed uploads after returning status
+    if progress_data['completed']:
+        # Keep for a short time then clean up
+        def cleanup():
+            import time
+            time.sleep(60)  # Keep for 1 minute
+            if upload_id in upload_progress:
+                del upload_progress[upload_id]
+        
+        cleanup_thread = threading.Thread(target=cleanup)
+        cleanup_thread.daemon = True
+        cleanup_thread.start()
+    
+    return jsonify(progress_data)
 
 if __name__ == '__main__':
     # Validate configuration on startup

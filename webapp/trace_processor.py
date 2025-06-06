@@ -1,0 +1,200 @@
+import os
+import sys
+import json
+import logging
+import tempfile
+import shutil
+from pathlib import Path
+
+# Add the app directory to the Python path to import myutils
+APP_DIR = Path(__file__).parent.parent / 'app'
+sys.path.insert(0, str(APP_DIR))
+
+import myutils
+
+class TraceProcessor:
+    """Process .trace files and convert them to JSON for visualization"""
+    
+    def __init__(self, config_class):
+        self.config = config_class
+        self.logger = self._setup_logger()
+        
+    def _setup_logger(self):
+        """Setup logging for trace processing"""
+        logger = logging.getLogger("TraceProcessor")
+        logger.setLevel(logging.INFO)
+        
+        # Create handler if not exists
+        if not logger.handlers:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+        
+        return logger
+    
+    def process_trace_file(self, trace_file_path, progress_callback=None):
+        """
+        Process a .trace file and generate JSON output
+        
+        Args:
+            trace_file_path: Path to the .trace file
+            progress_callback: Optional callback function for progress updates
+            
+        Returns:
+            dict: Result containing success status, message, and file paths
+        """
+        try:
+            if progress_callback:
+                progress_callback(10, "Validating trace file...")
+            
+            # Validate input file
+            if not Path(trace_file_path).exists():
+                return {
+                    'success': False,
+                    'error': 'Trace file does not exist'
+                }
+            
+            if not trace_file_path.endswith('.trace'):
+                return {
+                    'success': False,
+                    'error': 'File must have .trace extension'
+                }
+            
+            if progress_callback:
+                progress_callback(20, "Parsing trace events...")
+            
+            # Parse the trace file
+            raw_events = myutils.parse_ftrace_log(trace_file_path)
+            self.logger.info(f"Parsed {len(raw_events)} raw events")
+            
+            if not raw_events:
+                return {
+                    'success': False,
+                    'error': 'No events found in trace file'
+                }
+            
+            if progress_callback:
+                progress_callback(40, "Finding target process...")
+            
+            # Find target process
+            t_pid = self._find_process(raw_events, trace_file_path)
+            if t_pid == 0:
+                return {
+                    'success': False,
+                    'error': 'Could not identify target process from trace file'
+                }
+            
+            self.logger.info(f"Target PID: {t_pid}")
+            
+            if progress_callback:
+                progress_callback(60, "Processing events...")
+            
+            # Remove excess API logging
+            events_pruned = self._remove_apis(raw_events)
+            self.logger.info(f"After pruning: {len(events_pruned)} events")
+            
+            if progress_callback:
+                progress_callback(80, "Generating output files...")
+            
+            # Process events into the format expected by the web app
+            processed_events = self._process_events_for_webapp(events_pruned, t_pid)
+            
+            # Ensure output directory exists
+            output_dir = Path(self.config.EXPORTS_DIR)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Generate output file paths
+            csv_output_path = output_dir / 'processed_events.csv'
+            json_output_path = output_dir / 'processed_events.json'
+            
+            # Export the processed events
+            myutils.export_events(processed_events, str(csv_output_path), str(json_output_path))
+            
+            if progress_callback:
+                progress_callback(100, "Processing complete!")
+            
+            return {
+                'success': True,
+                'message': f'Successfully processed {len(processed_events)} events',
+                'csv_file': str(csv_output_path),
+                'json_file': str(json_output_path),
+                'events_count': len(processed_events),
+                'target_pid': t_pid
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error processing trace file: {str(e)}")
+            return {
+                'success': False,
+                'error': f'Processing failed: {str(e)}'
+            }
+    
+    def _find_process(self, events, filepath):
+        """Find the target process from the trace events"""
+        from collections import Counter
+        
+        # Determine application name from trace filename
+        basename = os.path.splitext(os.path.basename(filepath))[0]
+        app_name = basename.split('.')[0]  # part before first dot
+        self.logger.info(f"Looking for process matching '{app_name}'")
+        
+        # Exact match on process names (case-insensitive)
+        t_pid = None
+        for e in events:
+            if e.get('process', '').lower() == app_name.lower():
+                t_pid = e['tgid']
+                self.logger.info(f"Exact match: process '{e['process']}' with PID {t_pid}")
+                break
+        
+        # Fallback to most frequent process if no exact match
+        if t_pid is None:
+            procs = Counter(e.get('process', '') for e in events)
+            if procs:
+                proc, count = procs.most_common(1)[0]
+                t_pid = next((e['tgid'] for e in events if e.get('process', '') == proc), 0)
+                self.logger.info(f"Fallback: selected most frequent process '{proc}' ({count} events) with PID {t_pid}")
+        
+        return t_pid or 0
+    
+    def _remove_apis(self, events):
+        """Remove excess API logging"""
+        cleaned_events = []
+        for i, e in enumerate(events):
+            e['raw'] = i
+            # Remove API logging and monkey process operations
+            try:
+                if not (e['event'] == 'write_probe' and 
+                       e.get('details', {}).get('pathname') == 'null' and 
+                       e.get('details', {}).get('count', 0) > 999999) and \
+                   'monkey' not in e.get('process', ''):
+                    cleaned_events.append(e.copy())
+            except Exception as ex:
+                self.logger.warning(f"Error processing event {i}: {ex}")
+                
+        return cleaned_events
+    
+    def _process_events_for_webapp(self, events, t_pid):
+        """
+        Process events into the format expected by the web application
+        This is a simplified version that prepares events for visualization
+        """
+        processed_events = []
+        
+        for event in events:
+            # Only include events that are relevant for visualization
+            if self._is_visualization_relevant(event):
+                processed_events.append(event)
+        
+        return processed_events
+    
+    def _is_visualization_relevant(self, event):
+        """Check if an event is relevant for visualization"""
+        relevant_events = [
+            'read_probe', 'write_probe', 'ioctl_probe',
+            'inet_sock_set_state', 'binder_transaction',
+            'unix_stream_sendmsg', 'unix_stream_recvmsg',
+            'unix_dgram_sendmsg', 'unix_dgram_recvmsg'
+        ]
+        
+        return event.get('event') in relevant_events
