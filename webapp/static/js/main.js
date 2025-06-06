@@ -58,6 +58,9 @@ function setupEventListeners() {
     // Upload functionality
     $('#trace-file-input').change(handleFileSelection);
     $('#upload-btn').click(handleUpload);
+    
+    // Advanced analytics
+    $('#load-analytics-btn').click(loadAdvancedAnalytics);
 }
 
 // Load all data based on current filters
@@ -76,6 +79,9 @@ function loadAllData() {
     // Load charts
     loadDevicePieChart(pid);
     loadEventPieChart(pid, device);
+    
+    // Auto-load advanced analytics
+    loadAdvancedAnalytics();
 }
 
 function loadStatsSummary(pid, device) {
@@ -680,4 +686,195 @@ function resetUploadUI() {
     $('#upload-btn').prop('disabled', false);
     $('#trace-file-input').val('');
     $('#upload-btn').prop('disabled', true);
+}
+
+// Advanced Analytics functionality
+function loadAdvancedAnalytics() {
+    const pid = $('#pid-filter').val();
+    let url = '/api/advanced-analytics';
+    if (pid) url += `?pid=${pid}`;
+    
+    // Show loading
+    $('#analytics-loading').show();
+    $('#analytics-content').hide();
+    $('#analytics-error').hide();
+    $('#load-analytics-btn').prop('disabled', true);
+    
+    $.getJSON(url, function(data) {
+        if (data.error) {
+            showAnalyticsError(data.error);
+        } else {
+            renderAdvancedAnalytics(data);
+        }
+    }).fail(function(jqXHR) {
+        const errorMsg = jqXHR.responseJSON?.error || 'Failed to load advanced analytics';
+        showAnalyticsError(errorMsg);
+    }).always(function() {
+        $('#analytics-loading').hide();
+        $('#load-analytics-btn').prop('disabled', false);
+    });
+}
+
+function renderAdvancedAnalytics(data) {
+    $('#analytics-content').show();
+    
+    // Render summary cards
+    renderAnalyticsSummary(data);
+    
+    // Render charts
+    renderAnalyticsCharts(data.charts);
+    
+    // Render detailed insights
+    renderDetailedInsights(data);
+}
+
+function renderAnalyticsSummary(data) {
+    const summaryContainer = $('#analytics-summary');
+    summaryContainer.empty();
+    
+    // Create summary cards
+    const summaryCards = [
+        {
+            title: 'Target PID',
+            value: data.target_pid || 'N/A',
+            icon: 'fas fa-bullseye',
+            color: 'primary'
+        },
+        {
+            title: 'Total Events',
+            value: data.total_events?.toLocaleString() || '0',
+            icon: 'fas fa-list',
+            color: 'success'
+        },
+        {
+            title: 'Unique Processes',
+            value: data.process_analysis?.unique_processes || '0',
+            icon: 'fas fa-cogs',
+            color: 'info'
+        },
+        {
+            title: 'Unique Devices',
+            value: data.device_analysis?.unique_devices || '0',
+            icon: 'fas fa-hdd',
+            color: 'warning'
+        },
+        {
+            title: 'Duration',
+            value: data.time_range?.duration ? `${data.time_range.duration.toFixed(2)}s` : 'N/A',
+            icon: 'fas fa-clock',
+            color: 'secondary'
+        },
+        {
+            title: 'Events/Second',
+            value: data.temporal_patterns?.events_per_second ? 
+                   data.temporal_patterns.events_per_second.toFixed(2) : 'N/A',
+            icon: 'fas fa-tachometer-alt',
+            color: 'danger'
+        }
+    ];
+    
+    summaryCards.forEach(card => {
+        summaryContainer.append(`
+            <div class="col-md-2 mb-3">
+                <div class="card border-${card.color}">
+                    <div class="card-body text-center">
+                        <i class="${card.icon} fa-2x text-${card.color} mb-2"></i>
+                        <h5 class="card-title">${card.value}</h5>
+                        <small class="text-muted">${card.title}</small>
+                    </div>
+                </div>
+            </div>
+        `);
+    });
+}
+
+function renderAnalyticsCharts(charts) {
+    if (!charts) return;
+    
+    // Render each chart
+    if (charts.behavior_timeline) {
+        $('#behavior-timeline-chart').html(`<img src="${charts.behavior_timeline}" class="img-fluid" alt="High-Level Behavior Timeline">`);
+    } else {
+        $('#behavior-timeline-chart').html('<div class="alert alert-info">No behavior timeline data available</div>');
+    }
+    
+    if (charts.category_distribution) {
+        $('#category-chart').html(`<img src="${charts.category_distribution}" class="img-fluid" alt="Category Distribution">`);
+    } else {
+        $('#category-chart').html('<div class="alert alert-info">No category data available</div>');
+    }
+    
+    if (charts.device_usage) {
+        $('#device-usage-chart').html(`<img src="${charts.device_usage}" class="img-fluid" alt="Device Usage">`);
+    } else {
+        $('#device-usage-chart').html('<div class="alert alert-info">No device usage data available</div>');
+    }
+    
+    if (charts.process_activity) {
+        $('#process-activity-chart').html(`<img src="${charts.process_activity}" class="img-fluid" alt="Process Activity">`);
+    } else {
+        $('#process-activity-chart').html('<div class="alert alert-info">No process activity data available</div>');
+    }
+    
+    if (charts.network_activity) {
+        $('#network-chart').html(`<img src="${charts.network_activity}" class="img-fluid" alt="Network Activity">`);
+    } else {
+        $('#network-chart').html('<div class="alert alert-info">No network activity data available</div>');
+    }
+}
+
+function renderDetailedInsights(data) {
+    const insightsContainer = $('#detailed-insights');
+    insightsContainer.empty();
+    
+    if (!data.detailed_insights || Object.keys(data.detailed_insights).length === 0) {
+        insightsContainer.html('<div class="alert alert-info">No detailed insights available</div>');
+        return;
+    }
+    
+    let insights = '<div class="accordion" id="insightsAccordion">';
+    
+    // Render insights from backend
+    Object.entries(data.detailed_insights).forEach(([key, insightData]) => {
+        insights += createInsightSection(key, insightData.title, 
+            generateInsightContent(insightData.insights));
+    });
+    
+    insights += '</div>';
+    insightsContainer.html(insights);
+}
+
+function generateInsightContent(insights) {
+    if (!insights || insights.length === 0) {
+        return '<div class="alert alert-info">No insights available</div>';
+    }
+    
+    let content = '<ul class="list-group list-group-flush">';
+    insights.forEach(insight => {
+        content += `<li class="list-group-item">${insight.icon} ${insight.text}</li>`;
+    });
+    content += '</ul>';
+    return content;
+}
+
+function createInsightSection(id, title, content) {
+    return `
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                        data-bs-target="#collapse${id}" aria-expanded="false">
+                    ${title}
+                </button>
+            </h2>
+            <div id="collapse${id}" class="accordion-collapse collapse" data-bs-parent="#insightsAccordion">
+                <div class="accordion-body">
+                    ${content}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function showAnalyticsError(error) {
+    $('#analytics-error').html(`<strong>Error:</strong> ${error}`).show();
 }

@@ -16,6 +16,7 @@ import threading
 import uuid
 from werkzeug.utils import secure_filename
 from trace_processor import TraceProcessor
+from advanced_analytics import AdvancedAnalytics
 import shutil
 
 def create_app(config_name='default'):
@@ -38,6 +39,7 @@ app = create_app(os.getenv('FLASK_ENV', 'default'))
 # Global variables for upload tracking
 upload_progress = {}
 trace_processor = TraceProcessor(app.config_class)
+advanced_analytics = AdvancedAnalytics(app.config_class)
 
 def load_data():
     """Load the processed events from JSON file"""
@@ -501,6 +503,29 @@ def upload_progress_check(upload_id):
         cleanup_thread.start()
     
     return jsonify(progress_data)
+
+@app.route('/api/advanced-analytics')
+def get_advanced_analytics():
+    """API endpoint for advanced analytics"""
+    try:
+        events = load_data()
+        pid = request.args.get('pid')
+        
+        # Validate PID parameter
+        target_pid = None
+        if pid:
+            if not pid.isdigit():
+                return jsonify({'error': 'Invalid PID parameter'}), 400
+            target_pid = int(pid)
+        
+        # Perform advanced analysis
+        analysis = advanced_analytics.analyze_trace_data(events, target_pid)
+        
+        return jsonify(analysis)
+        
+    except Exception as e:
+        print(f"Error in advanced analytics: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
     # Validate configuration on startup

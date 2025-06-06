@@ -169,6 +169,120 @@
             </div>
         </div>
 
+        <!-- Advanced Analytics Section -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-chart-line"></i> Advanced Analytics</h2>
+                        <button id="load-analytics-btn" class="btn btn-info float-end" style="display: none;">
+                            <i class="fas fa-sync-alt"></i> Refresh Analytics
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="analytics-loading" class="text-center" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Generating advanced analytics...</p>
+                        </div>
+                        
+                        <div id="analytics-content" style="display: none;">
+                            <!-- Analytics Summary -->
+                            <div class="row mb-4">
+                                <div class="col-md-12">
+                                    <h4>Analysis Summary</h4>
+                                    <div id="analytics-summary" class="row">
+                                        <!-- Will be populated by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- High-Level Behavior Timeline - Full Width -->
+                            <div class="row">
+                                <div class="col-md-12 mb-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>High-Level Behavior Timeline</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="behavior-timeline-chart"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Other Charts Grid -->
+                            <div class="row">
+                                <div class="col-md-6 mb-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>Category Distribution</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="category-chart"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>Device Usage</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="device-usage-chart"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>Process Activity</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="process-activity-chart"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>Network Activity</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="network-chart"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-12 mb-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>Detailed Insights</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="detailed-insights">
+                                                <!-- Will be populated with insights -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="analytics-error" class="alert alert-danger" style="display: none;">
+                            <!-- Error messages will appear here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Statistics -->
         <div class="row">
             <!-- Device Statistics -->
