@@ -60,12 +60,12 @@ trace_process.stdin.flush()
 trace_process.wait()
 
 subprocess.run(
-    ["adb", "pull", "/data/local/tmp/trace.trace.gz", "outputs/trace.trace.gz"],
+    ["adb", "pull", "/data/local/tmp/trace.trace.gz", "data/traces/trace.trace.gz"],
     check=True
 )
 
-with gzip.open("outputs/trace.trace.gz", "rb") as f_in, \
-     open("outputs/trace.trace", "wb") as f_out:
+with gzip.open("data/traces/trace.trace.gz", "rb") as f_in, \
+     open("data/traces/trace.trace", "wb") as f_out:
     f_out.write(f_in.read())
 
 # ---------------------

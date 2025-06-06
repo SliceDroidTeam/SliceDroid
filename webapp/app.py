@@ -44,7 +44,7 @@ advanced_analytics = AdvancedAnalytics(app.config_class)
 # Load device name mapping from rdevs.txt
 device_name_mapping = {}
 try:
-    rdevs_path = app.config_class.PROJECT_ROOT / 'outputs' / 'rdevs.txt'
+    rdevs_path = app.config_class.PROJECT_ROOT / 'data' / 'outputs' / 'rdevs.txt'
     if rdevs_path.exists():
         with open(rdevs_path, 'r') as f:
             for line in f:
@@ -564,7 +564,7 @@ def get_advanced_analytics():
 # Function to pre-load trace.trace file
 def preload_trace_file():
     """Pre-load the default trace.trace file if it exists"""
-    default_trace_path = app.config_class.PROJECT_ROOT / 'outputs' / 'trace.trace'
+    default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
     
     if default_trace_path.exists():
         print(f"Pre-loading default trace file: {default_trace_path}")

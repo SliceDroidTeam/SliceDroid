@@ -6,7 +6,13 @@ import sys
 MAPPINGS_DIR = os.path.join("data", "mappings")
 
 # Path to the data directory where the sh output files are located
-DATA_DIR = "outputs"
+DATA_DIR = os.path.join("data", "outputs")
+
+#check if the directories exists, if not create them
+if not os.path.exists(MAPPINGS_DIR):
+    os.makedirs(MAPPINGS_DIR)
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
 output_txt = os.path.join(MAPPINGS_DIR, 'cat2devs.txt')
 
