@@ -10,7 +10,7 @@ class Config:
     
     # Data paths - can be overridden by environment variables
     DATA_DIR = Path(os.getenv('SYSDROID_DATA_DIR', PROJECT_ROOT / 'data'))
-    EXPORTS_DIR = Path(os.getenv('SYSDROID_EXPORTS_DIR', PROJECT_ROOT / 'Exports'))
+    EXPORTS_DIR = Path(os.getenv('SYSDROID_EXPORTS_DIR', PROJECT_ROOT / 'data' / 'Exports'))
     MAPPINGS_DIR = Path(os.getenv('SYSDROID_MAPPINGS_DIR', DATA_DIR / 'mappings'))
     TRACES_DIR = Path(os.getenv('SYSDROID_TRACES_DIR', DATA_DIR / 'traces'))
     

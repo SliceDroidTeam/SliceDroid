@@ -6,7 +6,7 @@ import sys
 MAPPINGS_DIR = os.path.join("data", "mappings")
 
 # Path to the data directory where the sh output files are located
-DATA_DIR = os.path.join("data", "outputs")
+DATA_DIR = os.path.join("data", "nodes_and_files_data")
 
 #check if the directories exists, if not create them
 if not os.path.exists(MAPPINGS_DIR):

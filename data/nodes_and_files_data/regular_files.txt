@@ -1,0 +1,4 @@
+/data/data/com.android.providers.calendar/databases/calendar.db 124845621 5421
+/data/data/com.android.providers.contacts/databases/calllog.db 124845621 5488
+/data/data/com.android.providers.contacts/databases/contacts2.db 124845621 4483
+/data/data/com.android.providers.telephony/databases/mmssms.db 124845621 5409

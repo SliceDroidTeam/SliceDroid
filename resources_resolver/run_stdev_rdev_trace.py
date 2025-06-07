@@ -6,7 +6,7 @@ SCRIPT_LOCAL = os.path.join("resources_resolver","find_rdev_stdev_inode.sh")
 SCRIPT_DEVICE = "/data/local/tmp/find_rdev_stdev_inode.sh"
 OUTPUT_FILES = ["regular_files.txt", "rdevs.txt"]
 DEVICE_OUTPUT_DIR = "/data/local/tmp"
-LOCAL_OUTPUT_DIR = "data/outputs"
+LOCAL_OUTPUT_DIR = os.path.join("data", "nodes_and_files_data")
 PYTHON_PROCESSOR = os.path.join("resources_resolver","create_cat2_devs.py")
 manufacturer = subprocess.run(["adb", "shell", "getprop", "ro.product.manufacturer"], capture_output=True, text=True).stdout.strip()
 

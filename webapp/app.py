@@ -44,7 +44,7 @@ advanced_analytics = AdvancedAnalytics(app.config_class)
 # Load device name mapping from rdevs.txt
 device_name_mapping = {}
 try:
-    rdevs_path = app.config_class.PROJECT_ROOT / 'data' / 'outputs' / 'rdevs.txt'
+    rdevs_path = app.config_class.PROJECT_ROOT / 'data' / 'nodes_and_files_data' / 'rdevs.txt'
     if rdevs_path.exists():
         with open(rdevs_path, 'r') as f:
             for line in f:
@@ -434,7 +434,7 @@ def health_check():
 @app.route('/api/preloaded-file')
 def preloaded_file_info():
     """Return information about the preloaded file if one exists"""
-    default_trace_path = app.config_class.PROJECT_ROOT / 'outputs' / 'trace.trace'
+    default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
     processed_file_exists = Path(app.config_class.PROCESSED_EVENTS_JSON).exists()
     
     if default_trace_path.exists() and processed_file_exists:
