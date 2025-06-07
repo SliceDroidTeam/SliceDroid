@@ -12,26 +12,26 @@ import base64
 from io import BytesIO
 import re
 from pathlib import Path
-from config import Config
+from src.config import Config
 import tempfile
 import threading
 import uuid
 from werkzeug.utils import secure_filename
-from trace_processor import TraceProcessor
-from advanced_analytics import AdvancedAnalytics
-from comprehensive_analyzer import ComprehensiveAnalyzer
+from src.services.trace_processor import TraceProcessor
+from src.services.advanced_analytics import AdvancedAnalytics
+from src.services.comprehensive_analyzer import ComprehensiveAnalyzer
 import shutil
 
 def create_app(config_name='default'):
     """Application factory pattern"""
     app = Flask(
         __name__,
-        static_folder='static',
-        template_folder='templates'
+        static_folder='src/static',
+        template_folder='src/templates'
     )
 
     # Load configuration
-    from config import config
+    from src.config import config
     app.config.from_object(config[config_name])
     app.config_class = config[config_name]
 

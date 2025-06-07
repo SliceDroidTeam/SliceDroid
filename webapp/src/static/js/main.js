@@ -13,7 +13,6 @@ $(document).ready(function() {
         updateAppStatus('success', 'Ready');
         loadAllData();
         setupEventListeners();
-        checkForPreloadedFile();
     }).catch(function(error) {
         console.error('Failed to load configuration:', error);
         updateAppStatus('warning', 'Fallback Mode');
@@ -21,7 +20,6 @@ $(document).ready(function() {
         setFallbackConfiguration();
         loadAllData();
         setupEventListeners();
-        checkForPreloadedFile();
     });
 });
 
@@ -46,33 +44,7 @@ function updateAppStatus(type, message) {
     statusEl.html(`<i class="${iconMap[type] || 'fas fa-question'}"></i> ${message}`);
 }
 
-// Check if there's a preloaded file and update the file input
-function checkForPreloadedFile() {
-    $.getJSON('/api/preloaded-file', function(data) {
-        if (data.preloaded) {
-            // Update the file input to show the preloaded file name
-            const fileInput = $('#trace-file-input');
-            
-            // Create a custom label to display the preloaded filename
-            const fileInputContainer = fileInput.parent();
-            
-            // Check if we already have a preloaded file label
-            if (fileInputContainer.find('.preloaded-file-label').length === 0) {
-                fileInputContainer.append(
-                    `<div class="preloaded-file-label mt-2 text-info">
-                        <i class="fas fa-info-circle"></i> 
-                        Preloaded file: <strong>${data.filename}</strong>
-                    </div>`
-                );
-            }
-            
-            // Enable the upload button since we have a preloaded file
-            $('#upload-btn').prop('disabled', false);
-        }
-    }).fail(function(error) {
-        console.error('Failed to check for preloaded file:', error);
-    });
-}
+// Preload file checking is now handled in the inline script
 
 // Load app configuration from server
 function loadConfiguration() {
@@ -110,9 +82,7 @@ function setupEventListeners() {
     $('#zoom-out').click(zoomOut);
     $('#reset-zoom').click(resetZoom);
 
-    // Upload functionality
-    $('#trace-file-input').change(handleFileSelection);
-    $('#upload-btn').click(handleUpload);
+    // Upload functionality is now handled in inline script
 
     // Advanced analytics
     $('#load-analytics-btn').click(loadAdvancedAnalytics);
@@ -637,165 +607,7 @@ function renderEventPieChart(data) {
     createPieChart('event-chart-container', chartData, 'Event Type Distribution');
 }
 
-// Upload functionality
-function handleFileSelection() {
-    const fileInput = $('#trace-file-input')[0];
-    const uploadBtn = $('#upload-btn');
-
-    // Remove any existing preloaded file label when user selects a new file
-    $('.preloaded-file-label').remove();
-
-    if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        if (file.name.endsWith('.trace')) {
-            uploadBtn.prop('disabled', false);
-            hideUploadResult();
-
-            // Add a label showing the selected file name
-            const fileInputContainer = $(fileInput).parent();
-            fileInputContainer.append(
-                `<div class="preloaded-file-label mt-2 text-success">
-                    <i class="fas fa-check-circle"></i>
-                    Selected file: <strong>${file.name}</strong>
-                </div>`
-            );
-        } else {
-            uploadBtn.prop('disabled', true);
-            showUploadError('Please select a .trace file');
-        }
-    } else {
-        uploadBtn.prop('disabled', true);
-
-        // Check if there's a preloaded file and restore that information
-        checkForPreloadedFile();
-    }
-}
-
-function handleUpload() {
-    const fileInput = $('#trace-file-input')[0];
-
-    if (fileInput.files.length === 0) {
-        showUploadError('Please select a file');
-        return;
-    }
-
-    const file = fileInput.files[0];
-    const formData = new FormData();
-    formData.append('trace_file', file);
-
-    // Show progress
-    showUploadProgress();
-    $('#upload-btn').prop('disabled', true);
-
-    // Upload file
-    $.ajax({
-        url: '/api/upload',
-        type: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function(response) {
-            if (response.upload_id) {
-                checkUploadProgress(response.upload_id);
-            } else {
-                showUploadError('Upload failed: No upload ID received');
-                resetUploadUI();
-            }
-        },
-        error: function(xhr) {
-            const error = xhr.responseJSON?.error || 'Upload failed';
-            showUploadError(error);
-            resetUploadUI();
-        }
-    });
-}
-
-function checkUploadProgress(uploadId) {
-    const checkProgress = () => {
-        $.get(`/api/upload/progress/${uploadId}`)
-            .done(function(data) {
-                updateProgressBar(data.progress);
-                updateProgressStatus(data.status);
-
-                if (data.completed) {
-                    if (data.error) {
-                        showUploadError(data.error);
-                    } else if (data.result && data.result.success) {
-                        showUploadSuccess(data.result);
-                        // Reload data after successful processing
-                        setTimeout(() => {
-                            loadAllData();
-                        }, 1000);
-                    } else {
-                        showUploadError(data.result?.error || 'Processing failed');
-                    }
-                    resetUploadUI();
-                } else {
-                    // Continue checking progress
-                    setTimeout(checkProgress, 1000);
-                }
-            })
-            .fail(function() {
-                showUploadError('Failed to check upload progress');
-                resetUploadUI();
-            });
-    };
-
-    checkProgress();
-}
-
-function showUploadProgress() {
-    $('#upload-progress').show();
-    $('#upload-result').hide();
-    updateProgressBar(0);
-    updateProgressStatus('Starting upload...');
-}
-
-function updateProgressBar(progress) {
-    $('#progress-bar').css('width', progress + '%').attr('aria-valuenow', progress);
-}
-
-function updateProgressStatus(status) {
-    $('#upload-status').text(status);
-}
-
-function showUploadSuccess(result) {
-    $('#upload-progress').hide();
-    $('#upload-result').show();
-    $('#upload-alert')
-        .removeClass('alert-danger')
-        .addClass('alert-success')
-        .html(`
-            <strong>Success!</strong> ${result.message}<br>
-            <small>
-                Events processed: ${result.events_count}<br>
-                Target PID: ${result.target_pid}<br>
-                Output file: ${result.json_file}
-            </small>
-        `);
-}
-
-function showUploadError(error) {
-    $('#upload-progress').hide();
-    $('#upload-result').show();
-    $('#upload-alert')
-        .removeClass('alert-success')
-        .addClass('alert-danger')
-        .html(`<strong>Error:</strong> ${error}`);
-}
-
-function hideUploadResult() {
-    $('#upload-result').hide();
-}
-
-function resetUploadUI() {
-    $('#upload-btn').prop('disabled', true);
-    $('#trace-file-input').val('');
-    $('.preloaded-file-label').remove();
-
-    // Check if there's a preloaded file and restore that information
-    checkForPreloadedFile();
-}
+// Upload functionality is now handled in inline script
 
 // Advanced Analytics functionality
 function loadAdvancedAnalytics() {

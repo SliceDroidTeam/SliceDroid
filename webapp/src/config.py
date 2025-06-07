@@ -6,7 +6,7 @@ class Config:
     
     # Base directories
     BASE_DIR = Path(__file__).parent.absolute()
-    PROJECT_ROOT = BASE_DIR.parent
+    PROJECT_ROOT = BASE_DIR.parent.parent
     
     # Data paths - can be overridden by environment variables
     DATA_DIR = Path(os.getenv('SYSDROID_DATA_DIR', PROJECT_ROOT / 'data'))

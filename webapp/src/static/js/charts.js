@@ -12,9 +12,10 @@ function createPieChart(containerId, data, title) {
         return;
     }
 
-    const width = document.getElementById(containerId).clientWidth;
-    const height = 400;
-    const radius = Math.min(width, height) / 2 - 10;
+    const container = document.getElementById(containerId);
+    const width = container.clientWidth;
+    const height = Math.min(container.clientHeight, 350);
+    const radius = Math.min(width, height) / 2 - 20;
 
     const svg = d3.select(`#${containerId}`)
         .append("svg")
@@ -67,24 +68,26 @@ function createPieChart(containerId, data, title) {
             return percent > 5 ? `${percent}%` : ''; // Only show label if slice is > 5%
         });
 
-    // Add legend
-    const legend = svg.selectAll('.legend')
-        .data(data)
-        .enter()
-        .append('g')
-        .attr('class', 'legend')
-        .attr('transform', (d, i) => `translate(${width/2 - 120}, ${-height/2 + 50 + i * 20})`);
+    // Add legend only if there's enough space
+    if (width > 400) {
+        const legend = svg.selectAll('.legend')
+            .data(data.slice(0, 5)) // Show only top 5 in legend
+            .enter()
+            .append('g')
+            .attr('class', 'legend')
+            .attr('transform', (d, i) => `translate(${width/2 - 100}, ${-height/2 + 50 + i * 18})`);
 
-    legend.append('rect')
-        .attr('width', 15)
-        .attr('height', 15)
-        .attr('fill', (d, i) => color(i));
+        legend.append('rect')
+            .attr('width', 12)
+            .attr('height', 12)
+            .attr('fill', (d, i) => color(i));
 
-    legend.append('text')
-        .attr('x', 20)
-        .attr('y', 12)
-        .attr('font-size', '12px')
-        .text(d => `${d.label}: ${d.value}`);
+        legend.append('text')
+            .attr('x', 16)
+            .attr('y', 10)
+            .attr('font-size', '10px')
+            .text(d => `${d.label.substring(0, 15)}...`);
+    }
 }
 
 function createBarChart(containerId, data, title, xLabel, yLabel) {
