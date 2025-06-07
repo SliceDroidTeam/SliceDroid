@@ -571,6 +571,133 @@ def get_advanced_analytics():
         print(f"Error in advanced analytics: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+@app.route('/api/export/events')
+def export_events():
+    """Export events data in specified format"""
+    try:
+        events = load_data()
+        pid = request.args.get('pid')
+        device = request.args.get('device')
+        format_type = request.args.get('format', 'json')
+        limit = request.args.get('limit')
+
+        # Validate input parameters
+        if pid and not pid.isdigit():
+            return jsonify({'error': 'Invalid PID parameter'}), 400
+        if device and not device.isdigit():
+            return jsonify({'error': 'Invalid device parameter'}), 400
+
+        # Filter events
+        filtered_events = filter_events(events, pid, device)
+        
+        # Apply limit if specified
+        if limit:
+            try:
+                limit_int = int(limit)
+                filtered_events = filtered_events[:limit_int]
+            except ValueError:
+                return jsonify({'error': 'Invalid limit parameter'}), 400
+
+        # Generate filename
+        timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+        filename_parts = ['events']
+        if pid:
+            filename_parts.append(f'pid{pid}')
+        if device:
+            filename_parts.append(f'dev{device}')
+        filename_parts.append(timestamp)
+        
+        if format_type.lower() == 'csv':
+            # Create CSV response
+            df = pd.DataFrame(filtered_events)
+            output = StringIO()
+            df.to_csv(output, index=False)
+            output.seek(0)
+            
+            filename = '_'.join(filename_parts) + '.csv'
+            response = make_response(output.getvalue())
+            response.headers['Content-Type'] = 'text/csv'
+            response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
+        else:
+            # JSON response
+            filename = '_'.join(filename_parts) + '.json'
+            response = make_response(json.dumps(filtered_events, indent=2))
+            response.headers['Content-Type'] = 'application/json'
+            response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
+
+    except Exception as e:
+        print(f"Error in export events: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/export/analysis')
+def export_analysis():
+    """Export analysis results in specified format"""
+    try:
+        events = load_data()
+        pid = request.args.get('pid')
+        format_type = request.args.get('format', 'json')
+        window_size = int(request.args.get('window_size', 1000))
+        overlap = int(request.args.get('overlap', 200))
+
+        # Validate PID parameter
+        target_pid = None
+        if pid:
+            if not pid.isdigit():
+                return jsonify({'error': 'Invalid PID parameter'}), 400
+            target_pid = int(pid)
+
+        # Perform analysis
+        analysis = advanced_analytics.analyze_trace_data(events, target_pid, window_size, overlap)
+        
+        # Generate filename
+        timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
+        filename_parts = ['analysis']
+        if pid:
+            filename_parts.append(f'pid{pid}')
+        filename_parts.append(timestamp)
+        
+        if format_type.lower() == 'csv':
+            # Convert analysis to CSV format
+            analysis_data = []
+            for key, value in analysis.items():
+                if isinstance(value, dict):
+                    for subkey, subvalue in value.items():
+                        analysis_data.append({
+                            'category': key,
+                            'metric': subkey,
+                            'value': str(subvalue)
+                        })
+                else:
+                    analysis_data.append({
+                        'category': 'general',
+                        'metric': key,
+                        'value': str(value)
+                    })
+            
+            df = pd.DataFrame(analysis_data)
+            output = StringIO()
+            df.to_csv(output, index=False)
+            output.seek(0)
+            
+            filename = '_'.join(filename_parts) + '.csv'
+            response = make_response(output.getvalue())
+            response.headers['Content-Type'] = 'text/csv'
+            response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
+        else:
+            # JSON response
+            filename = '_'.join(filename_parts) + '.json'
+            response = make_response(json.dumps(analysis, indent=2))
+            response.headers['Content-Type'] = 'application/json'
+            response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
+
+    except Exception as e:
+        print(f"Error in export analysis: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 def preload_trace_file():
     """Pre-load the default trace file if it exists"""
     try:

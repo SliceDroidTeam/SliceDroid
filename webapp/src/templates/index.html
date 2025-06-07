@@ -117,15 +117,27 @@
         }
 
         .status-badge.status-ready {
-            background: rgba(39, 174, 96, 0.1);
-            border-color: var(--success-color);
-            color: var(--success-color);
+            background: rgba(72, 199, 142, 0.08);
+            border-color: #48c78e;
+            color: #48c78e;
         }
 
         .status-badge.status-loading {
             background: rgba(52, 152, 219, 0.1);
             border-color: var(--accent-color);
             color: var(--accent-color);
+        }
+
+        .status-badge.status-warning {
+            background: rgba(230, 126, 34, 0.1);
+            border-color: var(--warning-color);
+            color: var(--warning-color);
+        }
+
+        .status-badge.status-error {
+            background: rgba(192, 57, 43, 0.1);
+            border-color: var(--danger-color);
+            color: var(--danger-color);
         }
 
         /* Cards */
@@ -366,14 +378,43 @@
             border-color: var(--primary-color);
         }
 
-        .sidebar-collapsed {
-            margin-left: -100%;
-            opacity: 0;
-            transform: translateX(-20px);
+        .collapsed-view {
+            text-align: center;
+            padding: 15px 5px;
+        }
+
+        .collapsed-icon {
+            width: 35px;
+            height: 35px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .collapsed-icon:hover {
+            background: var(--secondary-color);
+        }
+
+        .filters-sidebar.collapsed {
+            width: 70px;
+            padding: 0.5rem;
         }
 
         .main-content {
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #sidebar-column {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .filters-sidebar {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
         }
 
         .sidebar-toggle-fixed {
@@ -482,22 +523,31 @@
         <!-- Filters Sidebar -->
         <div class="row">
             <div class="col-md-3" id="sidebar-column">
-                <div class="filters-sidebar">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div class="filter-title mb-0">
+                <div class="filters-sidebar" id="filters-sidebar">
+                    <!-- Collapsed view -->
+                    <div class="collapsed-view" style="display: none;">
+                        <button class="collapsed-icon" onclick="toggleSidebar()" title="Show Filters">
                             <i class="fas fa-filter"></i>
-                            Analysis Filters
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button class="sidebar-toggle" id="sidebar-toggle" title="Hide Filters Panel">
-                                <i class="fas fa-eye-slash"></i>
-                                <span class="ms-1">Hide</span>
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filters-content" aria-expanded="true">
-                                <i class="fas fa-chevron-up" id="filter-toggle-icon"></i>
-                            </button>
-                        </div>
+                        </button>
                     </div>
+
+                    <!-- Full view -->
+                    <div class="full-view">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="filter-title mb-0">
+                                <i class="fas fa-filter"></i>
+                                Analysis Filters
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="sidebar-toggle" id="sidebar-toggle" title="Hide Filters Panel">
+                                    <i class="fas fa-eye-slash"></i>
+                                    <span class="ms-1">Hide</span>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filters-content" aria-expanded="true">
+                                    <i class="fas fa-chevron-up" id="filter-toggle-icon"></i>
+                                </button>
+                            </div>
+                        </div>
 
                     <div class="collapse show" id="filters-content">
 
@@ -537,29 +587,17 @@
                         Export Options
                     </div>
 
-                    <div class="dropdown d-grid">
-                        <button class="btn btn-success-modern dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-cloud-download-alt"></i> Export Data
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-success-modern" onclick="exportEvents('json')">
+                            <i class="fas fa-download"></i> Export JSON
                         </button>
-                        <ul class="dropdown-menu">
-                            <li><h6 class="dropdown-header">Raw Events</h6></li>
-                            <li><a class="dropdown-item" href="#" onclick="exportEvents('json')">
-                                <i class="fas fa-file-code"></i> JSON Format
-                            </a></li>
-                            <li><a class="dropdown-item" href="#" onclick="exportEvents('csv')">
-                                <i class="fas fa-file-csv"></i> CSV Format
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><h6 class="dropdown-header">Analysis Results</h6></li>
-                            <li><a class="dropdown-item" href="#" onclick="exportAnalysis('json')">
-                                <i class="fas fa-chart-bar"></i> Analysis JSON
-                            </a></li>
-                            <li><a class="dropdown-item" href="#" onclick="exportAnalysis('csv')">
-                                <i class="fas fa-chart-line"></i> Analysis CSV
-                            </a></li>
-                        </ul>
+                        <button class="btn btn-success-modern" onclick="exportEvents('csv')">
+                            <i class="fas fa-download"></i> Export CSV
+                        </button>
                     </div>
-                    </div>
+
+                    </div> <!-- end collapse show -->
+                    </div> <!-- end full-view -->
                 </div>
             </div>
 
@@ -571,7 +609,7 @@
                             <div class="card-icon">
                                 <i class="fas fa-cloud-upload-alt"></i>
                             </div>
-                            <h2 class="card-title">Security Trace Upload</h2>
+                            <h2 class="card-title">Trace Upload</h2>
                         </div>
                     </div>
 
@@ -579,7 +617,7 @@
                         <div class="upload-icon">
                             <i class="fas fa-file-upload"></i>
                         </div>
-                        <h4>Drop your security trace file here</h4>
+                        <h4>Drop your trace file here</h4>
                         <p class="text-muted">Supports .trace files for analysis</p>
                         <input type="file" class="form-control d-none" id="trace-file-input" accept=".trace">
                         <button class="btn btn-modern mt-3" id="select-file-btn">
@@ -612,7 +650,7 @@
                             <div class="card-icon">
                                 <i class="fas fa-project-diagram"></i>
                             </div>
-                            <h2 class="card-title">Security Event Timeline</h2>
+                            <h2 class="card-title">Event Timeline</h2>
                         </div>
                         <div class="btn-group" role="group">
                             <button id="zoom-in" class="btn btn-outline-primary btn-sm">
@@ -992,35 +1030,42 @@
         let sidebarCollapsed = false;
 
         function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar-column');
+            const collapsedView = document.querySelector('.collapsed-view');
+            const fullView = document.querySelector('.full-view');
+            const sidebar = document.querySelector('.filters-sidebar');
+            const sidebarColumn = document.getElementById('sidebar-column');
             const mainContent = document.getElementById('main-content');
-            const fixedToggle = document.getElementById('sidebar-toggle-fixed');
 
             if (sidebarCollapsed) {
-                // Show sidebar
-                sidebar.classList.remove('d-none');
-                sidebar.classList.remove('sidebar-collapsed');
-                mainContent.classList.remove('col-12');
-                mainContent.classList.add('col-md-9');
-                mainContent.classList.remove('expanded');
-                fixedToggle.classList.add('d-none');
+                // Expanding: Change layout first, then show content
+                sidebarColumn.className = 'col-md-3';
+                mainContent.className = 'col-md-9 main-content';
+
+                // Small delay to let layout settle, then show content
+                setTimeout(() => {
+                    sidebar.classList.remove('collapsed');
+                    collapsedView.style.display = 'none';
+                    fullView.style.display = 'block';
+                }, 50);
+
                 sidebarCollapsed = false;
             } else {
-                // Hide sidebar
-                sidebar.classList.add('sidebar-collapsed');
+                // Collapsing: Hide content first, then change layout
+                collapsedView.style.display = 'block';
+                fullView.style.display = 'none';
+                sidebar.classList.add('collapsed');
+
+                // Small delay to let content hide, then change layout
                 setTimeout(() => {
-                    sidebar.classList.add('d-none');
-                    fixedToggle.classList.remove('d-none');
-                }, 400);
-                mainContent.classList.remove('col-md-9');
-                mainContent.classList.add('col-12');
-                mainContent.classList.add('expanded');
+                    sidebarColumn.className = 'col-md-1';
+                    mainContent.className = 'col-md-11 main-content';
+                }, 50);
+
                 sidebarCollapsed = true;
             }
         }
 
         document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebar);
-        document.getElementById('sidebar-toggle-fixed').addEventListener('click', toggleSidebar);
 
         // Setup file upload event handlers
         document.getElementById('select-file-btn').addEventListener('click', () => {
@@ -1221,6 +1266,113 @@
         }
 
         checkPreloadedFile();
+
+        // Export functions
+        window.exportEvents = function(format) {
+            const pid = document.getElementById('pid-filter').value;
+            const device = document.getElementById('device-filter').value;
+
+            // Build parameters
+            let params = [];
+            params.push(`format=${format}`);
+            if (pid) params.push(`pid=${pid}`);
+            if (device) params.push(`device=${device}`);
+
+            // Ask for limit (optional)
+            const limit = prompt('Enter maximum number of events to export (leave empty for all):');
+            if (limit && !isNaN(limit) && parseInt(limit) > 0) {
+                params.push(`limit=${parseInt(limit)}`);
+            }
+
+            const url = `/api/export/events?${params.join('&')}`;
+
+            // Create a temporary link and click it to download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = ''; // Browser will use the filename from Content-Disposition header
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Show success message
+            showToast('Export started', `Downloading events in ${format.toUpperCase()} format...`, 'success');
+        };
+
+        window.exportAnalysis = function(format) {
+            const pid = document.getElementById('analytics-target-pid').value || document.getElementById('pid-filter').value;
+            const windowSize = document.getElementById('analytics-window-size').value || 1000;
+            const overlap = document.getElementById('analytics-overlap').value || 200;
+
+            // Build parameters
+            let params = [];
+            params.push(`format=${format}`);
+            if (pid) params.push(`pid=${pid}`);
+            params.push(`window_size=${windowSize}`);
+            params.push(`overlap=${overlap}`);
+
+            const url = `/api/export/analysis?${params.join('&')}`;
+
+            // Show loading message
+            showToast('Export started', 'Performing analysis and preparing export...', 'info');
+
+            // Create a temporary link and click it to download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = ''; // Browser will use the filename from Content-Disposition header
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Show success message after a delay
+            setTimeout(() => {
+                showToast('Export complete', `Analysis exported in ${format.toUpperCase()} format`, 'success');
+            }, 1000);
+        };
+
+        // Toast notification helper
+        function showToast(title, message, type = 'info') {
+            // Create toast HTML
+            const toastId = 'toast-' + Date.now();
+            const bgClass = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-info';
+
+            const toastHtml = `
+                <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <strong>${title}</strong><br>
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+
+            // Add to page if toast container doesn't exist
+            if (!document.getElementById('toast-container')) {
+                const container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container position-fixed top-0 end-0 p-3';
+                container.style.zIndex = '9999';
+                document.body.appendChild(container);
+            }
+
+            // Add toast to container
+            const container = document.getElementById('toast-container');
+            container.innerHTML += toastHtml;
+
+            // Show toast
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, {
+                autohide: true,
+                delay: type === 'error' ? 5000 : 3000
+            });
+            toast.show();
+
+            // Remove from DOM after hiding
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove();
+            });
+        }
 
         // Initialize tooltips
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))

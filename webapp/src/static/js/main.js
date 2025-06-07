@@ -10,7 +10,7 @@ $(document).ready(function() {
 
     // Load configuration first, then data
     loadConfiguration().then(function() {
-        updateAppStatus('success', 'Ready');
+        updateAppStatus('success', 'System Ready');
         loadAllData();
         setupEventListeners();
     }).catch(function(error) {
@@ -33,15 +33,15 @@ function updateAppStatus(type, message) {
         'error': 'fas fa-times-circle'
     };
     const classMap = {
-        'loading': 'bg-info',
-        'success': 'bg-success',
-        'warning': 'bg-warning',
-        'error': 'bg-danger'
+        'loading': 'status-loading',
+        'success': 'status-ready',
+        'warning': 'status-warning',
+        'error': 'status-error'
     };
     
-    statusEl.removeClass('bg-success bg-warning bg-danger bg-info')
-           .addClass(classMap[type] || 'bg-secondary');
-    statusEl.html(`<i class="${iconMap[type] || 'fas fa-question'}"></i> ${message}`);
+    statusEl.removeClass('status-ready status-loading status-warning status-error')
+           .addClass(classMap[type] || 'status-ready');
+    statusEl.html(`<i class="${iconMap[type] || 'fas fa-question'}"></i> <span>${message}</span>`);
 }
 
 // Preload file checking is now handled in the inline script
@@ -849,7 +849,7 @@ function loadAdvancedAnalyticsWithConfig() {
         showAnalyticsError(errorMsg);
     }).always(function() {
         $('#analytics-loading').hide();
-        updateAppStatus('success', 'Ready');
+        updateAppStatus('success', 'System Ready');
     });
 }
 

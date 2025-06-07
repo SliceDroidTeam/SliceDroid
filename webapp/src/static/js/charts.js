@@ -56,7 +56,31 @@ function createPieChart(containerId, data, title) {
         .attr("d", arc)
         .attr("fill", (d, i) => color(i))
         .attr("stroke", "white")
-        .style("stroke-width", "2px");
+        .style("stroke-width", "2px")
+        .style("cursor", "pointer")
+        .on("mouseover", function(event, d) {
+            // Create tooltip
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "chart-tooltip")
+                .style("position", "absolute")
+                .style("background", "rgba(0,0,0,0.8)")
+                .style("color", "white")
+                .style("padding", "8px 12px")
+                .style("border-radius", "4px")
+                .style("font-size", "12px")
+                .style("pointer-events", "none")
+                .style("z-index", "1000")
+                .style("opacity", 0);
+
+            const percent = ((d.data.value / d3.sum(data, d => d.value)) * 100).toFixed(1);
+            tooltip.html(`<strong>${d.data.label}</strong><br>Count: ${d.data.value}<br>Percentage: ${percent}%`)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 10) + "px")
+                .transition().duration(200).style("opacity", 1);
+        })
+        .on("mouseout", function() {
+            d3.selectAll(".chart-tooltip").remove();
+        });
 
     // Add labels
     arcs.append("text")
@@ -68,26 +92,8 @@ function createPieChart(containerId, data, title) {
             return percent > 5 ? `${percent}%` : ''; // Only show label if slice is > 5%
         });
 
-    // Add legend only if there's enough space
-    if (width > 400) {
-        const legend = svg.selectAll('.legend')
-            .data(data.slice(0, 5)) // Show only top 5 in legend
-            .enter()
-            .append('g')
-            .attr('class', 'legend')
-            .attr('transform', (d, i) => `translate(${width/2 - 100}, ${-height/2 + 50 + i * 18})`);
-
-        legend.append('rect')
-            .attr('width', 12)
-            .attr('height', 12)
-            .attr('fill', (d, i) => color(i));
-
-        legend.append('text')
-            .attr('x', 16)
-            .attr('y', 10)
-            .attr('font-size', '10px')
-            .text(d => `${d.label.substring(0, 15)}...`);
-    }
+    // Skip legend for device/event charts to avoid overlap - rely on hover tooltips instead
+    // Legend causes overlap issues in the constrained space of the statistics cards
 }
 
 function createBarChart(containerId, data, title, xLabel, yLabel) {
