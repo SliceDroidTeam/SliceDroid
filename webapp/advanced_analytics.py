@@ -15,7 +15,43 @@ from collections import Counter, defaultdict
 APP_DIR = Path(__file__).parent.parent / 'app'
 sys.path.insert(0, str(APP_DIR))
 
-import myutils
+try:
+    import myutils
+except ImportError:
+    # If myutils is not available, create minimal functionality
+    class MyUtils:
+        @staticmethod
+        def load_file(filename):
+            """Load a file containing device mappings"""
+            result = {}
+            try:
+                with open(filename, 'r') as f:
+                    # Try to load as JSON first
+                    try:
+                        f.seek(0)
+                        content = f.read()
+                        result = json.loads(content)
+                        return result
+                    except json.JSONDecodeError:
+                        # Fall back to text format parsing
+                        f.seek(0)
+                        lines = f.readlines()
+                        current_category = None
+                        for line in lines:
+                            line = line.strip()
+                            if line and not line.startswith('#'):
+                                if ':' in line and not line.startswith('\t'):
+                                    current_category = line.replace(':', '').strip()
+                                    result[current_category] = []
+                                elif line.startswith('\t') and current_category:
+                                    device = line.strip()
+                                    if device.isdigit():
+                                        result[current_category].append(int(device))
+            except:
+                pass
+            return result
+    
+    myutils = MyUtils()
 
 class AdvancedAnalytics:
     """Advanced analytics for trace data with high-level insights"""
@@ -37,13 +73,15 @@ class AdvancedAnalytics:
         
         return logger
     
-    def analyze_trace_data(self, events, target_pid=None):
+    def analyze_trace_data(self, events, target_pid=None, window_size=1000, overlap=200):
         """
         Perform comprehensive analysis of trace data
         
         Args:
             events: List of parsed events
             target_pid: Target process ID for analysis
+            window_size: Size of analysis windows for behavior timeline
+            overlap: Overlap between analysis windows
             
         Returns:
             dict: Comprehensive analysis results
@@ -64,7 +102,7 @@ class AdvancedAnalytics:
             network_analysis = self._analyze_network_events(events)
             sensitive_data_analysis = self._analyze_sensitive_data(events)
             temporal_patterns = self._analyze_temporal_patterns(events, target_pid)
-            charts = self._generate_charts(events, target_pid)
+            charts = self._generate_charts(events, target_pid, window_size, overlap)
             
             analysis = {
                 'target_pid': target_pid,
@@ -285,8 +323,80 @@ class AdvancedAnalytics:
         }
     
     def _analyze_sensitive_data(self, events):
-        """Analyze potential sensitive data access"""
-        # This is a placeholder - would need actual sensitive resource mappings
+        """Analyze potential sensitive data access using device ID + inode matching"""
+        try:
+            # Load sensitive resources mappings
+            sensitive_resources_file = self.config.MAPPINGS_DIR / 'cat2stdevs_oneplus.json'
+            if not sensitive_resources_file.exists():
+                self.logger.warning(f"Sensitive resources file not found: {sensitive_resources_file}")
+                return self._fallback_sensitive_analysis(events)
+            
+            with open(sensitive_resources_file, 'r') as f:
+                sensitive_resources = json.load(f)
+            
+            sensitive_access = defaultdict(int)
+            
+            # Accurate detection using s_dev_inode and inode matching
+            for event in events:
+                if 'details' in event:
+                    sensitive_type = self._check_sensitive_resource(event, sensitive_resources)
+                    if sensitive_type:
+                        sensitive_access[sensitive_type] += 1
+            
+            # Fallback to pathname patterns for additional categories
+            self._add_pathname_based_detection(events, sensitive_access)
+            
+            return {
+                'sensitive_data_access': dict(sensitive_access),
+                'total_sensitive_events': sum(sensitive_access.values())
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error in sensitive data analysis: {str(e)}")
+            return self._fallback_sensitive_analysis(events)
+    
+    def _check_sensitive_resource(self, event, sensitive_resources):
+        """Check if event accesses a sensitive resource using device+inode matching"""
+        try:
+            for data_type, resource_info in sensitive_resources.items():
+                # Check if event matches device and inode
+                event_details = event.get('details', {})
+                
+                # Check s_dev_inode (32-bit device ID) and inode
+                if (event_details.get('s_dev_inode') == resource_info.get('st_dev32') and 
+                    event_details.get('inode') == resource_info.get('inode')):
+                    return data_type
+                
+                # Alternative check using k_dev if s_dev_inode not available
+                if (event_details.get('k_dev') == resource_info.get('st_dev32') and 
+                    event_details.get('inode') == resource_info.get('inode')):
+                    return data_type
+                    
+            return None
+            
+        except Exception as e:
+            self.logger.warning(f"Error checking sensitive resource: {str(e)}")
+            return None
+    
+    def _add_pathname_based_detection(self, events, sensitive_access):
+        """Add pathname-based detection for categories not covered by device+inode"""
+        pathname_patterns = {
+            'location': ['gps', 'location', 'gnss'],
+            'camera': ['camera', 'picture', 'photo'],
+            'microphone': ['audio', 'mic', 'sound'],
+            'bluetooth': ['bluetooth', 'bt'],
+            'nfc': ['nfc']
+        }
+        
+        for event in events:
+            if 'details' in event and 'pathname' in event['details']:
+                pathname = event['details']['pathname'].lower()
+                for category, patterns in pathname_patterns.items():
+                    if any(pattern in pathname for pattern in patterns):
+                        sensitive_access[category] += 1
+    
+    def _fallback_sensitive_analysis(self, events):
+        """Fallback analysis using only pathname patterns"""
         sensitive_patterns = {
             'contacts': ['contacts', 'people', 'addressbook'],
             'sms': ['sms', 'messages', 'mms'],
@@ -345,13 +455,13 @@ class AdvancedAnalytics:
             'events_per_second': len(target_events) / (timestamps[-1] - timestamps[0]) if len(timestamps) > 1 and timestamps[-1] != timestamps[0] else 0
         }
     
-    def _generate_charts(self, events, target_pid):
+    def _generate_charts(self, events, target_pid, window_size=1000, overlap=200):
         """Generate base64-encoded charts similar to the notebook"""
         charts = {}
         
         try:
             # 1. High-Level Behavior Timeline (from notebook cell 11)
-            charts['behavior_timeline'] = self._create_behavior_timeline_chart(events, target_pid)
+            charts['behavior_timeline'] = self._create_behavior_timeline_chart(events, target_pid, window_size, overlap)
             
             # 2. Category Distribution Chart
             charts['category_distribution'] = self._create_category_chart(events)
@@ -371,12 +481,17 @@ class AdvancedAnalytics:
         
         return charts
     
-    def _create_behavior_timeline_chart(self, events, target_pid):
+    def _create_behavior_timeline_chart(self, events, target_pid, window_size=1000, overlap=200):
         """Create high-level behavior timeline chart based on notebook cell 11"""
         try:
-            # Load device category mappings
+            # Load device category mappings (use OnePlus specific file for more accuracy)
             try:
-                cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs.txt'
+                # Try OnePlus specific mapping first
+                cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs_oneplus.txt'
+                if not cat2devs_file.exists():
+                    # Fallback to generic mapping
+                    cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs.txt'
+                
                 if cat2devs_file.exists():
                     cat2devs = myutils.load_file(str(cat2devs_file))
                     dev2cat = {}
@@ -388,9 +503,18 @@ class AdvancedAnalytics:
             except:
                 dev2cat = {}
             
-            # Perform windowed analysis (simplified version of notebook approach)
-            window_size = 1000  # Smaller windows for web
-            overlap = 200
+            # Load sensitive resources mappings
+            try:
+                sensitive_resources_file = self.config.MAPPINGS_DIR / 'cat2stdevs_oneplus.json'
+                if sensitive_resources_file.exists():
+                    with open(sensitive_resources_file, 'r') as f:
+                        sensitive_resources = json.load(f)
+                else:
+                    sensitive_resources = {}
+            except:
+                sensitive_resources = {}
+            
+            # Use provided window parameters
             step = window_size - overlap
             
             if window_size > len(events):
@@ -399,6 +523,7 @@ class AdvancedAnalytics:
             # Get windows and categorize devices/events in each window
             cats2windows = []
             tcp_events_windows = []
+            sensitive_data_trace = {'contacts': [], 'sms': [], 'calendar': [], 'call_logs': []}
             
             i = 0
             while i < len(events):
@@ -408,8 +533,9 @@ class AdvancedAnalytics:
                 # Categorize events in this window
                 cats_window = []
                 tcp_window = []
+                window_sensitive = {data_type: [] for data_type in sensitive_data_trace}
                 
-                # Device categorization
+                # Device categorization and sensitive data detection
                 for event in window:
                     if event.get('tgid') == target_pid and 'details' in event:
                         device = event['details'].get('k_dev') or event['details'].get('k__dev')
@@ -422,8 +548,27 @@ class AdvancedAnalytics:
                     if event.get('event') == 'inet_sock_set_state' and 'details' in event:
                         details = event['details']
                         if 'newstate' in details and 'daddr' in details:
-                            tcp_info = f"{details['newstate']}: {details['daddr']}"
+                            # Include both IP and port information
+                            daddr = details.get('daddr', 'unknown')
+                            dport = details.get('dport', '')
+                            sport = details.get('sport', '')
+                            
+                            # Format: STATE: IP:PORT (local_port)
+                            if dport and sport:
+                                tcp_info = f"{details['newstate']}: {daddr}:{dport} ({sport})"
+                            else:
+                                tcp_info = f"{details['newstate']}: {daddr}"
                             tcp_window.append(tcp_info)
+                    
+                    # Sensitive data detection (device+inode matching)
+                    if sensitive_resources and 'details' in event:
+                        sensitive_type = self._check_sensitive_resource(event, sensitive_resources)
+                        if sensitive_type and sensitive_type in window_sensitive:
+                            window_sensitive[sensitive_type].append(event)
+                
+                # Store sensitive data for this window
+                for data_type in sensitive_data_trace:
+                    sensitive_data_trace[data_type].append(window_sensitive[data_type])
                 
                 cats2windows.append(cats_window)
                 tcp_events_windows.append(tcp_window)
@@ -437,6 +582,28 @@ class AdvancedAnalytics:
                 if tcp_window and i < len(cats2windows):
                     # Add first TCP event of window
                     cats2windows[i].append(tcp_window[0])
+            
+            # Add sensitive data events to windows (matching notebook cell 11 logic)
+            for i, ev_list in enumerate(cats2windows):
+                # Add contacts if detected in this window
+                if i < len(sensitive_data_trace['contacts']) and len(sensitive_data_trace['contacts'][i]) > 0:
+                    if "contacts" not in ev_list:
+                        ev_list.append("contacts")
+                
+                # Add SMS if detected in this window
+                if i < len(sensitive_data_trace['sms']) and len(sensitive_data_trace['sms'][i]) > 0:
+                    if "sms" not in ev_list:
+                        ev_list.append("sms")
+                
+                # Add calendar if detected in this window
+                if i < len(sensitive_data_trace['calendar']) and len(sensitive_data_trace['calendar'][i]) > 0:
+                    if "calendar" not in ev_list:
+                        ev_list.append("calendar")
+                
+                # Add call_logs if detected in this window
+                if i < len(sensitive_data_trace['call_logs']) and len(sensitive_data_trace['call_logs'][i]) > 0:
+                    if "call_logs" not in ev_list:
+                        ev_list.append("call_logs")
             
             # Define event types, markers, and colors (from notebook)
             event_markers = {
@@ -527,10 +694,20 @@ class AdvancedAnalytics:
                 
                 ax.scatter(x_values[i], y_values[i], marker=markers[i], color=colors[i], label=label, alpha=0.7, s=50)
             
-            # Annotate TCP IPs
-            for x, y, ip, marker, color in annotations:
-                if ip:
-                    ax.text(x, y - 0.2, ip, fontsize=6, ha="center", rotation=45, color=color)
+            # Annotate TCP IPs with enhanced formatting
+            for x, y, ip_info, marker, color in annotations:
+                if ip_info:
+                    # Split IP info to show on multiple lines if needed
+                    if len(ip_info) > 15:  # If too long, split it
+                        parts = ip_info.split(': ')
+                        if len(parts) == 2:
+                            state, address = parts
+                            ax.text(x, y - 0.15, state, fontsize=7, ha="center", weight='bold', color=color)
+                            ax.text(x, y - 0.35, address, fontsize=6, ha="center", rotation=30, color=color)
+                        else:
+                            ax.text(x, y - 0.25, ip_info, fontsize=6, ha="center", rotation=30, color=color)
+                    else:
+                        ax.text(x, y - 0.25, ip_info, fontsize=7, ha="center", rotation=30, color=color)
             
             # Formatting
             ax.set_yticks(range(len(event_types)))

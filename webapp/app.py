@@ -1,7 +1,9 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file, make_response
 import os
 import json
 import pandas as pd
+import csv
+from io import StringIO
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
@@ -17,6 +19,7 @@ import uuid
 from werkzeug.utils import secure_filename
 from trace_processor import TraceProcessor
 from advanced_analytics import AdvancedAnalytics
+from comprehensive_analyzer import ComprehensiveAnalyzer
 import shutil
 
 def create_app(config_name='default'):
@@ -40,6 +43,7 @@ app = create_app(os.getenv('FLASK_ENV', 'default'))
 upload_progress = {}
 trace_processor = TraceProcessor(app.config_class)
 advanced_analytics = AdvancedAnalytics(app.config_class)
+comprehensive_analyzer = ComprehensiveAnalyzer(app.config_class)
 
 def load_data():
     """Load the processed events from JSON file"""
@@ -510,6 +514,8 @@ def get_advanced_analytics():
     try:
         events = load_data()
         pid = request.args.get('pid')
+        window_size = int(request.args.get('window_size', 1000))
+        overlap = int(request.args.get('overlap', 200))
         
         # Validate PID parameter
         target_pid = None
@@ -518,14 +524,360 @@ def get_advanced_analytics():
                 return jsonify({'error': 'Invalid PID parameter'}), 400
             target_pid = int(pid)
         
-        # Perform advanced analysis
-        analysis = advanced_analytics.analyze_trace_data(events, target_pid)
+        # Validate window parameters
+        if overlap >= window_size:
+            return jsonify({'error': 'Overlap must be less than window size'}), 400
+        
+        # Perform advanced analysis with custom parameters
+        analysis = advanced_analytics.analyze_trace_data(events, target_pid, window_size, overlap)
         
         return jsonify(analysis)
         
     except Exception as e:
         print(f"Error in advanced analytics: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/comprehensive-analysis')
+def get_comprehensive_analysis():
+    """API endpoint for comprehensive analysis including event slicing and API instances"""
+    try:
+        events = load_data()
+        pid = request.args.get('pid')
+        window_size = int(request.args.get('window_size', 5000))
+        overlap = int(request.args.get('overlap', 1000))
+        asynchronous = request.args.get('asynchronous', 'true').lower() == 'true'
+        
+        # Validate PID parameter
+        target_pid = None
+        if pid:
+            if not pid.isdigit():
+                return jsonify({'error': 'Invalid PID parameter'}), 400
+            target_pid = int(pid)
+        else:
+            # Find most active PID if not provided
+            pid_counts = {}
+            for event in events:
+                if 'tgid' in event and event['tgid'] > 0:
+                    pid_counts[event['tgid']] = pid_counts.get(event['tgid'], 0) + 1
+            if pid_counts:
+                target_pid = max(pid_counts, key=pid_counts.get)
+            else:
+                return jsonify({'error': 'No valid PIDs found in events'}), 400
+        
+        # Perform comprehensive file analysis
+        analysis_results = comprehensive_analyzer.slice_file_analysis(
+            events, target_pid, window_size, overlap, asynchronous
+        )
+        
+        # Generate comprehensive statistics
+        comprehensive_stats = comprehensive_analyzer.produce_comprehensive_stats(analysis_results)
+        
+        return jsonify({
+            'target_pid': target_pid,
+            'analysis_results': analysis_results,
+            'comprehensive_stats': comprehensive_stats,
+            'parameters': {
+                'window_size': window_size,
+                'overlap': overlap,
+                'asynchronous': asynchronous
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error in comprehensive analysis: {e}")
+        return jsonify({'error': f'Comprehensive analysis failed: {str(e)}'}), 500
+
+@app.route('/api/api-instances')
+def get_api_instances():
+    """API endpoint for API instance extraction"""
+    try:
+        events = load_data()
+        pid = request.args.get('pid')
+        
+        # Validate PID parameter
+        target_pid = None
+        if pid:
+            if not pid.isdigit():
+                return jsonify({'error': 'Invalid PID parameter'}), 400
+            target_pid = int(pid)
+        
+        # Extract API instances
+        api_instances = comprehensive_analyzer.extract_api_instances(events, target_pid)
+        
+        # Get relevant API instances for target PID
+        if target_pid:
+            relevant_apis = comprehensive_analyzer.extract_relevant_api_instances(events, target_pid)
+        else:
+            relevant_apis = set()
+        
+        return jsonify({
+            'api_instances': api_instances,
+            'relevant_apis': list(relevant_apis),
+            'target_pid': target_pid
+        })
+        
+    except Exception as e:
+        print(f"Error in API instances analysis: {e}")
+        return jsonify({'error': f'API instances analysis failed: {str(e)}'}), 500
+
+@app.route('/api/event-slicing')
+def get_event_slicing():
+    """API endpoint for advanced event slicing"""
+    try:
+        events = load_data()
+        pid = request.args.get('pid')
+        asynchronous = request.args.get('asynchronous', 'false').lower() == 'true'
+        
+        # Validate PID parameter
+        if not pid or not pid.isdigit():
+            return jsonify({'error': 'Valid PID parameter required'}), 400
+        
+        target_pid = int(pid)
+        
+        # Perform event slicing
+        sliced_events = comprehensive_analyzer.slice_events(events, target_pid, asynchronous)
+        
+        return jsonify({
+            'target_pid': target_pid,
+            'original_events_count': len(events),
+            'sliced_events_count': len(sliced_events),
+            'sliced_events': sliced_events[:1000],  # Limit for performance
+            'parameters': {
+                'asynchronous': asynchronous
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error in event slicing: {e}")
+        return jsonify({'error': f'Event slicing failed: {str(e)}'}), 500
+
+@app.route('/api/export/events')
+def export_events():
+    """Export processed events in CSV or JSON format"""
+    try:
+        format_type = request.args.get('format', 'json').lower()
+        pid = request.args.get('pid')
+        device = request.args.get('device')
+        limit = request.args.get('limit', type=int)
+        
+        # Validate format
+        if format_type not in ['csv', 'json']:
+            return jsonify({'error': 'Format must be csv or json'}), 400
+        
+        # Load and filter events
+        events = load_data()
+        if not events:
+            return jsonify({'error': 'No events found'}), 404
+        
+        # Apply filters
+        filtered_events = filter_events(events, pid, device)
+        
+        # Apply limit if specified
+        if limit and limit > 0:
+            filtered_events = filtered_events[:limit]
+        
+        # Generate filename
+        filename_parts = ['events']
+        if pid:
+            filename_parts.append(f'pid{pid}')
+        if device:
+            filename_parts.append(f'dev{device}')
+        if limit:
+            filename_parts.append(f'limit{limit}')
+        
+        base_filename = '_'.join(filename_parts)
+        
+        if format_type == 'csv':
+            return export_events_csv(filtered_events, base_filename)
+        else:
+            return export_events_json(filtered_events, base_filename)
+            
+    except Exception as e:
+        print(f"Error in export events: {e}")
+        return jsonify({'error': f'Export failed: {str(e)}'}), 500
+
+def export_events_csv(events, base_filename):
+    """Export events as CSV"""
+    output = StringIO()
+    
+    if not events:
+        fieldnames = ['event', 'tgid', 'tid', 'process', 'timestamp']
+    else:
+        # Get all possible field names
+        fieldnames = set(['event', 'tgid', 'tid', 'process', 'timestamp'])
+        for event in events:
+            fieldnames.update(event.keys())
+            if 'details' in event and isinstance(event['details'], dict):
+                for detail_key in event['details'].keys():
+                    fieldnames.add(f'details_{detail_key}')
+        fieldnames = sorted(list(fieldnames))
+    
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    
+    for event in events:
+        row = {}
+        for field in fieldnames:
+            if field.startswith('details_'):
+                detail_key = field[8:]  # Remove 'details_' prefix
+                if 'details' in event and isinstance(event['details'], dict):
+                    row[field] = event['details'].get(detail_key, '')
+                else:
+                    row[field] = ''
+            else:
+                row[field] = event.get(field, '')
+        writer.writerow(row)
+    
+    output.seek(0)
+    
+    # Create response
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename="{base_filename}.csv"'
+    
+    return response
+
+def export_events_json(events, base_filename):
+    """Export events as JSON"""
+    # Create response
+    response = make_response(json.dumps(events, indent=2))
+    response.headers['Content-Type'] = 'application/json'
+    response.headers['Content-Disposition'] = f'attachment; filename="{base_filename}.json"'
+    
+    return response
+
+@app.route('/api/export/analysis')
+def export_analysis():
+    """Export comprehensive analysis results"""
+    try:
+        format_type = request.args.get('format', 'json').lower()
+        pid = request.args.get('pid')
+        window_size = int(request.args.get('window_size', 5000))
+        overlap = int(request.args.get('overlap', 1000))
+        asynchronous = request.args.get('asynchronous', 'true').lower() == 'true'
+        
+        # Validate format
+        if format_type not in ['csv', 'json']:
+            return jsonify({'error': 'Format must be csv or json'}), 400
+        
+        # Load events
+        events = load_data()
+        if not events:
+            return jsonify({'error': 'No events found'}), 404
+        
+        # Find target PID if not provided
+        target_pid = None
+        if pid:
+            if not pid.isdigit():
+                return jsonify({'error': 'Invalid PID parameter'}), 400
+            target_pid = int(pid)
+        else:
+            pid_counts = {}
+            for event in events:
+                if 'tgid' in event and event['tgid'] > 0:
+                    pid_counts[event['tgid']] = pid_counts.get(event['tgid'], 0) + 1
+            if pid_counts:
+                target_pid = max(pid_counts, key=pid_counts.get)
+            else:
+                return jsonify({'error': 'No valid PIDs found in events'}), 400
+        
+        # Perform comprehensive analysis
+        analysis_results = comprehensive_analyzer.slice_file_analysis(
+            events, target_pid, window_size, overlap, asynchronous
+        )
+        
+        # Generate comprehensive statistics
+        comprehensive_stats = comprehensive_analyzer.produce_comprehensive_stats(analysis_results)
+        
+        # Combine results
+        export_data = {
+            'target_pid': target_pid,
+            'parameters': {
+                'window_size': window_size,
+                'overlap': overlap,
+                'asynchronous': asynchronous
+            },
+            'analysis_results': analysis_results,
+            'comprehensive_stats': comprehensive_stats
+        }
+        
+        # Generate filename
+        filename = f'analysis_pid{target_pid}_ws{window_size}_ol{overlap}'
+        
+        if format_type == 'csv':
+            return export_analysis_csv(export_data, filename)
+        else:
+            return export_analysis_json(export_data, filename)
+            
+    except Exception as e:
+        print(f"Error in export analysis: {e}")
+        return jsonify({'error': f'Analysis export failed: {str(e)}'}), 500
+
+def export_analysis_csv(analysis_data, base_filename):
+    """Export analysis results as CSV (flattened)"""
+    output = StringIO()
+    
+    # Write comprehensive stats as CSV
+    writer = csv.writer(output)
+    
+    # Header
+    writer.writerow(['Analysis Results Export'])
+    writer.writerow(['Generated by SYSDROID Web App'])
+    writer.writerow([])
+    
+    # Parameters
+    writer.writerow(['Parameters'])
+    for key, value in analysis_data['parameters'].items():
+        writer.writerow([key, value])
+    writer.writerow([])
+    
+    # Comprehensive Stats
+    writer.writerow(['Comprehensive Statistics'])
+    stats = analysis_data['comprehensive_stats']
+    for key, value in stats.items():
+        if isinstance(value, dict):
+            writer.writerow([key])
+            for sub_key, sub_value in value.items():
+                writer.writerow(['', sub_key, sub_value])
+        elif isinstance(value, list):
+            writer.writerow([key])
+            for i, item in enumerate(value):
+                if isinstance(item, list):
+                    writer.writerow(['', f'Item {i+1}', ', '.join(map(str, item))])
+                else:
+                    writer.writerow(['', f'Item {i+1}', item])
+        else:
+            writer.writerow([key, value])
+    
+    output.seek(0)
+    
+    # Create response
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename="{base_filename}.csv"'
+    
+    return response
+
+def export_analysis_json(analysis_data, base_filename):
+    """Export analysis results as JSON"""
+    # Convert sets to lists for JSON serialization
+    def convert_sets(obj):
+        if isinstance(obj, set):
+            return list(obj)
+        elif isinstance(obj, dict):
+            return {k: convert_sets(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_sets(item) for item in obj]
+        return obj
+    
+    serializable_data = convert_sets(analysis_data)
+    
+    # Create response
+    response = make_response(json.dumps(serializable_data, indent=2))
+    response.headers['Content-Type'] = 'application/json'
+    response.headers['Content-Disposition'] = f'attachment; filename="{base_filename}.json"'
+    
+    return response
 
 if __name__ == '__main__':
     # Validate configuration on startup
