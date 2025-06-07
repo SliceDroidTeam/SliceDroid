@@ -29,12 +29,12 @@ def create_app(config_name='default'):
         static_folder='static',
         template_folder='templates'
     )
-    
+
     # Load configuration
     from config import config
     app.config.from_object(config[config_name])
     app.config_class = config[config_name]
-    
+
     return app
 
 app = create_app(os.getenv('FLASK_ENV', 'default'))
@@ -44,6 +44,24 @@ upload_progress = {}
 trace_processor = TraceProcessor(app.config_class)
 advanced_analytics = AdvancedAnalytics(app.config_class)
 comprehensive_analyzer = ComprehensiveAnalyzer(app.config_class)
+
+# Load device name mapping from rdevs.txt
+device_name_mapping = {}
+try:
+    rdevs_path = app.config_class.PROJECT_ROOT / 'data' / 'nodes_and_files_data' / 'rdevs.txt'
+    if rdevs_path.exists():
+        with open(rdevs_path, 'r') as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) >= 2:
+                    device_name = parts[0]
+                    device_id = int(parts[1])
+                    device_name_mapping[device_id] = device_name
+        print(f"Loaded {len(device_name_mapping)} device name mappings from {rdevs_path}")
+    else:
+        print(f"Device mapping file not found: {rdevs_path}")
+except Exception as e:
+    print(f"Error loading device name mapping: {e}")
 
 def load_data():
     """Load the processed events from JSON file"""
@@ -78,7 +96,7 @@ def get_unique_devices(events):
                 device_key = 'k_dev'
             elif 'k__dev' in event['details']:
                 device_key = 'k__dev'
-            
+
             if device_key and event['details'][device_key] != 0:
                 devices.add(event['details'][device_key])
     return sorted(list(devices))
@@ -87,16 +105,16 @@ def filter_events(events, pid=None, device=None):
     """Filter events by PID and/or device"""
     if not isinstance(events, list):
         return []
-        
+
     filtered = events
-    
+
     if pid:
         try:
             pid_int = int(pid)
             filtered = [e for e in filtered if isinstance(e, dict) and 'tgid' in e and e['tgid'] == pid_int]
         except (ValueError, TypeError):
             return []
-    
+
     if device:
         try:
             device_int = int(device)
@@ -109,25 +127,25 @@ def filter_events(events, pid=None, device=None):
                 # Check both k_dev and k__dev
                 device_value = details.get('k_dev') or details.get('k__dev')
                 return device_value == device_int
-            
+
             filtered = [e for e in filtered if has_matching_device(e)]
         except (ValueError, TypeError):
             return []
-            
+
     return filtered
 
 def create_timeline_data(events):
     """Create timeline data for visualization"""
     timeline_data = []
     max_events = app.config_class.TIMELINE_MAX_EVENTS
-    
+
     # Limit events for performance
     events_to_process = events[:max_events] if len(events) > max_events else events
-    
+
     for idx, event in enumerate(events_to_process):
         if not isinstance(event, dict):
             continue
-            
+
         event_type = event.get('event', 'unknown')
         category = app.config_class.get_event_category(event_type)
 
@@ -205,7 +223,7 @@ def create_pie_chart_base64(data, labels, title):
     """Create a base64 encoded pie chart"""
     if not data or not labels or len(data) != len(labels):
         return None
-        
+
     try:
         plt.figure(figsize=(8, 6))
         plt.pie(data, labels=labels, autopct='%1.1f%%', startangle=90)
@@ -334,7 +352,7 @@ def device_pie_chart():
         labels = [f"Device {d['device']}" for d in top_devices]
 
         img_str = create_pie_chart_base64(counts, labels, f'Top {top_n} Devices by Usage')
-        
+
         if img_str is None:
             return jsonify({'error': 'Failed to generate chart'}), 500
 
@@ -367,7 +385,7 @@ def event_pie_chart():
         labels = [e['event'] for e in top_events]
 
         img_str = create_pie_chart_base64(counts, labels, f'Top {top_n} Event Types')
-        
+
         if img_str is None:
             return jsonify({'error': 'Failed to generate chart'}), 500
 
@@ -417,29 +435,45 @@ def health_check():
         'data_file_exists': Path(app.config_class.PROCESSED_EVENTS_JSON).exists()
     })
 
+@app.route('/api/preloaded-file')
+def preloaded_file_info():
+    """Return information about the preloaded file if one exists"""
+    default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
+    processed_file_exists = Path(app.config_class.PROCESSED_EVENTS_JSON).exists()
+
+    if default_trace_path.exists() and processed_file_exists:
+        return jsonify({
+            'preloaded': True,
+            'filename': default_trace_path.name
+        })
+    else:
+        return jsonify({
+            'preloaded': False
+        })
+
 @app.route('/api/upload', methods=['POST'])
 def upload_trace():
     """Upload and process a trace file"""
     try:
         if 'trace_file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
-        
+
         file = request.files['trace_file']
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
-        
+
         if not file.filename.endswith('.trace'):
             return jsonify({'error': 'File must have .trace extension'}), 400
-        
+
         # Generate unique upload ID
         upload_id = str(uuid.uuid4())
-        
+
         # Save uploaded file temporarily
         filename = secure_filename(file.filename)
         temp_dir = tempfile.mkdtemp()
         temp_file_path = os.path.join(temp_dir, filename)
         file.save(temp_file_path)
-        
+
         # Initialize progress tracking
         upload_progress[upload_id] = {
             'progress': 0,
@@ -448,21 +482,21 @@ def upload_trace():
             'error': None,
             'result': None
         }
-        
+
         # Start processing in background thread
         def process_file():
             def progress_callback(progress, status):
                 upload_progress[upload_id]['progress'] = progress
                 upload_progress[upload_id]['status'] = status
-            
+
             try:
                 result = trace_processor.process_trace_file(temp_file_path, progress_callback)
                 upload_progress[upload_id]['result'] = result
                 upload_progress[upload_id]['completed'] = True
-                
+
                 if not result['success']:
                     upload_progress[upload_id]['error'] = result.get('error', 'Unknown error')
-                    
+
             except Exception as e:
                 upload_progress[upload_id]['error'] = str(e)
                 upload_progress[upload_id]['completed'] = True
@@ -472,16 +506,16 @@ def upload_trace():
                     shutil.rmtree(temp_dir)
                 except:
                     pass
-        
+
         thread = threading.Thread(target=process_file)
         thread.daemon = True
         thread.start()
-        
+
         return jsonify({
             'upload_id': upload_id,
             'message': 'Upload started, processing in background'
         })
-        
+
     except Exception as e:
         return jsonify({'error': f'Upload failed: {str(e)}'}), 500
 
@@ -490,9 +524,9 @@ def upload_progress_check(upload_id):
     """Check upload progress"""
     if upload_id not in upload_progress:
         return jsonify({'error': 'Upload ID not found'}), 404
-    
+
     progress_data = upload_progress[upload_id]
-    
+
     # Clean up completed uploads after returning status
     if progress_data['completed']:
         # Keep for a short time then clean up
@@ -501,11 +535,11 @@ def upload_progress_check(upload_id):
             time.sleep(60)  # Keep for 1 minute
             if upload_id in upload_progress:
                 del upload_progress[upload_id]
-        
+
         cleanup_thread = threading.Thread(target=cleanup)
         cleanup_thread.daemon = True
         cleanup_thread.start()
-    
+
     return jsonify(progress_data)
 
 @app.route('/api/advanced-analytics')
@@ -516,368 +550,47 @@ def get_advanced_analytics():
         pid = request.args.get('pid')
         window_size = int(request.args.get('window_size', 1000))
         overlap = int(request.args.get('overlap', 200))
-        
+
         # Validate PID parameter
         target_pid = None
         if pid:
             if not pid.isdigit():
                 return jsonify({'error': 'Invalid PID parameter'}), 400
             target_pid = int(pid)
-        
+
         # Validate window parameters
         if overlap >= window_size:
             return jsonify({'error': 'Overlap must be less than window size'}), 400
-        
+
         # Perform advanced analysis with custom parameters
         analysis = advanced_analytics.analyze_trace_data(events, target_pid, window_size, overlap)
-        
+
         return jsonify(analysis)
-        
+
     except Exception as e:
         print(f"Error in advanced analytics: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
-@app.route('/api/comprehensive-analysis')
-def get_comprehensive_analysis():
-    """API endpoint for comprehensive analysis including event slicing and API instances"""
+def preload_trace_file():
+    """Pre-load the default trace file if it exists"""
     try:
-        events = load_data()
-        pid = request.args.get('pid')
-        window_size = int(request.args.get('window_size', 5000))
-        overlap = int(request.args.get('overlap', 1000))
-        asynchronous = request.args.get('asynchronous', 'true').lower() == 'true'
-        
-        # Validate PID parameter
-        target_pid = None
-        if pid:
-            if not pid.isdigit():
-                return jsonify({'error': 'Invalid PID parameter'}), 400
-            target_pid = int(pid)
-        else:
-            # Find most active PID if not provided
-            pid_counts = {}
-            for event in events:
-                if 'tgid' in event and event['tgid'] > 0:
-                    pid_counts[event['tgid']] = pid_counts.get(event['tgid'], 0) + 1
-            if pid_counts:
-                target_pid = max(pid_counts, key=pid_counts.get)
-            else:
-                return jsonify({'error': 'No valid PIDs found in events'}), 400
-        
-        # Perform comprehensive file analysis
-        analysis_results = comprehensive_analyzer.slice_file_analysis(
-            events, target_pid, window_size, overlap, asynchronous
-        )
-        
-        # Generate comprehensive statistics
-        comprehensive_stats = comprehensive_analyzer.produce_comprehensive_stats(analysis_results)
-        
-        return jsonify({
-            'target_pid': target_pid,
-            'analysis_results': analysis_results,
-            'comprehensive_stats': comprehensive_stats,
-            'parameters': {
-                'window_size': window_size,
-                'overlap': overlap,
-                'asynchronous': asynchronous
-            }
-        })
-        
-    except Exception as e:
-        print(f"Error in comprehensive analysis: {e}")
-        return jsonify({'error': f'Comprehensive analysis failed: {str(e)}'}), 500
-
-@app.route('/api/api-instances')
-def get_api_instances():
-    """API endpoint for API instance extraction"""
-    try:
-        events = load_data()
-        pid = request.args.get('pid')
-        
-        # Validate PID parameter
-        target_pid = None
-        if pid:
-            if not pid.isdigit():
-                return jsonify({'error': 'Invalid PID parameter'}), 400
-            target_pid = int(pid)
-        
-        # Extract API instances
-        api_instances = comprehensive_analyzer.extract_api_instances(events, target_pid)
-        
-        # Get relevant API instances for target PID
-        if target_pid:
-            relevant_apis = comprehensive_analyzer.extract_relevant_api_instances(events, target_pid)
-        else:
-            relevant_apis = set()
-        
-        return jsonify({
-            'api_instances': api_instances,
-            'relevant_apis': list(relevant_apis),
-            'target_pid': target_pid
-        })
-        
-    except Exception as e:
-        print(f"Error in API instances analysis: {e}")
-        return jsonify({'error': f'API instances analysis failed: {str(e)}'}), 500
-
-@app.route('/api/event-slicing')
-def get_event_slicing():
-    """API endpoint for advanced event slicing"""
-    try:
-        events = load_data()
-        pid = request.args.get('pid')
-        asynchronous = request.args.get('asynchronous', 'false').lower() == 'true'
-        
-        # Validate PID parameter
-        if not pid or not pid.isdigit():
-            return jsonify({'error': 'Valid PID parameter required'}), 400
-        
-        target_pid = int(pid)
-        
-        # Perform event slicing
-        sliced_events = comprehensive_analyzer.slice_events(events, target_pid, asynchronous)
-        
-        return jsonify({
-            'target_pid': target_pid,
-            'original_events_count': len(events),
-            'sliced_events_count': len(sliced_events),
-            'sliced_events': sliced_events[:1000],  # Limit for performance
-            'parameters': {
-                'asynchronous': asynchronous
-            }
-        })
-        
-    except Exception as e:
-        print(f"Error in event slicing: {e}")
-        return jsonify({'error': f'Event slicing failed: {str(e)}'}), 500
-
-@app.route('/api/export/events')
-def export_events():
-    """Export processed events in CSV or JSON format"""
-    try:
-        format_type = request.args.get('format', 'json').lower()
-        pid = request.args.get('pid')
-        device = request.args.get('device')
-        limit = request.args.get('limit', type=int)
-        
-        # Validate format
-        if format_type not in ['csv', 'json']:
-            return jsonify({'error': 'Format must be csv or json'}), 400
-        
-        # Load and filter events
-        events = load_data()
-        if not events:
-            return jsonify({'error': 'No events found'}), 404
-        
-        # Apply filters
-        filtered_events = filter_events(events, pid, device)
-        
-        # Apply limit if specified
-        if limit and limit > 0:
-            filtered_events = filtered_events[:limit]
-        
-        # Generate filename
-        filename_parts = ['events']
-        if pid:
-            filename_parts.append(f'pid{pid}')
-        if device:
-            filename_parts.append(f'dev{device}')
-        if limit:
-            filename_parts.append(f'limit{limit}')
-        
-        base_filename = '_'.join(filename_parts)
-        
-        if format_type == 'csv':
-            return export_events_csv(filtered_events, base_filename)
-        else:
-            return export_events_json(filtered_events, base_filename)
-            
-    except Exception as e:
-        print(f"Error in export events: {e}")
-        return jsonify({'error': f'Export failed: {str(e)}'}), 500
-
-def export_events_csv(events, base_filename):
-    """Export events as CSV"""
-    output = StringIO()
-    
-    if not events:
-        fieldnames = ['event', 'tgid', 'tid', 'process', 'timestamp']
-    else:
-        # Get all possible field names
-        fieldnames = set(['event', 'tgid', 'tid', 'process', 'timestamp'])
-        for event in events:
-            fieldnames.update(event.keys())
-            if 'details' in event and isinstance(event['details'], dict):
-                for detail_key in event['details'].keys():
-                    fieldnames.add(f'details_{detail_key}')
-        fieldnames = sorted(list(fieldnames))
-    
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
-    writer.writeheader()
-    
-    for event in events:
-        row = {}
-        for field in fieldnames:
-            if field.startswith('details_'):
-                detail_key = field[8:]  # Remove 'details_' prefix
-                if 'details' in event and isinstance(event['details'], dict):
-                    row[field] = event['details'].get(detail_key, '')
+        default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
+        if default_trace_path.exists():
+            print(f"Found default trace file: {default_trace_path}")
+            # Check if processed file already exists to avoid reprocessing
+            if not Path(app.config_class.PROCESSED_EVENTS_JSON).exists():
+                print("Processing default trace file...")
+                result = trace_processor.process_trace_file(str(default_trace_path))
+                if result['success']:
+                    print(f"Default trace processed successfully: {result['events_count']} events")
                 else:
-                    row[field] = ''
+                    print(f"Failed to process default trace: {result.get('error', 'Unknown error')}")
             else:
-                row[field] = event.get(field, '')
-        writer.writerow(row)
-    
-    output.seek(0)
-    
-    # Create response
-    response = make_response(output.getvalue())
-    response.headers['Content-Type'] = 'text/csv'
-    response.headers['Content-Disposition'] = f'attachment; filename="{base_filename}.csv"'
-    
-    return response
-
-def export_events_json(events, base_filename):
-    """Export events as JSON"""
-    # Create response
-    response = make_response(json.dumps(events, indent=2))
-    response.headers['Content-Type'] = 'application/json'
-    response.headers['Content-Disposition'] = f'attachment; filename="{base_filename}.json"'
-    
-    return response
-
-@app.route('/api/export/analysis')
-def export_analysis():
-    """Export comprehensive analysis results"""
-    try:
-        format_type = request.args.get('format', 'json').lower()
-        pid = request.args.get('pid')
-        window_size = int(request.args.get('window_size', 5000))
-        overlap = int(request.args.get('overlap', 1000))
-        asynchronous = request.args.get('asynchronous', 'true').lower() == 'true'
-        
-        # Validate format
-        if format_type not in ['csv', 'json']:
-            return jsonify({'error': 'Format must be csv or json'}), 400
-        
-        # Load events
-        events = load_data()
-        if not events:
-            return jsonify({'error': 'No events found'}), 404
-        
-        # Find target PID if not provided
-        target_pid = None
-        if pid:
-            if not pid.isdigit():
-                return jsonify({'error': 'Invalid PID parameter'}), 400
-            target_pid = int(pid)
+                print("Processed events file already exists, skipping processing")
         else:
-            pid_counts = {}
-            for event in events:
-                if 'tgid' in event and event['tgid'] > 0:
-                    pid_counts[event['tgid']] = pid_counts.get(event['tgid'], 0) + 1
-            if pid_counts:
-                target_pid = max(pid_counts, key=pid_counts.get)
-            else:
-                return jsonify({'error': 'No valid PIDs found in events'}), 400
-        
-        # Perform comprehensive analysis
-        analysis_results = comprehensive_analyzer.slice_file_analysis(
-            events, target_pid, window_size, overlap, asynchronous
-        )
-        
-        # Generate comprehensive statistics
-        comprehensive_stats = comprehensive_analyzer.produce_comprehensive_stats(analysis_results)
-        
-        # Combine results
-        export_data = {
-            'target_pid': target_pid,
-            'parameters': {
-                'window_size': window_size,
-                'overlap': overlap,
-                'asynchronous': asynchronous
-            },
-            'analysis_results': analysis_results,
-            'comprehensive_stats': comprehensive_stats
-        }
-        
-        # Generate filename
-        filename = f'analysis_pid{target_pid}_ws{window_size}_ol{overlap}'
-        
-        if format_type == 'csv':
-            return export_analysis_csv(export_data, filename)
-        else:
-            return export_analysis_json(export_data, filename)
-            
+            print(f"No default trace file found at: {default_trace_path}")
     except Exception as e:
-        print(f"Error in export analysis: {e}")
-        return jsonify({'error': f'Analysis export failed: {str(e)}'}), 500
-
-def export_analysis_csv(analysis_data, base_filename):
-    """Export analysis results as CSV (flattened)"""
-    output = StringIO()
-    
-    # Write comprehensive stats as CSV
-    writer = csv.writer(output)
-    
-    # Header
-    writer.writerow(['Analysis Results Export'])
-    writer.writerow(['Generated by SYSDROID Web App'])
-    writer.writerow([])
-    
-    # Parameters
-    writer.writerow(['Parameters'])
-    for key, value in analysis_data['parameters'].items():
-        writer.writerow([key, value])
-    writer.writerow([])
-    
-    # Comprehensive Stats
-    writer.writerow(['Comprehensive Statistics'])
-    stats = analysis_data['comprehensive_stats']
-    for key, value in stats.items():
-        if isinstance(value, dict):
-            writer.writerow([key])
-            for sub_key, sub_value in value.items():
-                writer.writerow(['', sub_key, sub_value])
-        elif isinstance(value, list):
-            writer.writerow([key])
-            for i, item in enumerate(value):
-                if isinstance(item, list):
-                    writer.writerow(['', f'Item {i+1}', ', '.join(map(str, item))])
-                else:
-                    writer.writerow(['', f'Item {i+1}', item])
-        else:
-            writer.writerow([key, value])
-    
-    output.seek(0)
-    
-    # Create response
-    response = make_response(output.getvalue())
-    response.headers['Content-Type'] = 'text/csv'
-    response.headers['Content-Disposition'] = f'attachment; filename="{base_filename}.csv"'
-    
-    return response
-
-def export_analysis_json(analysis_data, base_filename):
-    """Export analysis results as JSON"""
-    # Convert sets to lists for JSON serialization
-    def convert_sets(obj):
-        if isinstance(obj, set):
-            return list(obj)
-        elif isinstance(obj, dict):
-            return {k: convert_sets(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [convert_sets(item) for item in obj]
-        return obj
-    
-    serializable_data = convert_sets(analysis_data)
-    
-    # Create response
-    response = make_response(json.dumps(serializable_data, indent=2))
-    response.headers['Content-Type'] = 'application/json'
-    response.headers['Content-Disposition'] = f'attachment; filename="{base_filename}.json"'
-    
-    return response
+        print(f"Error preloading trace file: {e}")
 
 if __name__ == '__main__':
     # Validate configuration on startup
@@ -886,7 +599,10 @@ if __name__ == '__main__':
         print("Configuration warnings:")
         for error in config_errors:
             print(f"  - {error}")
-    
+
+    # Pre-load the default trace file
+    preload_trace_file()
+
     app.run(
         host=app.config_class.HOST,
         port=app.config_class.PORT,

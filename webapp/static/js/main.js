@@ -7,12 +7,13 @@ let appConfig = {};
 // DOM ready
 $(document).ready(function() {
     updateAppStatus('loading', 'Loading...');
-    
+
     // Load configuration first, then data
     loadConfiguration().then(function() {
         updateAppStatus('success', 'Ready');
         loadAllData();
         setupEventListeners();
+        checkForPreloadedFile();
     }).catch(function(error) {
         console.error('Failed to load configuration:', error);
         updateAppStatus('warning', 'Fallback Mode');
@@ -20,6 +21,7 @@ $(document).ready(function() {
         setFallbackConfiguration();
         loadAllData();
         setupEventListeners();
+        checkForPreloadedFile();
     });
 });
 
@@ -42,6 +44,34 @@ function updateAppStatus(type, message) {
     statusEl.removeClass('bg-success bg-warning bg-danger bg-info')
            .addClass(classMap[type] || 'bg-secondary');
     statusEl.html(`<i class="${iconMap[type] || 'fas fa-question'}"></i> ${message}`);
+}
+
+// Check if there's a preloaded file and update the file input
+function checkForPreloadedFile() {
+    $.getJSON('/api/preloaded-file', function(data) {
+        if (data.preloaded) {
+            // Update the file input to show the preloaded file name
+            const fileInput = $('#trace-file-input');
+            
+            // Create a custom label to display the preloaded filename
+            const fileInputContainer = fileInput.parent();
+            
+            // Check if we already have a preloaded file label
+            if (fileInputContainer.find('.preloaded-file-label').length === 0) {
+                fileInputContainer.append(
+                    `<div class="preloaded-file-label mt-2 text-info">
+                        <i class="fas fa-info-circle"></i> 
+                        Preloaded file: <strong>${data.filename}</strong>
+                    </div>`
+                );
+            }
+            
+            // Enable the upload button since we have a preloaded file
+            $('#upload-btn').prop('disabled', false);
+        }
+    }).fail(function(error) {
+        console.error('Failed to check for preloaded file:', error);
+    });
 }
 
 // Load app configuration from server
@@ -79,15 +109,15 @@ function setupEventListeners() {
     $('#zoom-in').click(zoomIn);
     $('#zoom-out').click(zoomOut);
     $('#reset-zoom').click(resetZoom);
-    
+
     // Upload functionality
     $('#trace-file-input').change(handleFileSelection);
     $('#upload-btn').click(handleUpload);
-    
+
     // Advanced analytics
     $('#load-analytics-btn').click(loadAdvancedAnalytics);
     $('#apply-analytics-config').click(loadAdvancedAnalyticsWithConfig);
-    
+
 }
 
 // Load all data based on current filters
@@ -110,7 +140,7 @@ function loadAllData() {
         // Load charts
         loadDevicePieChart(pid);
         loadEventPieChart(pid, device);
-        
+
         // Auto-load advanced analytics
         loadAdvancedAnalytics();
     } catch (error) {
@@ -138,7 +168,7 @@ function loadStatsSummary(pid, device) {
         // Also get event stats for more comprehensive summary
         let eventUrl = '/api/event_stats';
         if (params.length > 0) eventUrl += '?' + params.join('&');
-        
+
         $.getJSON(eventUrl, function(eventData) {
             const summaryData = calculateSummaryFromData(deviceData, eventData);
             renderStatsSummary(summaryData);
@@ -161,17 +191,17 @@ function showError(message) {
 function calculateSummaryFromData(deviceData, eventData) {
     const totalDevices = deviceData.length;
     const totalEvents = eventData.reduce((sum, item) => sum + item.count, 0);
-    
+
     // Find most used event type
     const mostUsedEvent = eventData.length > 0 ? eventData[0] : { event: 'none', count: 0 };
-    
+
     // Get top devices (limit based on config)
     const topN = appConfig.top_devices || 5;
     const topDevices = deviceData.slice(0, topN).map(d => ({
         device: d.device,
         count: d.count
     }));
-    
+
     return {
         totalEvents: totalEvents,
         totalEventTypes: eventData.length,
@@ -196,8 +226,8 @@ function renderTopDevicesChart(topDevices) {
         value: device.count
     }));
 
-    createBarChart('top-devices-chart-container', chartData, 
-                  `Top ${appConfig.top_devices || 5} Devices by Usage`, 
+    createBarChart('top-devices-chart-container', chartData,
+                  `Top ${appConfig.top_devices || 5} Devices by Usage`,
                   'Device ID', 'Count');
 }
 
@@ -456,12 +486,12 @@ function loadDeviceStats(pid) {
 
 function renderDeviceStats(data) {
     const tableBody = $('#device-stats-table tbody');
-    
+
     if (tableBody.length === 0) {
         console.error('Device stats table body not found!');
         return;
     }
-    
+
     tableBody.empty();
 
     if (!data || !Array.isArray(data) || data.length === 0) {
@@ -507,12 +537,12 @@ function loadEventStats(pid, device) {
 
 function renderEventStats(data) {
     const tableBody = $('#event-stats-table tbody');
-    
+
     if (tableBody.length === 0) {
         console.error('Event stats table body not found!');
         return;
     }
-    
+
     tableBody.empty();
 
     if (!data || !Array.isArray(data) || data.length === 0) {
@@ -611,37 +641,52 @@ function renderEventPieChart(data) {
 function handleFileSelection() {
     const fileInput = $('#trace-file-input')[0];
     const uploadBtn = $('#upload-btn');
-    
+
+    // Remove any existing preloaded file label when user selects a new file
+    $('.preloaded-file-label').remove();
+
     if (fileInput.files.length > 0) {
         const file = fileInput.files[0];
         if (file.name.endsWith('.trace')) {
             uploadBtn.prop('disabled', false);
             hideUploadResult();
+
+            // Add a label showing the selected file name
+            const fileInputContainer = $(fileInput).parent();
+            fileInputContainer.append(
+                `<div class="preloaded-file-label mt-2 text-success">
+                    <i class="fas fa-check-circle"></i>
+                    Selected file: <strong>${file.name}</strong>
+                </div>`
+            );
         } else {
             uploadBtn.prop('disabled', true);
             showUploadError('Please select a .trace file');
         }
     } else {
         uploadBtn.prop('disabled', true);
+
+        // Check if there's a preloaded file and restore that information
+        checkForPreloadedFile();
     }
 }
 
 function handleUpload() {
     const fileInput = $('#trace-file-input')[0];
-    
+
     if (fileInput.files.length === 0) {
         showUploadError('Please select a file');
         return;
     }
-    
+
     const file = fileInput.files[0];
     const formData = new FormData();
     formData.append('trace_file', file);
-    
+
     // Show progress
     showUploadProgress();
     $('#upload-btn').prop('disabled', true);
-    
+
     // Upload file
     $.ajax({
         url: '/api/upload',
@@ -671,7 +716,7 @@ function checkUploadProgress(uploadId) {
             .done(function(data) {
                 updateProgressBar(data.progress);
                 updateProgressStatus(data.status);
-                
+
                 if (data.completed) {
                     if (data.error) {
                         showUploadError(data.error);
@@ -695,7 +740,7 @@ function checkUploadProgress(uploadId) {
                 resetUploadUI();
             });
     };
-    
+
     checkProgress();
 }
 
@@ -744,9 +789,12 @@ function hideUploadResult() {
 }
 
 function resetUploadUI() {
-    $('#upload-btn').prop('disabled', false);
-    $('#trace-file-input').val('');
     $('#upload-btn').prop('disabled', true);
+    $('#trace-file-input').val('');
+    $('.preloaded-file-label').remove();
+
+    // Check if there's a preloaded file and restore that information
+    checkForPreloadedFile();
 }
 
 // Advanced Analytics functionality
@@ -754,13 +802,13 @@ function loadAdvancedAnalytics() {
     const pid = $('#pid-filter').val();
     let url = '/api/advanced-analytics';
     if (pid) url += `?pid=${pid}`;
-    
+
     // Show loading
     $('#analytics-loading').show();
     $('#analytics-content').hide();
     $('#analytics-error').hide();
     $('#load-analytics-btn').prop('disabled', true);
-    
+
     $.getJSON(url, function(data) {
         if (data.error) {
             showAnalyticsError(data.error);
@@ -778,17 +826,17 @@ function loadAdvancedAnalytics() {
 
 function renderAdvancedAnalytics(data) {
     $('#analytics-content').show();
-    
+
     try {
         // Render summary cards
         renderAnalyticsSummary(data);
-        
+
         // Render charts
         renderAnalyticsCharts(data.charts);
-        
+
         // Render detailed insights
         renderDetailedInsights(data);
-        
+
         showToast('Analysis Complete', 'Advanced analytics loaded successfully', 'success');
     } catch (error) {
         console.error('Error rendering analytics:', error);
@@ -799,7 +847,7 @@ function renderAdvancedAnalytics(data) {
 function renderAnalyticsSummary(data) {
     const summaryContainer = $('#analytics-summary');
     summaryContainer.empty();
-    
+
     // Create summary cards
     const summaryCards = [
         {
@@ -834,13 +882,13 @@ function renderAnalyticsSummary(data) {
         },
         {
             title: 'Events/Second',
-            value: data.temporal_patterns?.events_per_second ? 
+            value: data.temporal_patterns?.events_per_second ?
                    data.temporal_patterns.events_per_second.toFixed(2) : 'N/A',
             icon: 'fas fa-tachometer-alt',
             color: 'danger'
         }
     ];
-    
+
     summaryCards.forEach(card => {
         summaryContainer.append(`
             <div class="col-md-2 mb-3">
@@ -858,32 +906,32 @@ function renderAnalyticsSummary(data) {
 
 function renderAnalyticsCharts(charts) {
     if (!charts) return;
-    
+
     // Render each chart
     if (charts.behavior_timeline) {
         $('#behavior-timeline-chart').html(`<img src="${charts.behavior_timeline}" class="img-fluid" alt="High-Level Behavior Timeline">`);
     } else {
         $('#behavior-timeline-chart').html('<div class="alert alert-info">No behavior timeline data available</div>');
     }
-    
+
     if (charts.category_distribution) {
         $('#category-chart').html(`<img src="${charts.category_distribution}" class="img-fluid" alt="Category Distribution">`);
     } else {
         $('#category-chart').html('<div class="alert alert-info">No category data available</div>');
     }
-    
+
     if (charts.device_usage) {
         $('#device-usage-chart').html(`<img src="${charts.device_usage}" class="img-fluid" alt="Device Usage">`);
     } else {
         $('#device-usage-chart').html('<div class="alert alert-info">No device usage data available</div>');
     }
-    
+
     if (charts.process_activity) {
         $('#process-activity-chart').html(`<img src="${charts.process_activity}" class="img-fluid" alt="Process Activity">`);
     } else {
         $('#process-activity-chart').html('<div class="alert alert-info">No process activity data available</div>');
     }
-    
+
     if (charts.network_activity) {
         $('#network-chart').html(`<img src="${charts.network_activity}" class="img-fluid" alt="Network Activity">`);
     } else {
@@ -894,20 +942,20 @@ function renderAnalyticsCharts(charts) {
 function renderDetailedInsights(data) {
     const insightsContainer = $('#detailed-insights');
     insightsContainer.empty();
-    
+
     if (!data.detailed_insights || Object.keys(data.detailed_insights).length === 0) {
         insightsContainer.html('<div class="alert alert-info">No detailed insights available</div>');
         return;
     }
-    
+
     let insights = '<div class="accordion" id="insightsAccordion">';
-    
+
     // Render insights from backend
     Object.entries(data.detailed_insights).forEach(([key, insightData]) => {
-        insights += createInsightSection(key, insightData.title, 
+        insights += createInsightSection(key, insightData.title,
             generateInsightContent(insightData.insights));
     });
-    
+
     insights += '</div>';
     insightsContainer.html(insights);
 }
@@ -916,7 +964,7 @@ function generateInsightContent(insights) {
     if (!insights || insights.length === 0) {
         return '<div class="alert alert-info">No insights available</div>';
     }
-    
+
     let content = '<ul class="list-group list-group-flush">';
     insights.forEach(insight => {
         content += `<li class="list-group-item">${insight.icon} ${insight.text}</li>`;
@@ -929,7 +977,7 @@ function createInsightSection(id, title, content) {
     return `
         <div class="accordion-item">
             <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                         data-bs-target="#collapse${id}" aria-expanded="false">
                     ${title}
                 </button>
@@ -991,409 +1039,6 @@ function loadAdvancedAnalyticsWithConfig() {
         $('#analytics-loading').hide();
         updateAppStatus('success', 'Ready');
     });
-}
-
-// Comprehensive Analysis functionality
-function runComprehensiveAnalysis() {
-    const windowSize = $('#window-size').val();
-    const overlap = $('#overlap-size').val();
-    const asynchronous = $('#asynchronous-analysis').val();
-    const targetPid = $('#analysis-target-pid').val();
-    
-    // Validation
-    if (parseInt(overlap) >= parseInt(windowSize)) {
-        showToast('Parameter Error', 'Overlap must be less than window size', 'error');
-        return;
-    }
-    
-    updateAppStatus('loading', 'Running Analysis...');
-    
-    // Show loading
-    $('#comprehensive-loading').show();
-    $('#comprehensive-error').hide();
-    $('#comprehensive-analysis-btn').prop('disabled', true);
-    
-    // Build parameters
-    let params = [];
-    if (targetPid) params.push(`pid=${targetPid}`);
-    if (windowSize) params.push(`window_size=${windowSize}`);
-    if (overlap) params.push(`overlap=${overlap}`);
-    params.push(`asynchronous=${asynchronous}`);
-    
-    const url = `/api/comprehensive-analysis?${params.join('&')}`;
-    
-    $.getJSON(url, function(data) {
-        if (data.error) {
-            showComprehensiveError(data.error);
-        } else {
-            renderComprehensiveResults(data);
-        }
-    }).fail(function(jqXHR) {
-        const errorMsg = jqXHR.responseJSON?.error || 'Failed to run comprehensive analysis';
-        showComprehensiveError(errorMsg);
-    }).always(function() {
-        $('#comprehensive-loading').hide();
-        $('#comprehensive-analysis-btn').prop('disabled', false);
-        updateAppStatus('success', 'Ready');
-    });
-    
-    // Also load API instances and event slicing in parallel
-    loadApiInstances(targetPid);
-    loadEventSlicing(targetPid, asynchronous);
-}
-
-function renderComprehensiveResults(data) {
-    // Render comprehensive statistics
-    const statsContainer = $('#comprehensive-stats-content');
-    statsContainer.html(generateComprehensiveStatsHTML(data));
-}
-
-function generateComprehensiveStatsHTML(data) {
-    const stats = data.comprehensive_stats;
-    const params = data.parameters;
-    
-    let html = `
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <div class="alert alert-success">
-                    <h5><i class="fas fa-check-circle"></i> Analysis Complete</h5>
-                    <p><strong>Target PID:</strong> ${data.target_pid}</p>
-                    <p><strong>Parameters:</strong> Window Size: ${params.window_size}, Overlap: ${params.overlap}, Type: ${params.asynchronous ? 'Asynchronous' : 'Synchronous'}</p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h3 class="text-primary">${stats.total_windows}</h3>
-                        <small class="text-muted">Analysis Windows</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h3 class="text-success">${stats.events_processed.toLocaleString()}</h3>
-                        <small class="text-muted">Events Processed</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h3 class="text-info">${stats.total_devices}</h3>
-                        <small class="text-muted">Unique Devices</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h3 class="text-warning">${stats.total_categories}</h3>
-                        <small class="text-muted">Device Categories</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    if (stats.most_used_category && stats.most_used_category.name) {
-        html += `
-            <div class="row mb-4">
-                <div class="col-md-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5><i class="fas fa-trophy"></i> Most Used Category</h5>
-                        </div>
-                        <div class="card-body">
-                            <h4 class="text-primary">${stats.most_used_category.name}</h4>
-                            <p>Used in <strong>${stats.most_used_category.count}</strong> analysis windows</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
-    if (stats.top_devices && stats.top_devices.length > 0) {
-        html += `
-            <div class="row mb-4">
-                <div class="col-md-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5><i class="fas fa-list"></i> Top Devices</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th>Device ID</th>
-                                            <th>Windows</th>
-                                            <th>Usage</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-        `;
-        
-        stats.top_devices.slice(0, 10).forEach(([device, count]) => {
-            const percentage = ((count / stats.total_windows) * 100).toFixed(1);
-            html += `
-                <tr>
-                    <td><code>${device}</code></td>
-                    <td><span class="badge bg-primary">${count}</span></td>
-                    <td>
-                        <div class="progress" style="width: 100px;">
-                            <div class="progress-bar" style="width: ${percentage}%"></div>
-                        </div>
-                        <small>${percentage}%</small>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        html += `
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
-    return html;
-}
-
-function loadApiInstances(targetPid) {
-    let url = '/api/api-instances';
-    if (targetPid) url += `?pid=${targetPid}`;
-    
-    $.getJSON(url, function(data) {
-        if (data.error) {
-            $('#api-instances-content').html(`<div class="alert alert-danger">Error: ${data.error}</div>`);
-        } else {
-            renderApiInstances(data);
-        }
-    }).fail(function(jqXHR) {
-        const errorMsg = jqXHR.responseJSON?.error || 'Failed to load API instances';
-        $('#api-instances-content').html(`<div class="alert alert-danger">Error: ${errorMsg}</div>`);
-    });
-}
-
-function renderApiInstances(data) {
-    const container = $('#api-instances-content');
-    
-    if (!data.api_instances || Object.keys(data.api_instances).length === 0) {
-        container.html('<div class="alert alert-info">No API instances found</div>');
-        return;
-    }
-    
-    let html = `
-        <div class="row mb-3">
-            <div class="col-md-12">
-                <div class="alert alert-info">
-                    <strong>Target PID:</strong> ${data.target_pid || 'All'}<br>
-                    <strong>API Types Found:</strong> ${Object.keys(data.api_instances).length}<br>
-                    <strong>Relevant APIs:</strong> ${data.relevant_apis.length}
-                </div>
-            </div>
-        </div>
-        
-        <div class="accordion" id="apiInstancesAccordion">
-    `;
-    
-    Object.entries(data.api_instances).forEach(([apiCode, instances], index) => {
-        const isRelevant = data.relevant_apis.includes(parseInt(apiCode));
-        const badgeClass = isRelevant ? 'bg-success' : 'bg-secondary';
-        
-        html += `
-            <div class="accordion-item">
-                <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                            data-bs-target="#apiCollapse${index}" aria-expanded="false">
-                        API ${apiCode} <span class="badge ${badgeClass} ms-2">${instances.length} instances</span>
-                        ${isRelevant ? '<i class="fas fa-star text-warning ms-2" title="Relevant to target PID"></i>' : ''}
-                    </button>
-                </h2>
-                <div id="apiCollapse${index}" class="accordion-collapse collapse" data-bs-parent="#apiInstancesAccordion">
-                    <div class="accordion-body">
-                        <p><strong>Total Instances:</strong> ${instances.length}</p>
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Instance</th>
-                                        <th>Start Index</th>
-                                        <th>End Index</th>
-                                        <th>Duration</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-        `;
-        
-        instances.slice(0, 20).forEach((instance, idx) => {
-            const duration = instance[1] - instance[0];
-            html += `
-                <tr>
-                    <td>${idx + 1}</td>
-                    <td><code>${instance[0]}</code></td>
-                    <td><code>${instance[1]}</code></td>
-                    <td><span class="badge bg-info">${duration} events</span></td>
-                </tr>
-            `;
-        });
-        
-        if (instances.length > 20) {
-            html += `<tr><td colspan="4" class="text-muted text-center">... and ${instances.length - 20} more instances</td></tr>`;
-        }
-        
-        html += `
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    html += '</div>';
-    container.html(html);
-}
-
-function loadEventSlicing(targetPid, asynchronous) {
-    if (!targetPid) {
-        $('#event-slicing-content').html('<div class="alert alert-warning">Please select a target PID for event slicing</div>');
-        return;
-    }
-    
-    const url = `/api/event-slicing?pid=${targetPid}&asynchronous=${asynchronous}`;
-    
-    $.getJSON(url, function(data) {
-        if (data.error) {
-            $('#event-slicing-content').html(`<div class="alert alert-danger">Error: ${data.error}</div>`);
-        } else {
-            renderEventSlicing(data);
-        }
-    }).fail(function(jqXHR) {
-        const errorMsg = jqXHR.responseJSON?.error || 'Failed to load event slicing';
-        $('#event-slicing-content').html(`<div class="alert alert-danger">Error: ${errorMsg}</div>`);
-    });
-}
-
-function renderEventSlicing(data) {
-    const container = $('#event-slicing-content');
-    const reductionPercentage = ((1 - data.sliced_events_count / data.original_events_count) * 100).toFixed(1);
-    
-    let html = `
-        <div class="row mb-3">
-            <div class="col-md-12">
-                <div class="alert alert-success">
-                    <h5><i class="fas fa-cut"></i> Event Slicing Results</h5>
-                    <p><strong>Target PID:</strong> ${data.target_pid}</p>
-                    <p><strong>Analysis Type:</strong> ${data.parameters.asynchronous ? 'Asynchronous' : 'Synchronous'}</p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row mb-4">
-            <div class="col-md-4">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h3 class="text-info">${data.original_events_count.toLocaleString()}</h3>
-                        <small class="text-muted">Original Events</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h3 class="text-success">${data.sliced_events_count.toLocaleString()}</h3>
-                        <small class="text-muted">Relevant Events</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h3 class="text-warning">${reductionPercentage}%</h3>
-                        <small class="text-muted">Reduction</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    if (data.sliced_events && data.sliced_events.length > 0) {
-        html += `
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5><i class="fas fa-list"></i> Relevant Events (First ${Math.min(data.sliced_events.length, 1000)})</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive" style="max-height: 400px;">
-                                <table class="table table-sm table-striped">
-                                    <thead class="sticky-top bg-white">
-                                        <tr>
-                                            <th>Event</th>
-                                            <th>Pathname</th>
-                                            <th>Details</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-        `;
-        
-        data.sliced_events.slice(0, 100).forEach(event => {
-            const pathname = event.details?.pathname || '-';
-            const detailsText = JSON.stringify(event.details || {}).substring(0, 100) + '...';
-            
-            html += `
-                <tr>
-                    <td><code>${event.event}</code></td>
-                    <td><small>${pathname}</small></td>
-                    <td><small class="text-muted">${detailsText}</small></td>
-                </tr>
-            `;
-        });
-        
-        if (data.sliced_events.length > 100) {
-            html += `<tr><td colspan="3" class="text-muted text-center">... and ${data.sliced_events.length - 100} more events</td></tr>`;
-        }
-        
-        html += `
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
-    container.html(html);
-}
-
-function showComprehensiveError(error) {
-    $('#comprehensive-error').html(`<strong>Error:</strong> ${error}`).show();
-}
-
-function exportDeveloperAnalysis(format) {
-    const windowSize = $('#window-size').val() || 5000;
-    const overlap = $('#overlap-size').val() || 1000;
-    const asynchronous = $('#asynchronous-analysis').val() || 'true';
-    const targetPid = $('#analysis-target-pid').val() || $('#pid-filter').val();
-    
-    // Use the comprehensive analysis export endpoint with developer parameters
-    exportAnalysis(format);
-    
-    showToast('Developer Export', `Exporting comprehensive analysis in ${format.toUpperCase()} format`, 'info');
 }
 
 // Export functionality

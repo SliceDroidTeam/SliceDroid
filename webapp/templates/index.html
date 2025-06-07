@@ -4,15 +4,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>System Events Analysis</title>
+    <title>SliceDroid - System Events Analysis</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --accent-color: #4895ef;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --success-color: #4cc9f0;
+            --info-color: #4895ef;
+            --warning-color: #f72585;
+            --danger-color: #e63946;
+            --gray-color: #adb5bd;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+
+        .navbar {
+            background-color: var(--primary-color);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            color: white !important;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.85) !important;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            color: white !important;
+        }
+
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 24px;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            border-top-left-radius: 10px !important;
+            border-top-right-radius: 10px !important;
+            padding: 15px 20px;
+        }
+
+        .card-header h2, .card-header h3, .card-header h4, .card-header h5 {
+            margin-bottom: 0;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+
+        .btn-outline-primary {
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .form-control {
+            border-radius: 8px;
+            padding: 10px 15px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.25);
+        }
+
+        .form-label {
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
         .chart-container {
             width: 100%;
             height: 400px;
-            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+            padding: 15px;
             margin-bottom: 20px;
         }
 
@@ -22,49 +130,139 @@
         }
 
         .filter-box {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
 
         .stats-card {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         .table-responsive {
             max-height: 400px;
             overflow-y: auto;
+            border-radius: 8px;
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table thead th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            color: #495057;
+            font-weight: 600;
         }
 
         .event-category {
-            padding: 3px 6px;
-            border-radius: 3px;
+            padding: 5px 10px;
+            border-radius: 20px;
             color: white;
+            font-weight: 500;
+            font-size: 0.85rem;
+            display: inline-block;
         }
 
         .category-read {
-            background-color: #28a745;
+            background-color: var(--success-color);
         }
 
         .category-write {
-            background-color: #007bff;
+            background-color: var(--primary-color);
         }
 
         .category-ioctl {
-            background-color: #6f42c1;
+            background-color: var(--secondary-color);
         }
 
         .category-binder {
-            background-color: #fd7e14;
+            background-color: var(--warning-color);
         }
 
         .category-network {
-            background-color: #17a2b8;
+            background-color: var(--info-color);
         }
 
         .category-other {
-            background-color: #6c757d;
+            background-color: var(--gray-color);
+        }
+
+        .progress {
+            height: 10px;
+            border-radius: 5px;
+        }
+
+        .progress-bar {
+            background-color: var(--primary-color);
+        }
+
+        .footer {
+            background-color: var(--dark-color);
+            color: white;
+            padding: 30px 0;
+            margin-top: 50px;
+        }
+
+        .section-title {
+            position: relative;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 50px;
+            height: 3px;
+            background-color: var(--primary-color);
+        }
+
+        .dashboard-summary {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .summary-item {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            height: 100%;
+        }
+
+        .summary-item i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        .summary-item .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark-color);
+        }
+
+        .summary-item .label {
+            font-size: 0.9rem;
+            color: var(--gray-color);
+        }
+
+        .tooltip-inner {
+            max-width: 300px;
+            padding: 10px 15px;
+            background-color: var(--dark-color);
+            font-size: 0.9rem;
         }
 
         /* Loading animations */
@@ -337,7 +535,7 @@
                             </div>
                             <p class="mt-2">Generating advanced analytics...</p>
                         </div>
-                        
+
                         <div id="analytics-content" style="display: none;">
                             <!-- Analytics Summary -->
                             <div class="row mb-4">
@@ -348,7 +546,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- High-Level Behavior Timeline - Full Width -->
                             <div class="row">
                                 <div class="col-md-12 mb-4">
@@ -362,7 +560,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Other Charts Grid -->
                             <div class="row">
                                 <div class="col-md-6 mb-4">
@@ -386,7 +584,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="row">
                                 <div class="col-md-6 mb-4">
                                     <div class="card">
@@ -409,7 +607,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="row">
                                 <div class="col-md-12 mb-4">
                                     <div class="card">
@@ -425,7 +623,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div id="analytics-error" class="alert alert-danger" style="display: none;">
                             <!-- Error messages will appear here -->
                         </div>
@@ -534,6 +732,19 @@
         </div>
     </div>
 
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12 text-center">
+                    <p class="text-white-50 mb-0">
+                        &copy; 2025 SliceDroid
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
@@ -566,7 +777,6 @@
                                         <li><strong>Event Timeline</strong> - Visual timeline of system events</li>
                                         <li><strong>Statistics</strong> - Device usage and event type analysis</li>
                                         <li><strong>Advanced Analytics</strong> - High-level behavior analysis with charts</li>
-                                        <li><strong>Comprehensive Analysis</strong> - In-depth analysis with event slicing and API instances</li>
                                         <li><strong>Export</strong> - Download data in CSV or JSON format</li>
                                     </ul>
                                 </div>
@@ -621,29 +831,26 @@
                         
                         <div class="accordion-item">
                             <h2 class="accordion-header">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help-comprehensive" aria-expanded="false">
-                                    <i class="fas fa-microscope me-2"></i> Comprehensive Analysis
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help-analytics" aria-expanded="false">
+                                    <i class="fas fa-chart-line me-2"></i> Advanced Analytics
                                 </button>
                             </h2>
-                            <div id="help-comprehensive" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                            <div id="help-analytics" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
                                 <div class="accordion-body">
                                     <p>Advanced analysis features for detailed insights:</p>
                                     <dl>
                                         <dt>Window Size</dt>
-                                        <dd>Number of events to analyze in each window (default: 5000)</dd>
+                                        <dd>Number of events to analyze in each window (default: 1000)</dd>
                                         
                                         <dt>Overlap</dt>
-                                        <dd>Number of events to overlap between windows (default: 1000)</dd>
-                                        
-                                        <dt>Analysis Type</dt>
-                                        <dd>Asynchronous (default) or Synchronous process tracking</dd>
+                                        <dd>Number of events to overlap between windows (default: 200)</dd>
                                         
                                         <dt>Target PID</dt>
                                         <dd>Process ID to focus analysis on (auto-detected if empty)</dd>
                                     </dl>
                                     <div class="alert alert-warning">
                                         <i class="fas fa-clock"></i> 
-                                        <strong>Note:</strong> Comprehensive analysis may take time for large traces.
+                                        <strong>Note:</strong> Advanced analytics may take time for large traces.
                                     </div>
                                 </div>
                             </div>
@@ -656,6 +863,14 @@
             </div>
         </div>
     </div>
+
+    <!-- Initialize tooltips -->
+    <script>
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    </script>
 
 </body>
 </html>
