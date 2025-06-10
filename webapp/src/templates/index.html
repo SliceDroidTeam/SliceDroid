@@ -9,483 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-
-    <style>
-        :root {
-            --primary-color: #1a252f;
-            --secondary-color: #2c3e50;
-            --accent-color: #2980b9;
-            --success-color: #27ae60;
-            --warning-color: #e67e22;
-            --danger-color: #c0392b;
-            --security-color: #8e44ad;
-            --background-primary: #f8f9fa;
-            --background-secondary: #ffffff;
-            --text-primary: #1a252f;
-            --text-secondary: #6c757d;
-            --text-muted: #95a5a6;
-            --border-color: #dee2e6;
-            --border-light: #f8f9fa;
-            --shadow-subtle: 0 2px 4px rgba(26, 37, 47, 0.1);
-            --shadow-card: 0 4px 8px rgba(26, 37, 47, 0.15);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--background-primary);
-            min-height: 100vh;
-            color: var(--text-primary);
-            overflow-x: hidden;
-            line-height: 1.6;
-        }
-
-        /* Professional Card Style */
-        .professional-card {
-            background: var(--background-secondary);
-            border: 1px solid var(--border-color);
-            box-shadow: var(--shadow-card);
-            border-radius: 8px;
-            transition: box-shadow 0.2s ease;
-        }
-
-        .professional-card:hover {
-            box-shadow: var(--shadow-card);
-        }
-
-        /* Header */
-        .main-header {
-            background: var(--background-secondary);
-            border-bottom: 1px solid var(--border-color);
-            padding: 1rem 0;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            box-shadow: var(--shadow-subtle);
-        }
-
-        .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .logo-icon {
-            width: 50px;
-            height: 50px;
-            background: var(--primary-color);
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-        }
-
-        .brand-text h1 {
-            color: var(--text-primary);
-            font-weight: 600;
-            font-size: 1.8rem;
-            margin: 0;
-        }
-
-        .brand-text .subtitle {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            font-weight: 400;
-            margin: 0;
-        }
-
-        /* Status Badge */
-        .status-badge {
-            background: var(--background-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 6px 12px;
-            color: var(--text-primary);
-            font-size: 0.85rem;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .status-badge.status-ready {
-            background: rgba(72, 199, 142, 0.08);
-            border-color: #48c78e;
-            color: #48c78e;
-        }
-
-        .status-badge.status-loading {
-            background: rgba(52, 152, 219, 0.1);
-            border-color: var(--accent-color);
-            color: var(--accent-color);
-        }
-
-        .status-badge.status-warning {
-            background: rgba(230, 126, 34, 0.1);
-            border-color: var(--warning-color);
-            color: var(--warning-color);
-        }
-
-        .status-badge.status-error {
-            background: rgba(192, 57, 43, 0.1);
-            border-color: var(--danger-color);
-            color: var(--danger-color);
-        }
-
-        /* Cards */
-        .feature-card {
-            background: var(--background-secondary);
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: var(--shadow-card);
-            border: 1px solid var(--border-color);
-            position: relative;
-        }
-
-        .feature-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background: var(--primary-color);
-        }
-
-        .card-header-custom {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid var(--border-light);
-        }
-
-        .card-title-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .card-icon {
-            width: 40px;
-            height: 40px;
-            background: var(--primary-color);
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 18px;
-        }
-
-        .card-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin: 0;
-        }
-
-        /* Buttons */
-        .btn-modern {
-            background: var(--primary-color);
-            border: none;
-            border-radius: 4px;
-            padding: 8px 16px;
-            color: white;
-            font-weight: 500;
-            font-size: 0.9rem;
-            transition: background-color 0.2s ease;
-        }
-
-        .btn-modern:hover {
-            background: var(--secondary-color);
-            color: white;
-        }
-
-        .btn-success-modern {
-            background: var(--success-color);
-        }
-
-        .btn-success-modern:hover {
-            background: #219a52;
-            color: white;
-        }
-
-        /* Upload Section */
-        .upload-area {
-            border: 2px dashed var(--border-color);
-            border-radius: 6px;
-            padding: 2rem;
-            text-align: center;
-            background: var(--border-light);
-            transition: border-color 0.2s ease;
-            cursor: pointer;
-        }
-
-        .upload-area:hover {
-            border-color: var(--accent-color);
-        }
-
-        .upload-area.dragover {
-            border-color: var(--accent-color);
-            background: rgba(52, 152, 219, 0.05);
-        }
-
-        .upload-icon {
-            font-size: 2.5rem;
-            color: var(--text-muted);
-            margin-bottom: 1rem;
-        }
-
-        /* Progress Bars */
-        .progress-modern {
-            height: 6px;
-            border-radius: 3px;
-            background: var(--border-light);
-            overflow: hidden;
-        }
-
-        .progress-bar-modern {
-            height: 100%;
-            background: var(--success-color);
-            border-radius: 3px;
-            transition: width 0.3s ease;
-        }
-
-        /* Tables */
-        .table-modern {
-            background: var(--background-secondary);
-            border-radius: 6px;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-        }
-
-        .table-modern thead th {
-            background: var(--border-light);
-            border: none;
-            font-weight: 600;
-            color: var(--text-primary);
-            padding: 0.75rem;
-            font-size: 0.9rem;
-        }
-
-        .table-modern tbody td {
-            border: none;
-            padding: 0.75rem;
-            border-bottom: 1px solid var(--border-light);
-            vertical-align: middle;
-            font-size: 0.9rem;
-        }
-
-        .table-modern tbody tr:hover {
-            background: var(--border-light);
-        }
-
-        /* Timeline */
-        .timeline-container {
-            background: var(--background-secondary);
-            border-radius: 6px;
-            padding: 1rem;
-            margin: 1rem 0;
-            border: 1px solid var(--border-color);
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .logo-section {
-                justify-content: center;
-                text-align: center;
-            }
-
-            .brand-text h1 {
-                font-size: 1.5rem;
-            }
-
-            .feature-card {
-                padding: 1.5rem;
-            }
-
-            .card-header-custom {
-                flex-direction: column;
-                gap: 1rem;
-                align-items: flex-start;
-            }
-        }
-
-        /* Loading Animations */
-        .loading-spinner {
-            width: 32px;
-            height: 32px;
-            border: 3px solid var(--border-light);
-            border-top: 3px solid var(--accent-color);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Professional Sidebar for Filters */
-        .filters-sidebar {
-            background: var(--background-secondary);
-            border-radius: 6px;
-            padding: 1.5rem;
-            border: 1px solid var(--border-color);
-            margin-bottom: 2rem;
-            transition: all 0.3s ease;
-        }
-
-        .sidebar-collapsed {
-            margin-left: -100%;
-            opacity: 0;
-        }
-
-        .main-content {
-            transition: all 0.3s ease;
-        }
-
-        .main-content.expanded {
-            margin-left: 0;
-        }
-
-        .sidebar-toggle {
-            background: var(--border-light);
-            border: 1px solid var(--border-color);
-            color: var(--text-secondary);
-            font-size: 12px;
-            padding: 6px 10px;
-            border-radius: 6px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-        }
-
-        .sidebar-toggle:hover {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        .collapsed-view {
-            text-align: center;
-            padding: 15px 5px;
-        }
-
-        .collapsed-icon {
-            width: 35px;
-            height: 35px;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-
-        .collapsed-icon:hover {
-            background: var(--secondary-color);
-        }
-
-        .filters-sidebar.collapsed {
-            width: 70px;
-            padding: 0.5rem;
-        }
-
-        .main-content {
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        #sidebar-column {
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .filters-sidebar {
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow: hidden;
-        }
-
-        .sidebar-toggle-fixed {
-            position: fixed;
-            left: 10px;
-            top: 16%;
-            transform: translateY(-50%);
-            z-index: 1000;
-            width: 54px;
-            height: 54px;
-            border-radius: 50%;
-            background: var(--primary-color);
-            border: none;
-            color: white;
-            font-size: 16px;
-            box-shadow: var(--shadow-card);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .sidebar-toggle-fixed:hover {
-            background: var(--secondary-color);
-            color: white;
-            transform: translateY(-50%) scale(1.1);
-        }
-
-        .filter-title {
-            color: var(--text-primary);
-            font-weight: 600;
-            font-size: 1rem;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .form-control-modern {
-            background: var(--background-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 8px 12px;
-            font-size: 0.9rem;
-            transition: border-color 0.2s ease;
-        }
-
-        .form-control-modern:focus {
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.1);
-            background: var(--background-secondary);
-        }
-
-        /* Help Button */
-        .fab {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 56px;
-            height: 56px;
-            background: var(--accent-color);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            font-size: 20px;
-            box-shadow: var(--shadow-card);
-            transition: background-color 0.2s ease;
-            z-index: 1000;
-        }
-
-        .fab:hover {
-            background: #2980b9;
-        }
-    </style>
+    <link href="{{ url_for('static', filename='css/main.css') }}" rel="stylesheet">
 </head>
 <body>
 
@@ -670,6 +194,185 @@
                     </div>
                 </div>
 
+                <!-- Security Analysis Dashboard -->
+                <div class="feature-card">
+                    <div class="card-header-custom">
+                        <div class="card-title-section">
+                            <div class="card-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <h2 class="card-title">Security Analysis</h2>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <span class="badge" id="security-risk-badge">No Data</span>
+                        </div>
+                    </div>
+
+                    <div id="security-loading" class="text-center p-3" style="display: none;">
+                        <div class="loading-spinner mx-auto mb-2"></div>
+                        <small>Analyzing security events...</small>
+                    </div>
+
+                    <div id="security-content" style="display: none;">
+                        <!-- Security Summary Cards -->
+                        <div class="row mb-3" id="security-summary">
+                            <!-- Cards populated by JavaScript -->
+                        </div>
+
+                        <!-- Security Timeline -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-exclamation-triangle"></i> Security Events Timeline</h6>
+                                    <div id="security-timeline-chart" style="height: 200px;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Risk Details -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-list"></i> Security Events</h6>
+                                    <div id="security-events-list"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-recommendations"></i> Recommendations</h6>
+                                    <div id="security-recommendations"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="security-error" class="alert alert-info" style="display: block;">
+                        Upload a trace file to view security analysis
+                    </div>
+                </div>
+
+                <!-- Network Analysis Dashboard -->
+                <div class="feature-card">
+                    <div class="card-header-custom">
+                        <div class="card-title-section">
+                            <div class="card-icon">
+                                <i class="fas fa-network-wired"></i>
+                            </div>
+                            <h2 class="card-title">Network Analysis</h2>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <span class="badge" id="network-intensity-badge">No Data</span>
+                        </div>
+                    </div>
+
+                    <div id="network-loading" class="text-center p-3" style="display: none;">
+                        <div class="loading-spinner mx-auto mb-2"></div>
+                        <small>Analyzing network flows...</small>
+                    </div>
+
+                    <div id="network-content" style="display: none;">
+                        <!-- Network Summary Cards -->
+                        <div class="row mb-3" id="network-summary">
+                            <!-- Cards populated by JavaScript -->
+                        </div>
+
+                        <!-- Network Flow Visualization -->
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-project-diagram"></i> Communication Flow</h6>
+                                    <div id="network-flow-chart" style="height: 300px;"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-chart-pie"></i> Protocol Distribution</h6>
+                                    <div id="protocol-distribution-chart" style="height: 300px;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Network Details -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-exchange-alt"></i> TCP Connections</h6>
+                                    <div id="tcp-connections-table"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-broadcast-tower"></i> UDP Communications</h6>
+                                    <div id="udp-communications-table"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="network-error" class="alert alert-info" style="display: block;">
+                        Upload a trace file to view network analysis
+                    </div>
+                </div>
+
+                <!-- Process Analysis Dashboard -->
+                <div class="feature-card">
+                    <div class="card-header-custom">
+                        <div class="card-title-section">
+                            <div class="card-icon">
+                                <i class="fas fa-sitemap"></i>
+                            </div>
+                            <h2 class="card-title">Process Analysis</h2>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="expandProcessTree()">
+                                <i class="fas fa-expand"></i> Expand Tree
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="process-loading" class="text-center p-3" style="display: none;">
+                        <div class="loading-spinner mx-auto mb-2"></div>
+                        <small>Building process tree...</small>
+                    </div>
+
+                    <div id="process-content" style="display: none;">
+                        <!-- Process Summary Cards -->
+                        <div class="row mb-3" id="process-summary">
+                            <!-- Cards populated by JavaScript -->
+                        </div>
+
+                        <!-- Process Tree Visualization -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-code-branch"></i> Process Genealogy Tree</h6>
+                                    <div id="process-tree-chart" style="height: 400px; overflow: auto;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Process Timeline -->
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-clock"></i> Execution Timeline</h6>
+                                    <div id="process-timeline-chart" style="height: 250px;"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-exclamation-circle"></i> Suspicious Patterns</h6>
+                                    <div id="process-suspicious-patterns"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="process-error" class="alert alert-info" style="display: block;">
+                        Upload a trace file to view process analysis
+                    </div>
+                </div>
+
                 <!-- Advanced Analytics -->
                 <div class="feature-card">
                     <div class="card-header-custom">
@@ -677,7 +380,7 @@
                             <div class="card-icon">
                                 <i class="fas fa-chart-bar"></i>
                             </div>
-                            <h2 class="card-title">Statistical Analysis</h2>
+                            <h2 class="card-title">Advanced Analytics</h2>
                         </div>
                         <div class="d-flex gap-2">
                             <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#analytics-config">
@@ -974,411 +677,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
     <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/upload.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 
-    <script>
-        // Enhanced drag and drop functionality
-        const dropzone = document.getElementById('upload-dropzone');
-        const fileInput = document.getElementById('trace-file-input');
-
-        dropzone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropzone.classList.add('dragover');
-        });
-
-        dropzone.addEventListener('dragleave', () => {
-            dropzone.classList.remove('dragover');
-        });
-
-        dropzone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropzone.classList.remove('dragover');
-
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                fileInput.files = files;
-                handleFileSelection();
-            }
-        });
-
-        dropzone.addEventListener('click', (e) => {
-            // Only trigger file input if not clicking on the select button
-            if (!e.target.closest('#select-file-btn')) {
-                fileInput.click();
-            }
-        });
-
-        // Enhanced progress updates
-        function updateProgressBar(progress) {
-            const progressBar = document.getElementById('progress-bar');
-            const progressPercentage = document.getElementById('progress-percentage');
-
-            progressBar.style.width = progress + '%';
-            progressPercentage.textContent = progress + '%';
-        }
-
-        // Handle filter toggle
-        document.getElementById('filters-content').addEventListener('hidden.bs.collapse', function () {
-            document.getElementById('filter-toggle-icon').className = 'fas fa-chevron-down';
-        });
-
-        document.getElementById('filters-content').addEventListener('shown.bs.collapse', function () {
-            document.getElementById('filter-toggle-icon').className = 'fas fa-chevron-up';
-        });
-
-        // Handle sidebar collapse
-        let sidebarCollapsed = false;
-
-        function toggleSidebar() {
-            const collapsedView = document.querySelector('.collapsed-view');
-            const fullView = document.querySelector('.full-view');
-            const sidebar = document.querySelector('.filters-sidebar');
-            const sidebarColumn = document.getElementById('sidebar-column');
-            const mainContent = document.getElementById('main-content');
-
-            if (sidebarCollapsed) {
-                // Expanding: Change layout first, then show content
-                sidebarColumn.className = 'col-md-3';
-                mainContent.className = 'col-md-9 main-content';
-
-                // Small delay to let layout settle, then show content
-                setTimeout(() => {
-                    sidebar.classList.remove('collapsed');
-                    collapsedView.style.display = 'none';
-                    fullView.style.display = 'block';
-                }, 50);
-
-                sidebarCollapsed = false;
-            } else {
-                // Collapsing: Hide content first, then change layout
-                collapsedView.style.display = 'block';
-                fullView.style.display = 'none';
-                sidebar.classList.add('collapsed');
-
-                // Small delay to let content hide, then change layout
-                setTimeout(() => {
-                    sidebarColumn.className = 'col-md-1';
-                    mainContent.className = 'col-md-11 main-content';
-                }, 50);
-
-                sidebarCollapsed = true;
-            }
-        }
-
-        document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebar);
-
-        // Setup file upload event handlers
-        document.getElementById('select-file-btn').addEventListener('click', () => {
-            document.getElementById('trace-file-input').click();
-        });
-
-        // Define upload functions in global scope
-        window.handleFileSelection = function() {
-            const fileInput = document.getElementById('trace-file-input');
-
-            if (fileInput.files.length > 0) {
-                const file = fileInput.files[0];
-                if (file.name.endsWith('.trace')) {
-                    // Remove any existing file info and preload info when we have a valid file
-                    document.querySelectorAll('.preload-info, .preloaded-file-label, .file-info').forEach(el => el.remove());
-
-                    // Show selected file info
-                    const fileInfo = document.createElement('div');
-                    fileInfo.className = 'mt-2 text-success file-info';
-                    fileInfo.innerHTML = `<i class="fas fa-check-circle"></i> Selected: <strong>${file.name}</strong>`;
-                    fileInput.parentElement.appendChild(fileInfo);
-
-                    // Automatically start processing
-                    setTimeout(() => window.handleUpload(), 500);
-                } else {
-                    alert('Please select a .trace file');
-                    fileInput.value = ''; // Clear invalid file
-                }
-            }
-            // Don't do anything if no file is selected - preserve existing messages
-        };
-
-        window.handleUpload = function() {
-            const fileInput = document.getElementById('trace-file-input');
-
-            // Check if user selected a file or if preloaded file exists
-            if (fileInput.files.length === 0) {
-                // Check if preloaded file is available
-                const preloadInfo = document.querySelector('.preload-info');
-                if (preloadInfo) {
-                    // Process preloaded file
-                    showUploadSuccess({
-                        message: 'Using preloaded trace file',
-                        events_count: 'Available'
-                    });
-                    setTimeout(() => {
-                        if (typeof loadAllData === 'function') {
-                            loadAllData();
-                        }
-                    }, 1000);
-                    return;
-                } else {
-                    alert('Please select a .trace file first');
-                    return;
-                }
-            }
-
-            const file = fileInput.files[0];
-            const formData = new FormData();
-            formData.append('trace_file', file);
-
-            // Show progress
-            const progressDiv = document.getElementById('upload-progress');
-            const resultDiv = document.getElementById('upload-result');
-
-            progressDiv.style.display = 'block';
-            resultDiv.style.display = 'none';
-
-            // Disable file input during processing
-            document.getElementById('trace-file-input').disabled = true;
-
-            // Upload file
-            fetch('/api/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.upload_id) {
-                    checkUploadProgress(data.upload_id);
-                } else if (data.error) {
-                    showUploadError(data.error);
-                    document.getElementById('trace-file-input').disabled = false;
-                } else {
-                    showUploadError('Upload failed: No upload ID received');
-                    document.getElementById('trace-file-input').disabled = false;
-                }
-            })
-            .catch(error => {
-                showUploadError('Upload failed: ' + error.message);
-                document.getElementById('trace-file-input').disabled = false;
-            });
-        };
-
-        function checkUploadProgress(uploadId) {
-            const checkProgress = () => {
-                fetch(`/api/upload/progress/${uploadId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        updateProgressBar(data.progress || 0);
-
-                        if (data.completed) {
-                            if (data.error) {
-                                showUploadError(data.error);
-                            } else if (data.result && data.result.success) {
-                                showUploadSuccess(data.result);
-                                // Clear the file input to prevent double processing
-                                document.getElementById('trace-file-input').value = '';
-                                // Trigger data reload without full page reload
-                                setTimeout(() => {
-                                    if (typeof loadAllData === 'function') {
-                                        loadAllData();
-                                    }
-                                }, 1000);
-                            } else {
-                                showUploadError(data.result?.error || 'Processing failed');
-                            }
-                            document.getElementById('trace-file-input').disabled = false;
-                        } else {
-                            setTimeout(checkProgress, 1000);
-                        }
-                    })
-                    .catch(error => {
-                        showUploadError('Failed to check progress: ' + error.message);
-                        document.getElementById('trace-file-input').disabled = false;
-                    });
-            };
-            checkProgress();
-        }
-
-        function updateProgressBar(progress) {
-            const progressBar = document.getElementById('progress-bar');
-            const progressPercentage = document.getElementById('progress-percentage');
-
-            if (progressBar) {
-                progressBar.style.width = progress + '%';
-            }
-            if (progressPercentage) {
-                progressPercentage.textContent = progress + '%';
-            }
-        }
-
-        function showUploadSuccess(result) {
-            const progressDiv = document.getElementById('upload-progress');
-            const resultDiv = document.getElementById('upload-result');
-            const alertDiv = document.getElementById('upload-alert');
-
-            progressDiv.style.display = 'none';
-            resultDiv.style.display = 'block';
-
-            if (alertDiv) {
-                alertDiv.className = 'alert alert-success';
-                alertDiv.innerHTML = `<strong>Success!</strong> ${result.message}<br>
-                    <small>Events processed: ${result.events_count || 'N/A'}</small>`;
-            }
-        }
-
-        function showUploadError(error) {
-            const progressDiv = document.getElementById('upload-progress');
-            const resultDiv = document.getElementById('upload-result');
-            const alertDiv = document.getElementById('upload-alert');
-
-            progressDiv.style.display = 'none';
-            resultDiv.style.display = 'block';
-
-            if (alertDiv) {
-                alertDiv.className = 'alert alert-danger';
-                alertDiv.innerHTML = `<strong>Error:</strong> ${error}`;
-            }
-        }
-
-
-        // Connect event handlers
-        document.getElementById('trace-file-input').addEventListener('change', window.handleFileSelection);
-
-        // Check for preloaded file (only once)
-        function checkPreloadedFile() {
-            fetch('/api/preloaded-file')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.preloaded) {
-                        // Remove any existing preload info first
-                        document.querySelectorAll('.preload-info, .preloaded-file-label').forEach(el => el.remove());
-
-                        const fileInputContainer = document.getElementById('trace-file-input').parentElement;
-                        const preloadInfo = document.createElement('div');
-                        preloadInfo.className = 'mt-2 text-info preload-info';
-                        preloadInfo.innerHTML = `<i class="fas fa-database"></i> Preloaded: <strong>${data.filename}</strong>`;
-                        fileInputContainer.appendChild(preloadInfo);
-                    }
-                })
-                .catch(error => console.log('No preloaded file available:', error));
-        }
-
-        checkPreloadedFile();
-
-        // Export functions
-        window.exportEvents = function(format) {
-            const pid = document.getElementById('pid-filter').value;
-            const device = document.getElementById('device-filter').value;
-
-            // Build parameters
-            let params = [];
-            params.push(`format=${format}`);
-            if (pid) params.push(`pid=${pid}`);
-            if (device) params.push(`device=${device}`);
-
-            // Ask for limit (optional)
-            const limit = prompt('Enter maximum number of events to export (leave empty for all):');
-            if (limit && !isNaN(limit) && parseInt(limit) > 0) {
-                params.push(`limit=${parseInt(limit)}`);
-            }
-
-            const url = `/api/export/events?${params.join('&')}`;
-
-            // Create a temporary link and click it to download
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = ''; // Browser will use the filename from Content-Disposition header
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            // Show success message
-            showToast('Export started', `Downloading events in ${format.toUpperCase()} format...`, 'success');
-        };
-
-        window.exportAnalysis = function(format) {
-            const pid = document.getElementById('analytics-target-pid').value || document.getElementById('pid-filter').value;
-            const windowSize = document.getElementById('analytics-window-size').value || 1000;
-            const overlap = document.getElementById('analytics-overlap').value || 200;
-
-            // Build parameters
-            let params = [];
-            params.push(`format=${format}`);
-            if (pid) params.push(`pid=${pid}`);
-            params.push(`window_size=${windowSize}`);
-            params.push(`overlap=${overlap}`);
-
-            const url = `/api/export/analysis?${params.join('&')}`;
-
-            // Show loading message
-            showToast('Export started', 'Performing analysis and preparing export...', 'info');
-
-            // Create a temporary link and click it to download
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = ''; // Browser will use the filename from Content-Disposition header
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            // Show success message after a delay
-            setTimeout(() => {
-                showToast('Export complete', `Analysis exported in ${format.toUpperCase()} format`, 'success');
-            }, 1000);
-        };
-
-        // Toast notification helper
-        function showToast(title, message, type = 'info') {
-            // Create toast HTML
-            const toastId = 'toast-' + Date.now();
-            const bgClass = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-info';
-
-            const toastHtml = `
-                <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
-                    <div class="d-flex">
-                        <div class="toast-body">
-                            <strong>${title}</strong><br>
-                            ${message}
-                        </div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                    </div>
-                </div>
-            `;
-
-            // Add to page if toast container doesn't exist
-            if (!document.getElementById('toast-container')) {
-                const container = document.createElement('div');
-                container.id = 'toast-container';
-                container.className = 'toast-container position-fixed top-0 end-0 p-3';
-                container.style.zIndex = '9999';
-                document.body.appendChild(container);
-            }
-
-            // Add toast to container
-            const container = document.getElementById('toast-container');
-            container.innerHTML += toastHtml;
-
-            // Show toast
-            const toastElement = document.getElementById(toastId);
-            const toast = new bootstrap.Toast(toastElement, {
-                autohide: true,
-                delay: type === 'error' ? 5000 : 3000
-            });
-            toast.show();
-
-            // Remove from DOM after hiding
-            toastElement.addEventListener('hidden.bs.toast', () => {
-                toastElement.remove();
-            });
-        }
-
-        // Initialize tooltips
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl)
-        });
-    </script>
 </body>
 </html>

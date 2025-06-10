@@ -181,17 +181,79 @@ class TraceProcessor:
         for event in events:
             # Only include events that are relevant for visualization
             if self._is_visualization_relevant(event):
+                # Add event categorization for better visualization
+                event['category'] = self._categorize_event(event)
                 processed_events.append(event)
 
         return processed_events
+    
+    def _categorize_event(self, event):
+        """Categorize event for visualization purposes"""
+        event_name = event.get('event', '')
+        
+        # File system operations
+        if event_name in ['read_probe', 'write_probe', 'ioctl_probe']:
+            return 'filesystem'
+        
+        # IPC operations
+        elif event_name in ['binder_transaction', 'binder_transaction_received',
+                           'unix_stream_sendmsg', 'unix_stream_recvmsg',
+                           'unix_dgram_sendmsg', 'unix_dgram_recvmsg']:
+            return 'ipc'
+        
+        # Network operations
+        elif event_name in ['tcp_sendmsg', 'tcp_recvmsg', 'udp_sendmsg', 'udp_recvmsg',
+                           '__sys_socket', '__sys_connect', '__sys_bind', 'sock_sendmsg',
+                           'inet_sock_set_state']:
+            return 'network'
+        
+        # Security operations
+        elif event_name in ['ptrace_attach', '__arm64_sys_setuid', '__arm64_sys_setresuid',
+                           '__arm64_sys_setresgid', '__arm64_sys_capset', '__arm64_sys_mprotect']:
+            return 'security'
+        
+        # Process operations
+        elif event_name in ['__arm64_sys_execve', 'load_elf_binary', 'sched_process_fork', 'sched_process_exec']:
+            return 'process'
+        
+        # Memory operations
+        elif event_name in ['mmap_probe']:
+            return 'memory'
+        
+        # Bluetooth operations
+        elif event_name in ['hci_sock_sendmsg', 'sco_sock_sendmsg', 'l2cap_sock_sendmsg']:
+            return 'bluetooth'
+        
+        # Device-specific operations
+        elif event_name in ['aoc_service_write_message']:
+            return 'device_specific'
+        
+        else:
+            return 'other'
 
     def _is_visualization_relevant(self, event):
         """Check if an event is relevant for visualization"""
         relevant_events = [
+            # File system operations
             'read_probe', 'write_probe', 'ioctl_probe',
-            'inet_sock_set_state', 'binder_transaction',
+            # IPC operations
+            'inet_sock_set_state', 'binder_transaction', 'binder_transaction_received',
             'unix_stream_sendmsg', 'unix_stream_recvmsg',
-            'unix_dgram_sendmsg', 'unix_dgram_recvmsg'
+            'unix_dgram_sendmsg', 'unix_dgram_recvmsg',
+            # Network operations
+            'tcp_sendmsg', 'tcp_recvmsg', 'udp_sendmsg', 'udp_recvmsg',
+            '__sys_socket', '__sys_connect', '__sys_bind', 'sock_sendmsg',
+            # Security operations
+            'ptrace_attach', '__arm64_sys_setuid', '__arm64_sys_setresuid', 
+            '__arm64_sys_setresgid', '__arm64_sys_capset', '__arm64_sys_mprotect',
+            # Process operations
+            '__arm64_sys_execve', 'load_elf_binary', 'sched_process_fork', 'sched_process_exec',
+            # Memory operations
+            'mmap_probe',
+            # Bluetooth operations
+            'hci_sock_sendmsg', 'sco_sock_sendmsg', 'l2cap_sock_sendmsg',
+            # Device-specific operations
+            'aoc_service_write_message'
         ]
 
         return event.get('event') in relevant_events

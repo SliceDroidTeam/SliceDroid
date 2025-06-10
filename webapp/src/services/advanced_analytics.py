@@ -1033,3 +1033,574 @@ class AdvancedAnalytics:
             'title': 'Sensitive Data Analysis',
             'insights': insights
         }
+    
+    def generate_comprehensive_report(self, events, target_pid, analysis_results=None):
+        """
+        Generate a comprehensive analysis report including all new capabilities
+        
+        Args:
+            events: List of parsed events
+            target_pid: Target process ID
+            analysis_results: Optional pre-computed analysis results
+            
+        Returns:
+            Dictionary with comprehensive analysis report
+        """
+        from .comprehensive_analyzer import ComprehensiveAnalyzer
+        
+        if not analysis_results:
+            analyzer = ComprehensiveAnalyzer(self.config)
+            
+            # Run all analysis types
+            security_analysis = analyzer.analyze_security_events(events, target_pid)
+            network_analysis = analyzer.analyze_network_flows(events, target_pid)
+            process_analysis = analyzer.analyze_process_genealogy(events, target_pid)
+            file_analysis = analyzer.slice_file_analysis(events, target_pid)
+        else:
+            security_analysis = analysis_results.get('security_analysis', {})
+            network_analysis = analysis_results.get('network_analysis', {})
+            process_analysis = analysis_results.get('process_analysis', {})
+            file_analysis = analysis_results.get('file_analysis', {})
+        
+        # Generate visualization data
+        visualization_data = self._generate_enhanced_visualization_data(
+            events, target_pid, security_analysis, network_analysis, process_analysis
+        )
+        
+        # Calculate risk assessment
+        risk_assessment = self._calculate_comprehensive_risk(
+            security_analysis, network_analysis, process_analysis
+        )
+        
+        # Generate timeline data
+        timeline_data = self._generate_enhanced_timeline_data(events, target_pid)
+        
+        # Generate category statistics
+        category_stats = self._generate_enhanced_category_statistics(events)
+        
+        report = {
+            'executive_summary': self._generate_executive_summary(
+                security_analysis, network_analysis, process_analysis, risk_assessment
+            ),
+            'security_analysis': security_analysis,
+            'network_analysis': network_analysis,
+            'process_analysis': process_analysis,
+            'file_analysis': file_analysis,
+            'risk_assessment': risk_assessment,
+            'visualization_data': visualization_data,
+            'timeline_data': timeline_data,
+            'category_statistics': category_stats,
+            'recommendations': self._generate_recommendations(risk_assessment, security_analysis)
+        }
+        
+        self.logger.info(f"Generated comprehensive report for PID {target_pid}")
+        return report
+    
+    def _generate_enhanced_visualization_data(self, events, target_pid, security_analysis, network_analysis, process_analysis):
+        """Generate enhanced data optimized for new visualization categories"""
+        
+        # Event categories for enhanced pie charts
+        category_counts = defaultdict(int)
+        
+        # Enhanced timeline data for multi-line charts
+        timeline_data = {
+            'timestamps': [],
+            'security_events': [],
+            'network_events': [],
+            'process_events': [],
+            'filesystem_events': [],
+            'ipc_events': [],
+            'memory_events': [],
+            'bluetooth_events': []
+        }
+        
+        # Security heatmap data
+        security_heatmap = defaultdict(lambda: defaultdict(int))
+        
+        # Network flow data for enhanced network diagrams
+        network_flows = {
+            'tcp_flows': [],
+            'udp_flows': [],
+            'bluetooth_flows': [],
+            'socket_operations': []
+        }
+        
+        for event in events:
+            if target_pid and event.get('tgid') != target_pid:
+                continue
+                
+            category = event.get('category', 'other')
+            category_counts[category] += 1
+            
+            timestamp = event.get('timestamp')
+            if timestamp:
+                time_bucket = int(timestamp)
+                timeline_data['timestamps'].append(timestamp)
+                
+                # Enhanced categorization for timeline
+                timeline_data['security_events'].append(1 if category == 'security' else 0)
+                timeline_data['network_events'].append(1 if category == 'network' else 0)
+                timeline_data['process_events'].append(1 if category == 'process' else 0)
+                timeline_data['filesystem_events'].append(1 if category == 'filesystem' else 0)
+                timeline_data['ipc_events'].append(1 if category == 'ipc' else 0)
+                timeline_data['memory_events'].append(1 if category == 'memory' else 0)
+                timeline_data['bluetooth_events'].append(1 if category == 'bluetooth' else 0)
+                
+                # Security heatmap
+                if category == 'security':
+                    event_name = event.get('event', 'unknown')
+                    security_heatmap[time_bucket][event_name] += 1
+        
+        # Convert process tree to enhanced visualization format
+        enhanced_process_tree = {}
+        if 'process_tree' in process_analysis:
+            enhanced_process_tree = self._convert_enhanced_process_tree_for_viz(process_analysis['process_tree'])
+        
+        return {
+            'category_distribution': dict(category_counts),
+            'timeline_data': timeline_data,
+            'security_heatmap': dict(security_heatmap),
+            'network_flows': network_flows,
+            'process_tree': enhanced_process_tree,
+            'event_distribution_by_hour': self._generate_hourly_distribution(events, target_pid),
+            'risk_indicators': self._generate_risk_indicators(security_analysis, network_analysis)
+        }
+    
+    def _convert_enhanced_process_tree_for_viz(self, process_tree):
+        """Convert process tree to enhanced visualization-friendly format"""
+        nodes = []
+        edges = []
+        levels = defaultdict(list)
+        
+        def traverse_tree(node, parent_id=None, level=0):
+            if not node:
+                return
+                
+            node_id = node.get('pid')
+            node_info = node.get('info', {})
+            
+            node_data = {
+                'id': node_id,
+                'label': f"PID {node_id}",
+                'name': node_info.get('name', 'unknown'),
+                'level': level,
+                'birth_time': node_info.get('birth_time'),
+                'parent': node_info.get('parent'),
+                'size': len(node.get('children', [])) + 1,  # Size based on children count
+                'type': 'process'
+            }
+            
+            nodes.append(node_data)
+            levels[level].append(node_data)
+            
+            if parent_id is not None:
+                edges.append({
+                    'from': parent_id,
+                    'to': node_id,
+                    'type': 'fork',
+                    'label': 'fork'
+                })
+            
+            for child in node.get('children', []):
+                traverse_tree(child, node_id, level + 1)
+        
+        for root_pid, root_node in process_tree.items():
+            traverse_tree(root_node)
+        
+        return {
+            'nodes': nodes, 
+            'edges': edges,
+            'levels': dict(levels),
+            'max_depth': max(levels.keys()) if levels else 0
+        }
+    
+    def _generate_hourly_distribution(self, events, target_pid):
+        """Generate event distribution by hour of day"""
+        hourly_dist = defaultdict(int)
+        
+        for event in events:
+            if target_pid and event.get('tgid') != target_pid:
+                continue
+                
+            timestamp = event.get('timestamp')
+            if timestamp:
+                import datetime
+                hour = datetime.datetime.fromtimestamp(timestamp).hour
+                hourly_dist[hour] += 1
+        
+        # Convert to list format for easier charting
+        hourly_data = [hourly_dist.get(i, 0) for i in range(24)]
+        
+        return {
+            'hourly_counts': hourly_data,
+            'peak_hour': max(hourly_dist, key=hourly_dist.get) if hourly_dist else 0,
+            'total_events': sum(hourly_data)
+        }
+    
+    def _generate_risk_indicators(self, security_analysis, network_analysis):
+        """Generate risk indicators for visualization"""
+        indicators = []
+        
+        if security_analysis:
+            # Security risk indicators
+            if security_analysis.get('privilege_escalation'):
+                indicators.append({
+                    'type': 'security',
+                    'level': 'high',
+                    'title': 'Privilege Escalation',
+                    'count': len(security_analysis['privilege_escalation']),
+                    'icon': '⚠️'
+                })
+            
+            if security_analysis.get('debugging_attempts'):
+                indicators.append({
+                    'type': 'security',
+                    'level': 'medium',
+                    'title': 'Debug Attempts',
+                    'count': len(security_analysis['debugging_attempts']),
+                    'icon': '🔍'
+                })
+            
+            if security_analysis.get('memory_protection_changes'):
+                rwx_changes = sum(1 for change in security_analysis['memory_protection_changes'] 
+                                if change.get('suspicious', False))
+                if rwx_changes > 0:
+                    indicators.append({
+                        'type': 'security',
+                        'level': 'high',
+                        'title': 'Suspicious Memory Changes',
+                        'count': rwx_changes,
+                        'icon': '🛡️'
+                    })
+        
+        if network_analysis:
+            # Network risk indicators
+            summary = network_analysis.get('summary', {})
+            if summary.get('communication_intensity') == 'HIGH':
+                indicators.append({
+                    'type': 'network',
+                    'level': 'medium',
+                    'title': 'High Network Activity',
+                    'count': summary.get('total_tcp_events', 0) + summary.get('total_udp_events', 0),
+                    'icon': '🌐'
+                })
+        
+        return indicators
+    
+    def _calculate_comprehensive_risk(self, security_analysis, network_analysis, process_analysis):
+        """Calculate comprehensive risk assessment"""
+        risk_factors = {
+            'security_risk': 0,
+            'network_risk': 0,
+            'process_risk': 0,
+            'overall_risk': 0
+        }
+        
+        # Security risk calculation
+        if security_analysis and 'summary' in security_analysis:
+            security_summary = security_analysis['summary']
+            risk_level = security_summary.get('risk_level', 'NONE')
+            
+            risk_mapping = {'NONE': 0, 'LOW': 25, 'MEDIUM': 50, 'HIGH': 100}
+            risk_factors['security_risk'] = risk_mapping.get(risk_level, 0)
+        
+        # Network risk calculation
+        if network_analysis and 'summary' in network_analysis:
+            network_summary = network_analysis['summary']
+            intensity = network_summary.get('communication_intensity', 'LOW')
+            
+            intensity_mapping = {'LOW': 10, 'MEDIUM': 30, 'HIGH': 60}
+            risk_factors['network_risk'] = intensity_mapping.get(intensity, 0)
+        
+        # Process risk calculation
+        if process_analysis and 'summary' in process_analysis:
+            process_summary = process_analysis['summary']
+            suspicious_patterns = process_summary.get('suspicious_patterns', [])
+            
+            risk_factors['process_risk'] = min(len(suspicious_patterns) * 20, 80)
+        
+        # Calculate overall risk (weighted average)
+        weights = {'security_risk': 0.5, 'network_risk': 0.2, 'process_risk': 0.3}
+        
+        overall_risk = sum(
+            risk_factors[factor] * weight 
+            for factor, weight in weights.items()
+        )
+        
+        risk_factors['overall_risk'] = overall_risk
+        
+        # Categorize overall risk
+        if overall_risk >= 70:
+            risk_category = 'CRITICAL'
+        elif overall_risk >= 50:
+            risk_category = 'HIGH'
+        elif overall_risk >= 30:
+            risk_category = 'MEDIUM'
+        elif overall_risk >= 10:
+            risk_category = 'LOW'
+        else:
+            risk_category = 'MINIMAL'
+        
+        return {
+            'risk_factors': risk_factors,
+            'overall_risk_score': overall_risk,
+            'risk_category': risk_category,
+            'risk_breakdown': {
+                'security': f"{risk_factors['security_risk']}%",
+                'network': f"{risk_factors['network_risk']}%",
+                'process': f"{risk_factors['process_risk']}%"
+            }
+        }
+    
+    def _generate_enhanced_timeline_data(self, events, target_pid):
+        """Generate enhanced timeline data for visualization"""
+        timeline_events = []
+        
+        for event in events:
+            if target_pid and event.get('tgid') != target_pid:
+                continue
+                
+            timeline_event = {
+                'timestamp': event.get('timestamp'),
+                'event_type': event.get('event'),
+                'category': event.get('category', 'other'),
+                'process': event.get('process'),
+                'pid': event.get('tgid'),
+                'description': self._generate_enhanced_event_description(event),
+                'severity': self._calculate_event_severity(event)
+            }
+            timeline_events.append(timeline_event)
+        
+        # Sort by timestamp
+        timeline_events.sort(key=lambda x: x['timestamp'] or 0)
+        
+        return timeline_events
+    
+    def _generate_enhanced_event_description(self, event):
+        """Generate enhanced human-readable description for an event"""
+        event_name = event.get('event', 'unknown')
+        details = event.get('details', {})
+        category = event.get('category', 'other')
+        
+        descriptions = {
+            # Enhanced filesystem descriptions
+            'read_probe': f"📖 Read from {details.get('pathname', 'file')} ({details.get('count', 0)} bytes)",
+            'write_probe': f"✏️ Write to {details.get('pathname', 'file')} ({details.get('count', 0)} bytes)",
+            'ioctl_probe': f"⚙️ IOCTL operation on {details.get('pathname', 'device')}",
+            
+            # Enhanced network descriptions
+            'tcp_sendmsg': f"📤 TCP send ({details.get('size', 0)} bytes)",
+            'tcp_recvmsg': f"📥 TCP receive ({details.get('len', 0)} bytes)",
+            'udp_sendmsg': f"📤 UDP send ({details.get('len', 0)} bytes)",
+            'udp_recvmsg': f"📥 UDP receive ({details.get('len', 0)} bytes)",
+            '__sys_socket': f"🔌 Create socket (family: {details.get('family', 'unknown')})",
+            '__sys_connect': f"🔗 Connect socket (fd: {details.get('sockfd', 'unknown')})",
+            '__sys_bind': f"🔒 Bind socket (fd: {details.get('sockfd', 'unknown')})",
+            
+            # Enhanced security descriptions
+            '__arm64_sys_setuid': f"👤 Set UID to {details.get('uid', 'unknown')}",
+            '__arm64_sys_setresuid': f"👥 Set RUID/EUID/SUID ({details.get('ruid', '-')}/{details.get('euid', '-')}/{details.get('suid', '-')})",
+            'ptrace_attach': f"🔍 Ptrace attach to task {details.get('task', 'unknown')}",
+            '__arm64_sys_mprotect': f"🛡️ Memory protection change at {hex(details.get('start', 0))} (len: {details.get('len', 0)})",
+            '__arm64_sys_capset': f"⚡ Capability change",
+            
+            # Enhanced process descriptions
+            'sched_process_fork': f"🍴 Process fork (child: {details.get('child_pid', 'unknown')})",
+            'sched_process_exec': f"🚀 Process exec",
+            '__arm64_sys_execve': f"📋 Execute {details.get('filename', 'unknown')}",
+            'load_elf_binary': f"📚 Load ELF binary",
+            
+            # Enhanced IPC descriptions
+            'binder_transaction': f"📨 Binder transaction",
+            'binder_transaction_received': f"📬 Binder transaction received",
+            'unix_stream_sendmsg': f"💬 Unix stream send",
+            'unix_stream_recvmsg': f"💬 Unix stream receive",
+            
+            # Memory descriptions
+            'mmap_probe': f"🗺️ Memory map of {details.get('pathname', 'file')}",
+            
+            # Bluetooth descriptions
+            'hci_sock_sendmsg': f"📶 HCI Bluetooth send",
+            'sco_sock_sendmsg': f"🎧 SCO Bluetooth send",
+            'l2cap_sock_sendmsg': f"🔵 L2CAP Bluetooth send"
+        }
+        
+        return descriptions.get(event_name, f"Event: {event_name}")
+    
+    def _calculate_event_severity(self, event):
+        """Calculate severity level for an event"""
+        event_name = event.get('event', 'unknown')
+        category = event.get('category', 'other')
+        
+        # High severity events
+        high_severity_events = [
+            '__arm64_sys_setuid', '__arm64_sys_setresuid', 'ptrace_attach',
+            '__arm64_sys_mprotect', '__arm64_sys_capset'
+        ]
+        
+        # Medium severity events
+        medium_severity_events = [
+            '__arm64_sys_execve', 'load_elf_binary', 'sched_process_fork'
+        ]
+        
+        if event_name in high_severity_events:
+            return 'high'
+        elif event_name in medium_severity_events:
+            return 'medium'
+        elif category in ['security', 'process']:
+            return 'medium'
+        else:
+            return 'low'
+    
+    def _generate_enhanced_category_statistics(self, events):
+        """Generate enhanced statistics by event category"""
+        category_stats = defaultdict(lambda: {
+            'count': 0,
+            'first_timestamp': None,
+            'last_timestamp': None,
+            'processes': set(),
+            'event_types': set(),
+            'severity_distribution': defaultdict(int),
+            'hourly_distribution': defaultdict(int)
+        })
+        
+        for event in events:
+            category = event.get('category', 'other')
+            timestamp = event.get('timestamp')
+            process = event.get('process')
+            event_type = event.get('event')
+            severity = self._calculate_event_severity(event)
+            
+            stats = category_stats[category]
+            stats['count'] += 1
+            stats['processes'].add(process)
+            stats['event_types'].add(event_type)
+            stats['severity_distribution'][severity] += 1
+            
+            if timestamp:
+                import datetime
+                hour = datetime.datetime.fromtimestamp(timestamp).hour
+                stats['hourly_distribution'][hour] += 1
+                
+                if stats['first_timestamp'] is None or timestamp < stats['first_timestamp']:
+                    stats['first_timestamp'] = timestamp
+                if stats['last_timestamp'] is None or timestamp > stats['last_timestamp']:
+                    stats['last_timestamp'] = timestamp
+        
+        # Convert sets to lists and dicts for JSON serialization
+        for category in category_stats:
+            category_stats[category]['processes'] = list(category_stats[category]['processes'])
+            category_stats[category]['event_types'] = list(category_stats[category]['event_types'])
+            category_stats[category]['severity_distribution'] = dict(category_stats[category]['severity_distribution'])
+            category_stats[category]['hourly_distribution'] = dict(category_stats[category]['hourly_distribution'])
+            
+            # Calculate duration
+            if (category_stats[category]['first_timestamp'] and 
+                category_stats[category]['last_timestamp']):
+                duration = (category_stats[category]['last_timestamp'] - 
+                           category_stats[category]['first_timestamp'])
+                category_stats[category]['duration'] = duration
+            else:
+                category_stats[category]['duration'] = 0
+        
+        return dict(category_stats)
+    
+    def _generate_executive_summary(self, security_analysis, network_analysis, process_analysis, risk_assessment):
+        """Generate executive summary"""
+        summary = {
+            'overview': '',
+            'key_findings': [],
+            'risk_level': risk_assessment.get('risk_category', 'UNKNOWN'),
+            'recommendations_count': 0
+        }
+        
+        # Build overview
+        overview_parts = []
+        
+        if security_analysis and 'summary' in security_analysis:
+            sec_summary = security_analysis['summary']
+            if sec_summary.get('total_privilege_escalations', 0) > 0:
+                overview_parts.append(f"{sec_summary['total_privilege_escalations']} privilege escalation(s) detected")
+            if sec_summary.get('total_suspicious_activities', 0) > 0:
+                overview_parts.append(f"{sec_summary['total_suspicious_activities']} suspicious security activity(ies)")
+        
+        if network_analysis and 'summary' in network_analysis:
+            net_summary = network_analysis['summary']
+            if net_summary.get('total_tcp_events', 0) > 0 or net_summary.get('total_udp_events', 0) > 0:
+                overview_parts.append(f"Network activity detected ({net_summary.get('communication_intensity', 'LOW')} intensity)")
+        
+        if process_analysis and 'summary' in process_analysis:
+            proc_summary = process_analysis['summary']
+            if proc_summary.get('total_forks', 0) > 0:
+                overview_parts.append(f"{proc_summary['total_forks']} process creation(s)")
+        
+        summary['overview'] = '. '.join(overview_parts) if overview_parts else 'No significant activity detected'
+        
+        # Key findings
+        if security_analysis:
+            if security_analysis.get('privilege_escalation'):
+                summary['key_findings'].append('Privilege escalation attempts detected')
+            if security_analysis.get('debugging_attempts'):
+                summary['key_findings'].append('Process debugging attempts detected')
+        
+        if network_analysis and network_analysis.get('summary', {}).get('communication_intensity') == 'HIGH':
+            summary['key_findings'].append('High network communication activity')
+        
+        if process_analysis and process_analysis.get('summary', {}).get('suspicious_patterns'):
+            summary['key_findings'].append('Suspicious process behavior patterns')
+        
+        return summary
+    
+    def _generate_recommendations(self, risk_assessment, security_analysis):
+        """Generate security recommendations"""
+        recommendations = []
+        
+        risk_category = risk_assessment.get('risk_category', 'MINIMAL')
+        
+        if risk_category in ['CRITICAL', 'HIGH']:
+            recommendations.append({
+                'priority': 'HIGH',
+                'category': 'immediate_action',
+                'title': 'Immediate Security Review Required',
+                'description': 'High risk activity detected. Conduct immediate security analysis.'
+            })
+        
+        if security_analysis:
+            if security_analysis.get('privilege_escalation'):
+                recommendations.append({
+                    'priority': 'HIGH',
+                    'category': 'security',
+                    'title': 'Review Privilege Escalation',
+                    'description': 'Privilege escalation detected. Verify if this is expected behavior.'
+                })
+            
+            if security_analysis.get('debugging_attempts'):
+                recommendations.append({
+                    'priority': 'MEDIUM',
+                    'category': 'security',
+                    'title': 'Monitor Debugging Activity',
+                    'description': 'Process debugging attempts detected. Monitor for malicious activity.'
+                })
+            
+            if security_analysis.get('memory_protection_changes'):
+                rwx_changes = [
+                    change for change in security_analysis['memory_protection_changes']
+                    if change.get('suspicious', False)
+                ]
+                if rwx_changes:
+                    recommendations.append({
+                        'priority': 'HIGH',
+                        'category': 'security',
+                        'title': 'Review Memory Protection Changes',
+                        'description': 'Suspicious memory protection changes (RWX) detected.'
+                    })
+        
+        if risk_category == 'MINIMAL':
+            recommendations.append({
+                'priority': 'LOW',
+                'category': 'monitoring',
+                'title': 'Continue Monitoring',
+                'description': 'No significant threats detected. Continue regular monitoring.'
+            })
+        
+        return recommendations

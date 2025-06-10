@@ -3,6 +3,9 @@ let timelineData = [];
 let zoomLevel = 1;
 let eventColors = {};
 let appConfig = {};
+let securityData = {};
+let networkData = {};
+let processData = {};
 
 // DOM ready
 $(document).ready(function() {
@@ -22,29 +25,6 @@ $(document).ready(function() {
         setupEventListeners();
     });
 });
-
-// Update app status indicator
-function updateAppStatus(type, message) {
-    const statusEl = $('#app-status');
-    const iconMap = {
-        'loading': 'fas fa-spinner fa-spin',
-        'success': 'fas fa-check-circle', 
-        'warning': 'fas fa-exclamation-triangle',
-        'error': 'fas fa-times-circle'
-    };
-    const classMap = {
-        'loading': 'status-loading',
-        'success': 'status-ready',
-        'warning': 'status-warning',
-        'error': 'status-error'
-    };
-    
-    statusEl.removeClass('status-ready status-loading status-warning status-error')
-           .addClass(classMap[type] || 'status-ready');
-    statusEl.html(`<i class="${iconMap[type] || 'fas fa-question'}"></i> <span>${message}</span>`);
-}
-
-// Preload file checking is now handled in the inline script
 
 // Load app configuration from server
 function loadConfiguration() {
@@ -113,6 +93,11 @@ function loadAllData() {
 
         // Auto-load advanced analytics
         loadAdvancedAnalytics();
+        
+        // Load new enhanced analysis
+        loadSecurityAnalysis();
+        loadNetworkAnalysis();
+        loadProcessAnalysis();
     } catch (error) {
         console.error('Error loading data:', error);
         showToast('Loading Error', 'Failed to load some data sections', 'error');
@@ -853,111 +838,583 @@ function loadAdvancedAnalyticsWithConfig() {
     });
 }
 
-// Export functionality
-function exportEvents(format) {
+// Enhanced Security Analysis Functions
+function loadSecurityAnalysis() {
     const pid = $('#pid-filter').val();
-    const device = $('#device-filter').val();
-    
-    // Build parameters
-    let params = [];
-    params.push(`format=${format}`);
-    if (pid) params.push(`pid=${pid}`);
-    if (device) params.push(`device=${device}`);
-    
-    // Ask for limit (optional)
-    const limit = prompt('Enter maximum number of events to export (leave empty for all):');
-    if (limit && !isNaN(limit) && parseInt(limit) > 0) {
-        params.push(`limit=${parseInt(limit)}`);
+    let url = '/api/security-analysis';
+    if (pid) url += `?pid=${pid}`;
+
+    // Show loading
+    $('#security-loading').show();
+    $('#security-content').hide();
+    $('#security-error').hide();
+
+    $.getJSON(url, function(data) {
+        if (data.error) {
+            showSecurityError(data.error);
+        } else {
+            securityData = data;
+            renderSecurityAnalysis(data);
+        }
+    }).fail(function(jqXHR) {
+        const errorMsg = jqXHR.responseJSON?.error || 'No security analysis data available';
+        showSecurityError(errorMsg);
+    }).always(function() {
+        $('#security-loading').hide();
+    });
+}
+
+function renderSecurityAnalysis(data) {
+    $('#security-content').show();
+
+    // Update risk badge
+    updateSecurityRiskBadge(data.risk_assessment);
+
+    // Render summary cards
+    renderSecuritySummary(data);
+
+    // Render security timeline
+    renderSecurityTimeline(data.timeline_data);
+
+    // Render security events list
+    renderSecurityEventsList(data.security_analysis);
+
+    // Render recommendations
+    renderSecurityRecommendations(data.recommendations);
+}
+
+function updateSecurityRiskBadge(riskAssessment) {
+    const badge = $('#security-risk-badge');
+    if (!riskAssessment) {
+        badge.text('No Data').removeClass().addClass('badge');
+        return;
     }
-    
-    const url = `/api/export/events?${params.join('&')}`;
-    
-    // Create a temporary link and click it to download
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = ''; // Browser will use the filename from Content-Disposition header
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Show success message
-    showToast('Export started', `Downloading events in ${format.toUpperCase()} format...`, 'success');
+
+    const riskLevel = riskAssessment.risk_category || 'UNKNOWN';
+    badge.text(riskLevel)
+         .removeClass()
+         .addClass(`badge security-badge risk-${riskLevel.toLowerCase()}`);
 }
 
-function exportAnalysis(format) {
-    const pid = $('#analysis-target-pid').val() || $('#pid-filter').val();
-    const windowSize = $('#window-size').val() || 5000;
-    const overlap = $('#overlap-size').val() || 1000;
-    const asynchronous = $('#asynchronous-analysis').val() || 'true';
-    
-    // Build parameters
-    let params = [];
-    params.push(`format=${format}`);
-    if (pid) params.push(`pid=${pid}`);
-    params.push(`window_size=${windowSize}`);
-    params.push(`overlap=${overlap}`);
-    params.push(`asynchronous=${asynchronous}`);
-    
-    const url = `/api/export/analysis?${params.join('&')}`;
-    
-    // Show loading message
-    showToast('Export started', 'Performing analysis and preparing export...', 'info');
-    
-    // Create a temporary link and click it to download
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = ''; // Browser will use the filename from Content-Disposition header
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Show success message after a delay
-    setTimeout(() => {
-        showToast('Export complete', `Analysis exported in ${format.toUpperCase()} format`, 'success');
-    }, 1000);
-}
+function renderSecuritySummary(data) {
+    const summaryContainer = $('#security-summary');
+    summaryContainer.empty();
 
-// Toast notification helper
-function showToast(title, message, type = 'info') {
-    // Create toast HTML
-    const toastId = 'toast-' + Date.now();
-    const bgClass = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-info';
-    
-    const toastHtml = `
-        <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
-            <div class="d-flex">
-                <div class="toast-body">
-                    <strong>${title}</strong><br>
-                    ${message}
+    if (!data.security_analysis || !data.security_analysis.summary) {
+        summaryContainer.html('<div class="col-12"><div class="alert alert-info">No security summary available</div></div>');
+        return;
+    }
+
+    const summary = data.security_analysis.summary;
+    const summaryCards = [
+        {
+            title: 'Privilege Escalations',
+            value: summary.total_privilege_escalations || 0,
+            type: summary.total_privilege_escalations > 0 ? 'danger' : 'success',
+            icon: 'fas fa-user-shield'
+        },
+        {
+            title: 'Debug Attempts',
+            value: summary.total_debugging_attempts || 0,
+            type: summary.total_debugging_attempts > 0 ? 'warning' : 'success',
+            icon: 'fas fa-bug'
+        },
+        {
+            title: 'Memory Changes',
+            value: summary.total_memory_changes || 0,
+            type: summary.total_memory_changes > 0 ? 'info' : 'success',
+            icon: 'fas fa-memory'
+        },
+        {
+            title: 'Suspicious Activities',
+            value: summary.total_suspicious_activities || 0,
+            type: summary.total_suspicious_activities > 0 ? 'danger' : 'success',
+            icon: 'fas fa-exclamation-triangle'
+        }
+    ];
+
+    summaryCards.forEach(card => {
+        summaryContainer.append(`
+            <div class="col-md-3 mb-2">
+                <div class="summary-card ${card.type}">
+                    <div class="card-value">${card.value}</div>
+                    <div class="card-label">${card.title}</div>
                 </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
             </div>
-        </div>
-    `;
-    
-    // Add to page if toast container doesn't exist
-    if (!document.getElementById('toast-container')) {
-        const container = document.createElement('div');
-        container.id = 'toast-container';
-        container.className = 'toast-container position-fixed top-0 end-0 p-3';
-        container.style.zIndex = '9999';
-        document.body.appendChild(container);
-    }
-    
-    // Add toast to container
-    const container = document.getElementById('toast-container');
-    container.innerHTML += toastHtml;
-    
-    // Show toast
-    const toastElement = document.getElementById(toastId);
-    const toast = new bootstrap.Toast(toastElement, {
-        autohide: true,
-        delay: type === 'error' ? 5000 : 3000
-    });
-    toast.show();
-    
-    // Remove from DOM after hiding
-    toastElement.addEventListener('hidden.bs.toast', () => {
-        toastElement.remove();
+        `);
     });
 }
+
+function renderSecurityTimeline(timelineData) {
+    if (!timelineData || timelineData.length === 0) {
+        $('#security-timeline-chart').html('<div class="alert alert-info">No security events found</div>');
+        return;
+    }
+
+    // Create simple timeline chart
+    const container = d3.select('#security-timeline-chart');
+    container.html('');
+
+    const margin = {top: 20, right: 20, bottom: 30, left: 50};
+    const width = container.node().clientWidth - margin.left - margin.right;
+    const height = 180;
+
+    const svg = container.append('svg')
+        .attr('width', width + margin.left + margin.right)
+        .attr('height', height + margin.top + margin.bottom)
+        .append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    // Filter security events
+    const securityEvents = timelineData.filter(d => d.category === 'security');
+    
+    if (securityEvents.length === 0) {
+        container.html('<div class="alert alert-info">No security events in timeline</div>');
+        return;
+    }
+
+    // Create time scale
+    const timeExtent = d3.extent(securityEvents, d => d.timestamp);
+    const x = d3.scaleTime()
+        .domain(timeExtent)
+        .range([0, width]);
+
+    // Create severity scale
+    const y = d3.scaleOrdinal()
+        .domain(['low', 'medium', 'high'])
+        .range([height - 20, height/2, 20]);
+
+    // Add dots for events
+    svg.selectAll('.security-dot')
+        .data(securityEvents)
+        .enter()
+        .append('circle')
+        .attr('class', 'security-dot')
+        .attr('cx', d => x(new Date(d.timestamp * 1000)))
+        .attr('cy', d => y(d.severity || 'low'))
+        .attr('r', 4)
+        .attr('fill', d => d.severity === 'high' ? '#dc3545' : 
+                          d.severity === 'medium' ? '#ffc107' : '#28a745')
+        .on('mouseover', function(event, d) {
+            showSecurityTooltip(event, d);
+        })
+        .on('mouseout', hideSecurityTooltip);
+
+    // Add axes
+    svg.append('g')
+        .attr('transform', `translate(0,${height})`)
+        .call(d3.axisBottom(x).ticks(5));
+
+    svg.append('g')
+        .call(d3.axisLeft(y));
+}
+
+function renderSecurityEventsList(securityAnalysis) {
+    const container = $('#security-events-list');
+    container.empty();
+
+    if (!securityAnalysis) {
+        container.html('<div class="alert alert-info">No security events available</div>');
+        return;
+    }
+
+    const events = [
+        ...(securityAnalysis.privilege_escalation || []),
+        ...(securityAnalysis.debugging_attempts || []),
+        ...(securityAnalysis.suspicious_activity || [])
+    ];
+
+    if (events.length === 0) {
+        container.html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> No security issues detected</div>');
+        return;
+    }
+
+    const eventList = $('<div class="event-list"></div>');
+    events.slice(0, 10).forEach(event => {
+        const timestamp = new Date(event.timestamp * 1000).toLocaleString();
+        const severity = event.type === 'setuid_root' ? 'high' : 'medium';
+        
+        eventList.append(`
+            <div class="event-item event-severity-${severity}">
+                <div class="event-timestamp">${timestamp}</div>
+                <div class="event-description">${event.type}: ${event.process || 'Unknown'}</div>
+            </div>
+        `);
+    });
+
+    container.append(eventList);
+}
+
+function renderSecurityRecommendations(recommendations) {
+    const container = $('#security-recommendations');
+    container.empty();
+
+    if (!recommendations || recommendations.length === 0) {
+        container.html('<div class="alert alert-success"><i class="fas fa-thumbs-up"></i> No security recommendations at this time</div>');
+        return;
+    }
+
+    const recList = $('<div class="recommendations-list"></div>');
+    recommendations.forEach(rec => {
+        const priorityClass = rec.priority === 'HIGH' ? 'danger' : 
+                             rec.priority === 'MEDIUM' ? 'warning' : 'info';
+        
+        recList.append(`
+            <div class="alert alert-${priorityClass} alert-sm">
+                <strong>${rec.title}</strong><br>
+                <small>${rec.description}</small>
+            </div>
+        `);
+    });
+
+    container.append(recList);
+}
+
+function showSecurityError(error) {
+    $('#security-error').html(`<strong>Error:</strong> ${error}`).show();
+}
+
+// Enhanced Network Analysis Functions
+function loadNetworkAnalysis() {
+    const pid = $('#pid-filter').val();
+    let url = '/api/network-analysis';
+    if (pid) url += `?pid=${pid}`;
+
+    // Show loading
+    $('#network-loading').show();
+    $('#network-content').hide();
+    $('#network-error').hide();
+
+    $.getJSON(url, function(data) {
+        if (data.error) {
+            showNetworkError(data.error);
+        } else {
+            networkData = data;
+            renderNetworkAnalysis(data);
+        }
+    }).fail(function(jqXHR) {
+        const errorMsg = jqXHR.responseJSON?.error || 'No network analysis data available';
+        showNetworkError(errorMsg);
+    }).always(function() {
+        $('#network-loading').hide();
+    });
+}
+
+function renderNetworkAnalysis(data) {
+    $('#network-content').show();
+
+    // Update intensity badge
+    updateNetworkIntensityBadge(data.network_analysis);
+
+    // Render summary cards
+    renderNetworkSummary(data);
+
+    // Render network flow chart
+    renderNetworkFlowChart(data.network_analysis);
+
+    // Render protocol distribution
+    renderProtocolDistribution(data.network_analysis);
+
+    // Render connection tables
+    renderConnectionTables(data.network_analysis);
+}
+
+function updateNetworkIntensityBadge(networkAnalysis) {
+    const badge = $('#network-intensity-badge');
+    if (!networkAnalysis || !networkAnalysis.summary) {
+        badge.text('No Data').removeClass().addClass('badge');
+        return;
+    }
+
+    const intensity = networkAnalysis.summary.communication_intensity || 'LOW';
+    badge.text(intensity)
+         .removeClass()
+         .addClass(`badge security-badge intensity-${intensity.toLowerCase()}`);
+}
+
+function renderNetworkSummary(data) {
+    const summaryContainer = $('#network-summary');
+    summaryContainer.empty();
+
+    if (!data.network_analysis || !data.network_analysis.summary) {
+        summaryContainer.html('<div class="col-12"><div class="alert alert-info">No network summary available</div></div>');
+        return;
+    }
+
+    const summary = data.network_analysis.summary;
+    const summaryCards = [
+        {
+            title: 'TCP Events',
+            value: summary.total_tcp_events || 0,
+            type: 'info',
+            icon: 'fas fa-exchange-alt'
+        },
+        {
+            title: 'UDP Events',
+            value: summary.total_udp_events || 0,
+            type: 'info',
+            icon: 'fas fa-broadcast-tower'
+        },
+        {
+            title: 'Socket Operations',
+            value: summary.total_socket_operations || 0,
+            type: 'success',
+            icon: 'fas fa-plug'
+        },
+        {
+            title: 'Protocols',
+            value: summary.active_protocols ? summary.active_protocols.length : 0,
+            type: 'warning',
+            icon: 'fas fa-layer-group'
+        }
+    ];
+
+    summaryCards.forEach(card => {
+        summaryContainer.append(`
+            <div class="col-md-3 mb-2">
+                <div class="summary-card ${card.type}">
+                    <div class="card-value">${card.value}</div>
+                    <div class="card-label">${card.title}</div>
+                </div>
+            </div>
+        `);
+    });
+}
+
+function renderNetworkFlowChart(networkAnalysis) {
+    if (!networkAnalysis) {
+        $('#network-flow-chart').html('<div class="alert alert-info">No network flow data available</div>');
+        return;
+    }
+
+    // Simple network activity chart
+    $('#network-flow-chart').html('<div class="alert alert-info">Network flow visualization will be implemented with D3.js</div>');
+}
+
+function renderProtocolDistribution(networkAnalysis) {
+    if (!networkAnalysis || !networkAnalysis.summary) {
+        $('#protocol-distribution-chart').html('<div class="alert alert-info">No protocol data available</div>');
+        return;
+    }
+
+    const protocols = networkAnalysis.summary.active_protocols || [];
+    if (protocols.length === 0) {
+        $('#protocol-distribution-chart').html('<div class="alert alert-info">No protocols detected</div>');
+        return;
+    }
+
+    // Create simple protocol list for now
+    let protocolHtml = '<ul class="list-group">';
+    protocols.forEach(protocol => {
+        protocolHtml += `<li class="list-group-item">${protocol}</li>`;
+    });
+    protocolHtml += '</ul>';
+
+    $('#protocol-distribution-chart').html(protocolHtml);
+}
+
+function renderConnectionTables(networkAnalysis) {
+    // TCP connections
+    if (networkAnalysis && networkAnalysis.tcp_connections && networkAnalysis.tcp_connections.length > 0) {
+        let tcpHtml = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Time</th><th>Direction</th><th>Size/Length</th></tr></thead><tbody>';
+        networkAnalysis.tcp_connections.slice(0, 10).forEach(conn => {
+            const time = new Date(conn.timestamp * 1000).toLocaleTimeString();
+            tcpHtml += `<tr><td>${time}</td><td>${conn.direction}</td><td>${conn.size || conn.len || 0} bytes</td></tr>`;
+        });
+        tcpHtml += '</tbody></table></div>';
+        $('#tcp-connections-table').html(tcpHtml);
+    } else {
+        $('#tcp-connections-table').html('<div class="alert alert-info">No TCP connections</div>');
+    }
+
+    // UDP communications
+    if (networkAnalysis && networkAnalysis.udp_communications && networkAnalysis.udp_communications.length > 0) {
+        let udpHtml = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Time</th><th>Direction</th><th>Length</th></tr></thead><tbody>';
+        networkAnalysis.udp_communications.slice(0, 10).forEach(comm => {
+            const time = new Date(comm.timestamp * 1000).toLocaleTimeString();
+            udpHtml += `<tr><td>${time}</td><td>${comm.direction}</td><td>${comm.len || 0} bytes</td></tr>`;
+        });
+        udpHtml += '</tbody></table></div>';
+        $('#udp-communications-table').html(udpHtml);
+    } else {
+        $('#udp-communications-table').html('<div class="alert alert-info">No UDP communications</div>');
+    }
+}
+
+function showNetworkError(error) {
+    $('#network-error').html(`<strong>Error:</strong> ${error}`).show();
+}
+
+// Enhanced Process Analysis Functions
+function loadProcessAnalysis() {
+    const pid = $('#pid-filter').val();
+    let url = '/api/process-analysis';
+    if (pid) url += `?pid=${pid}`;
+
+    // Show loading
+    $('#process-loading').show();
+    $('#process-content').hide();
+    $('#process-error').hide();
+
+    $.getJSON(url, function(data) {
+        if (data.error) {
+            showProcessError(data.error);
+        } else {
+            processData = data;
+            renderProcessAnalysis(data);
+        }
+    }).fail(function(jqXHR) {
+        const errorMsg = jqXHR.responseJSON?.error || 'No process analysis data available';
+        showProcessError(errorMsg);
+    }).always(function() {
+        $('#process-loading').hide();
+    });
+}
+
+function renderProcessAnalysis(data) {
+    $('#process-content').show();
+
+    // Render summary cards
+    renderProcessSummary(data);
+
+    // Render process tree
+    renderProcessTree(data.process_analysis);
+
+    // Render process timeline
+    renderProcessTimeline(data.process_analysis);
+
+    // Render suspicious patterns
+    renderSuspiciousPatterns(data.process_analysis);
+}
+
+function renderProcessSummary(data) {
+    const summaryContainer = $('#process-summary');
+    summaryContainer.empty();
+
+    if (!data.process_analysis || !data.process_analysis.summary) {
+        summaryContainer.html('<div class="col-12"><div class="alert alert-info">No process summary available</div></div>');
+        return;
+    }
+
+    const summary = data.process_analysis.summary;
+    const summaryCards = [
+        {
+            title: 'Process Forks',
+            value: summary.total_forks || 0,
+            type: 'info',
+            icon: 'fas fa-code-branch'
+        },
+        {
+            title: 'Executions',
+            value: summary.total_execs || 0,
+            type: 'success',
+            icon: 'fas fa-play'
+        },
+        {
+            title: 'Tree Depth',
+            value: summary.process_tree_depth || 0,
+            type: 'warning',
+            icon: 'fas fa-sitemap'
+        },
+        {
+            title: 'Suspicious Patterns',
+            value: summary.suspicious_patterns ? summary.suspicious_patterns.length : 0,
+            type: summary.suspicious_patterns && summary.suspicious_patterns.length > 0 ? 'danger' : 'success',
+            icon: 'fas fa-exclamation-triangle'
+        }
+    ];
+
+    summaryCards.forEach(card => {
+        summaryContainer.append(`
+            <div class="col-md-3 mb-2">
+                <div class="summary-card ${card.type}">
+                    <div class="card-value">${card.value}</div>
+                    <div class="card-label">${card.title}</div>
+                </div>
+            </div>
+        `);
+    });
+}
+
+function renderProcessTree(processAnalysis) {
+    if (!processAnalysis || !processAnalysis.process_tree) {
+        $('#process-tree-chart').html('<div class="alert alert-info">No process tree data available</div>');
+        return;
+    }
+
+    // Placeholder for process tree visualization
+    $('#process-tree-chart').html('<div class="alert alert-info">Process tree visualization will be implemented with D3.js hierarchical layout</div>');
+}
+
+function renderProcessTimeline(processAnalysis) {
+    if (!processAnalysis || !processAnalysis.execution_timeline) {
+        $('#process-timeline-chart').html('<div class="alert alert-info">No process timeline data available</div>');
+        return;
+    }
+
+    // Simple timeline for process events
+    $('#process-timeline-chart').html('<div class="alert alert-info">Process timeline chart will show fork/exec events over time</div>');
+}
+
+function renderSuspiciousPatterns(processAnalysis) {
+    const container = $('#process-suspicious-patterns');
+    container.empty();
+
+    if (!processAnalysis || !processAnalysis.summary || !processAnalysis.summary.suspicious_patterns) {
+        container.html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> No suspicious patterns detected</div>');
+        return;
+    }
+
+    const patterns = processAnalysis.summary.suspicious_patterns;
+    if (patterns.length === 0) {
+        container.html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> No suspicious patterns detected</div>');
+        return;
+    }
+
+    const patternList = $('<div class="pattern-list"></div>');
+    patterns.forEach(pattern => {
+        patternList.append(`
+            <div class="alert alert-warning alert-sm">
+                <strong>${pattern.type}</strong><br>
+                <small>${pattern.description}</small>
+            </div>
+        `);
+    });
+
+    container.append(patternList);
+}
+
+function showProcessError(error) {
+    $('#process-error').html(`<strong>Error:</strong> ${error}`).show();
+}
+
+// Upload and UI functionality are now handled in separate files
+
+// Initialize all functionality when DOM is ready
+$(document).ready(function() {
+    // Initialize UI first
+    initializeUI();
+    
+    // App initialization
+    updateAppStatus('loading', 'Loading...');
+
+    // Load configuration first, then data
+    loadConfiguration().then(function() {
+        updateAppStatus('success', 'System Ready');
+        loadAllData();
+        setupEventListeners();
+        
+        // Initialize upload functionality
+        initializeUploadFunctionality();
+    }).catch(function(error) {
+        console.error('Failed to load configuration:', error);
+        updateAppStatus('warning', 'Fallback Mode');
+        // Use fallback configuration
+        setFallbackConfiguration();
+        loadAllData();
+        setupEventListeners();
+        
+        // Initialize upload functionality
+        initializeUploadFunctionality();
+    });
+});
