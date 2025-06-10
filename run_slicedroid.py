@@ -219,13 +219,18 @@ subprocess.run(
 )
 
 # Start the tracing script as a subprocess that we can control
-print("[*] Starting trace script on device...")
+print("[*] Initializing system call tracer...")
+print("[*] Ready to capture system activity. Tracer is now waiting for your commands.")
 trace_process = subprocess.Popen(
     [adb_command, "shell", "su", "-c", "/data/local/tmp/cleaned_trace_sock.sh"],
     stdin=subprocess.PIPE
 )
 
-print("Press a key when you want to stop the trace...")
+print("\n" + "="*70)
+print("🔴 TRACING ACTIVE - Use your Android device now!")
+print("📱 Perform the actions you want to analyze...")
+print("⏹️  Press ENTER when finished to stop tracing and analyze results")
+print("="*70 + "\n")
 input()
 
 trace_process.stdin.write(b'\n')
