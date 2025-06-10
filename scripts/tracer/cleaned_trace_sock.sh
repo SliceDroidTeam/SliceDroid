@@ -60,21 +60,27 @@ done
 # Apply event filters
 if [ -f "$CONFIG_DIR/events_to_filter.txt" ]; then
     while read -r event; do
-        echo "($pid_string)" > $TRACE_DIR/$event/filter
+        if [ -d "$TRACE_DIR/$event" ] && [ -w "$TRACE_DIR/$event/filter" ]; then
+            echo "($pid_string)" > $TRACE_DIR/$event/filter 2>/dev/null
+        fi
     done < "$CONFIG_DIR/events_to_filter.txt"
 fi
 
 # Enable selected events
 if [ -f "$CONFIG_DIR/events_to_enable.txt" ]; then
     while read -r event; do
-        echo 1 > "$TRACE_DIR/$event/enable"
+        if [ -d "$TRACE_DIR/$event" ] && [ -w "$TRACE_DIR/$event/enable" ]; then
+            echo 1 > "$TRACE_DIR/$event/enable" 2>/dev/null
+        fi
     done < "$CONFIG_DIR/events_to_enable.txt"
 fi
 
 # Enable vendor-specific events
 if [ -f "$CONFIG_DIR/events_to_enable_conditional.txt" ]; then
     while IFS='->' read -r tag event; do
-        [ "$tag" = "$device_tag" ] && echo 1 > "$TRACE_DIR/$event/enable"
+        if [ "$tag" = "$device_tag" ] && [ -d "$TRACE_DIR/$event" ] && [ -w "$TRACE_DIR/$event/enable" ]; then
+            echo 1 > "$TRACE_DIR/$event/enable" 2>/dev/null
+        fi
     done < "$CONFIG_DIR/events_to_enable_conditional.txt"
 fi
 
