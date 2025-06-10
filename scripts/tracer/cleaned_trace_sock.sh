@@ -75,9 +75,11 @@ if [ -f "$CONFIG_DIR/events_to_enable.txt" ]; then
 fi
 
 # Enable vendor-specific events
-while IFS='->' read -r tag probe; do
-    [[ "$tag" == "$device_tag" ]] && echo 1 > "/sys/kernel/tracing/$event/enable"
-done < 'config_files/events_to_enable_conditional.txt'
+if [ -f "$CONFIG_DIR/events_to_enable_conditional.txt" ]; then
+    while IFS='->' read -r tag event; do
+        [ "$tag" = "$device_tag" ] && echo 1 > "$TRACE_DIR/$event/enable"
+    done < "$CONFIG_DIR/events_to_enable_conditional.txt"
+fi
 
 # Wait for user to stop
 read STOP

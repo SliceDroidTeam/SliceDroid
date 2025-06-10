@@ -17,11 +17,11 @@ if os.path.isdir(mapping_dir):
 
 if skip_rdev:
     # Collect st_devs and r_devs
-    stdev_script = os.path.join("resources_resolver", "run_stdev_rdev_trace.py")
+    stdev_script = os.path.join("scripts", "resources_resolver", "run_stdev_rdev_trace.py")
     subprocess.run(["python", stdev_script], check=True, stderr=subprocess.STDOUT)
 
 # Push tracing script to the device
-tracing_script = os.path.join("scripts", "cleaned_trace_sock.sh")
+tracing_script = os.path.join("scripts", "tracer", "cleaned_trace_sock.sh")
 subprocess.run(
     ["adb", "push", tracing_script, "/data/local/tmp/cleaned_trace_sock.sh"],
     check=True
@@ -41,7 +41,7 @@ subprocess.run(
 
 # Push config files to the device
 subprocess.run(
-    ["adb", "push", "config_files", "/data/local/tmp/config_files"],
+    ["adb", "push", "scripts/tracer/config_files", "/data/local/tmp/config_files"],
     check=True
 )
 
