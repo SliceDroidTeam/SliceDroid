@@ -12,6 +12,7 @@ echo 102400 > $TRACE_DIR/buffer_size_kb
 echo record-tgid > $TRACE_DIR/trace_options
 
 # Disable all events and clear old data
+echo 0 > $TRACE_DIR/tracing_on
 echo 0 > $TRACE_DIR/events/enable
 echo > $TRACE_DIR/trace
 echo > $TRACE_DIR/kprobe_events
@@ -35,10 +36,6 @@ if [ -f "$CONFIG_DIR/kprobes_conditional.txt" ]; then
         [ "$tag" = "$device_tag" ] && echo "$probe" >> $TRACE_DIR/kprobe_events
     done < "$CONFIG_DIR/kprobes_conditional.txt"
 fi
-
-# Start trace_pipe background read
-cat $TRACE_DIR/trace_pipe > $TMP_DIR/trace.trace &
-waitpid=$!
 
 # Collect PIDs
 all_pids=""
@@ -81,8 +78,20 @@ if [ -f "$CONFIG_DIR/events_to_enable_conditional.txt" ]; then
     done < "$CONFIG_DIR/events_to_enable_conditional.txt"
 fi
 
+# IMPORTANT: Enable tracing AFTER all configuration is done
+echo 1 > $TRACE_DIR/tracing_on
+echo "Tracing enabled. Starting data collection..."
+
+# Start trace_pipe background read
+cat $TRACE_DIR/trace_pipe > $TMP_DIR/trace.trace &
+waitpid=$!
+
+echo "Trace collection active. Press ENTER to stop..."
+
 # Wait for user to stop
 read STOP
+
+echo "Stopping trace collection..."
 
 # Stop tracing
 echo 0 > $TRACE_DIR/tracing_on
@@ -102,12 +111,14 @@ else
 fi
 
 # Show output trace file
+echo "Trace file info:"
 ls -alh $TMP_DIR/trace.trace
 
 # Gzip the trace
-echo "Starting gzip..."
+echo "Starting gzip compression..."
 gzip -f $TMP_DIR/trace.trace
-echo "Finished gzip."
+echo "Compression completed."
 
 # Show gzipped file
+echo "Final compressed trace file:"
 ls -alh $TMP_DIR/trace.trace.gz
