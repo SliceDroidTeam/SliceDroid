@@ -25,7 +25,6 @@ device_nodes = defaultdict(list)
 # Uses r_dev to identify the device node
 with open(rdevs_path, 'r') as f:
     lines = f.readlines()
-print(lines)
 
 for line in lines:
     if 'camera'== line.split(' ')[2] or 'camera'== line.split(' ')[3].removesuffix('\n'):
