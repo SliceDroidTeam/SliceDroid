@@ -432,6 +432,9 @@ tracing remains the authoritative foundation for our behavioural profiling of
 messaging apps.  In our study, we therefore treat user-space hooks as an
 \emph{auxiliary lens} to validate and enrich the low-level, system-wide evidence
 captured by eBPF-based kernel monitors
+
+
+
 \section{Kernel–Level Tracing on Android}
 
 \subsection{Tracing Infrastructures}
@@ -452,7 +455,7 @@ Kernel hooks sit beneath both the Java/ART runtime and Linux user-space, capturi
         Google’s \emph{Perfetto} unifies \textit{ftrace}, Binder and user-space counters into multi-GB, SQL-queryable traces for start-up and jank analysis, while \emph{eMook} adds per-PID eBPF filters, cutting system cost by 85 %.  These toolchains enable week-long field studies on battery devices but remain untapped for security and messaging use-cases.
 \end{enumerate}
 
-\subsection{Bridging the Semantic Gap: Behaviour Reconstruction \& Transparency}
+\subsection{Behaviour Reconstruction \& Transparency}
 After tracing primitives matured, attention shifted to re-assembling high-level behaviours from low-level footprints:
 
 \begin{enumerate}[label=(\alph*),resume]
@@ -556,7 +559,7 @@ Taken together, these observations suggest there is still room for techniques th
 \chapter{Technical Background}
 
 This chapter provides a detailed overview of technical background necessary for understanding the methodology and objectives of this thesis. First, it presents the architecture of the Android operating system, focusing particularly on the Linux-based kernel and how applications interact with it. Next, it discusses the behavior and privacy concerns related to messaging applications, highlighting known issues and relevant technical aspects. Furthermore, it outlines the advantages and limitations of static and dynamic analysis techniques and explores the role of system calls in behavior profiling. Finally, it reviews kernel-level tracing tools and techniques.
-\section{Android Architecture and Kernel-Level Access}
+\section{Android Architecture}
 
 \subsection{Android Software Stack Overview}
 Android is a layered, open-source mobile operating system built on top of a customized version of the
@@ -700,110 +703,6 @@ These architectural and cryptographic distinctions shape observable syscall beha
 
 \textbf{Figure 7:} Comparative Analysis of Architectural and Cryptographic Models in Signal, Telegram, and Messenger.
 
-\section{System Call Tracing and Behavioral Analysis}
-
-Kernel-level system call tracing provides a low-level, ground-truth view of how Android applications interact with the operating system. In this section, we explore both the technical mechanisms available for capturing such interactions and the analytical methods used to extract meaningful behavioral insights—particularly in the context of privacy-sensitive mobile applications such as messaging platforms.
-
-\subsection{Tracing Interfaces and Instrumentation Tools}
-
-Modern Linux/Android kernels expose \emph{three orthogonal instrumentation surfaces}: (i) \textbf{static hooks} that are compiled into the kernel (tracepoints), (ii) \textbf{dynamic probes} that can be inserted at run time (k{,u}probes, eBPF), and (iii) \textbf{ptrace--based syscall interception} (strace).  Table~\ref{tab:tracing-tools} highlights their comparative properties, while the text that follows groups them by abstraction level and expected use-case.
-
-\paragraph{Static, zero-copy tracepoints.}
-Tracepoints are compile-time hooks maintained by kernel developers; they guarantee ABI stability and negligible overhead because the tracing payload is copied once into a per-CPU ring buffer.  Tools such as \texttt{perf}, \texttt{ftrace} and \texttt{bcc} attach to them for scheduler, VFS, or networking events with no kernel patching.
-
-\paragraph{Dynamic probes and in-kernel programs.}
-\texttt{kprobes} (kernel) and \texttt{uprobes} (user space) allow on-the-fly instrumentation of arbitrary function symbols, making them ideal when a suitable tracepoint is missing.  eBPF generalises this idea by allowing verified byte-code programs to run in kernel context, enabling stateful filtering, histograms, and user-space export with minimal context switches.  Because Android’s common kernels (\,$\ge$~5.10) now ship with BPF Type Format (BTF) enabled, eBPF is increasingly the default for production-grade observability.
-
-\paragraph{Function and syscall tracers.}
-\texttt{ftrace} is a built-in tracer that can log every kernel entry/exit or a filtered subset (e.g.\ only \texttt{vfs\_write}); it underpins higher-level front-ends such as \texttt{systrace} and \texttt{Perfetto}.  At user level, \texttt{strace} leverages \texttt{ptrace(2)} to record syscall arguments, but incurs high per-event latency and is straightforward for malware to detect—hence unsuitable for long-running, stealth monitoring.
-
-\begin{table}[H]
-\centering
-\footnotesize
-\caption{Comparison of kernel tracing mechanisms on Android/Linux}
-\label{tab:tracing-tools}
-\begin{tabular}{@{}lcccc@{}}
-\toprule
-\textbf{Interface}      & \textbf{Granularity} & \textbf{Runtime insert?} & \textbf{Avg.\ overhead} & \textbf{Best use-case} \\ \midrule
-Tracepoints             & fixed events        & --                      & $\sim$0.3–1\% cpu       & Scheduler / VFS stats  \\
-ftrace (func tracer)    & any kernel func.    & enable/disable          & 1–5\% with filter       & Call-stack profiling   \\
-kprobes / uprobes       & any symbol          & \checkmark              & 2–8\% (filtered)        & Ad-hoc instrumentation \\
-eBPF + BTF              & prog.\ byte-code    & \checkmark              & $<$2\% (JITed)          & Stateful, low loss      \\
-strace (ptrace)         & syscalls only       & user-space              & 30–100\%                & Debug / unit tests     \\ \bottomrule
-\end{tabular}
-\end{table}
-
-The thesis adopts a \emph{hybrid strategy}: lightweight \texttt{ftrace} for ubiquitous, low-volume events; targeted \texttt{kprobes} for missing hooks (e.g.\ \texttt{vfs\_write}); and optional eBPF programs when on-device filtering is required.  High-overhead \texttt{strace} is reserved solely for differential debugging and is never enabled in production experiments.
-
-
-\subsection{Raw Trace Data}
-
-Kernel tracing tools (\texttt{ftrace}, \texttt{kprobes}, eBPF, \textit{etc.}) stream their output to \texttt{tracefs} as \textbf{fixed-width, one-line records}.
-Each record encodes—without additional parsing—the CPU on which the event was recorded, the task name and PID, a flag block (IRQ state, pre-emption depth), a high-resolution timestamp, and finally the probe payload.
-
-\begin{lstlisting}[language={},caption={Excerpt from \texttt{trace\_pipe}}]
-<photo_app>-1234  [003] d..2 10234.567890: sys_enter_openat:
-    dfd=AT_FDCWD filename="/data/user/0/app/cache/img.jpg" flags=O_RDONLY
-<photo_app>-1234  [003] d..2 10234.567905: sys_exit_openat:  = 42
-<nfc_service>-285   [001] d..2 10235.001122: sys_enter_ioctl:
-    fd=22 cmd=0x4004667E arg=0x7fff31ff
-\end{lstlisting}
-
-\noindent
-\textbf{Field semantics}
-\begin{itemize}
-  \item \textit{Task‐PID}: user-level thread that triggered the event.
-  \item \textit{\,[CPU] flags}: per-CPU core and execution context (\texttt{d}~=~kernel mode, \texttt{2} = IRQ depth).
-  \item \textit{Timestamp}: monotonic clock in micro-seconds by default; nanosecond precision available.
-  \item \textit{Event tag}: probe name (\texttt{sys\_enter\_openat}) followed by key–value arguments captured directly from CPU registers or kernel structures.
-\end{itemize}
-
-\paragraph{Why keep the raw stream}
-\begin{itemize}
-  \item Loss-less: \texttt{tracefs} writes to a per-CPU ring buffer before any filtering—crucial for forensics.
-  \item Deterministic ordering: timestamps are emitted in-kernel, avoiding user-space re-ordering.
-  \item Re-playable: the same raw lines can be re-parsed with new heuristics (e.g.\ different PID filters) without re-tracing the device.
-\end{itemize}
-
-\paragraph{Immediate post-processing steps}
-\begin{enumerate}[label=(\roman*)]
-  \item \emph{PID filtering} to retain only application or system-service PIDs of interest.
-  \item \emph{Field decoding} (hex → decimal, bit-fields) via a lightweight Python lexer.
-  \item \emph{Chunking} into sliding windows (size $\sim$200–500 events) to bound causal slicing.
-\end{enumerate}
-
-\noindent
-These cleaned slices are then forwarded to the \textit{Heuristic Slicing Engine}, which reconstructs information flows, and finally exported as CSV/JSON or rendered as PDF visualisations.
-
-\subsection{System Call Pattern Analysis and Behavioral Fingerprinting}
-
-\subsubsection{Pattern Extraction Techniques}
-To accurately analyze the behavior of Android messaging applications at the kernel level, it is crucial to extract meaningful patterns from the collected system call traces. After gathering raw trace data using kernel-level tracing mechanisms such as ftrace or kprobes \cite{gregg2019bpf}, the analysis pipeline proceeds with a structured set of extraction techniques.
-
-Firstly, \textbf{trace preprocessing} is performed to filter irrelevant system calls that may be attributed to background system processes or kernel housekeeping tasks. This stage involves the normalization of syscall logs, removal of duplicates, and categorization into meaningful functional groups such as network operations (\texttt{sendto}, \texttt{recvmsg}), file operations (\texttt{open}, \texttt{read}, \texttt{write}), and memory operations (\texttt{mmap}, \texttt{mprotect}) \cite{tanenbaum2015modern}.
-
-A fundamental step in pattern extraction is the use of \textbf{sliding window analysis} with N-grams, where sequences of consecutive system calls of fixed length (typically 3-5 syscalls) are extracted and analyzed for frequency. For instance, a recurring sequence like \texttt{open → mmap → sendto} can indicate frequent file accesses followed by network transmissions, a characteristic pattern for messaging activities such as sending multimedia files \cite{kim2019syscall}.
-
-Moreover, we apply \textbf{temporal clustering} to detect bursts of system call activity, which are indicative of specific application behaviors like message sending, receiving notifications, or background synchronization. Clustering techniques such as DBSCAN or HDBSCAN help distinguish between typical and anomalous behavioral sequences based on temporal proximity \cite{ester1996density}.
-
-Another valuable approach is constructing \textbf{system call frequency vectors}. Each trace is represented as a numerical vector, with dimensions corresponding to different system calls, facilitating quantitative comparisons between different sessions or different applications. This approach supports both exploratory analysis and automated classification tasks \cite{bishop2007pattern}.
-
-Finally, to model the complex dependencies between system calls, \textbf{graph-based extraction methods} such as directed state-transition graphs are utilized. In these graphs, nodes represent individual syscalls, and directed edges capture the observed transitions between them. Analysis of such graphs, for instance via centrality measures, provides insights into dominant behavioral flows and significant transition points within an application's runtime \cite{newman2010networks}.
-
-\subsubsection{Behavioral Fingerprinting}
-Behavioral fingerprinting refers to constructing distinct behavioral signatures of applications based on their system call patterns. Given the kernel-level granularity of our data, these fingerprints provide robust indicators of application identity, operational phases, and potential privacy-related activities.
-
-A \textbf{behavioral fingerprint} is formally defined as the set of characteristic system call sequences or frequency distributions uniquely associated with an application's operation. To create these fingerprints, multiple execution traces of the same application under controlled conditions (e.g., message sending, multimedia sharing, background synchronization) are aggregated. Frequent and consistent system call patterns are identified using techniques such as frequent subsequence mining or clustering \cite{han2022datamining}.
-
-These fingerprints facilitate several critical analyses. For example, by comparing fingerprints across messaging applications such as Signal, Telegram, and Facebook Messenger, distinct operational behaviors emerge, highlighting differences in their privacy handling and background operations. Fingerprints based on syscall sequences like \texttt{stat → open → sendto} can reliably indicate data transmissions or potential data exfiltration events \cite{enck2014taintdroid}.
-
-Further, fingerprints serve as powerful tools for anomaly detection. By establishing baseline fingerprints under normal operating conditions, deviations can be quickly identified, suggesting unusual behaviors such as increased network activity or unauthorized access to sensitive files. This method enables proactive identification of potential privacy infringements or malicious behavior, complementing traditional security mechanisms \cite{chandola2009anomaly}.
-
-Practically, we represent fingerprints as frequency vectors, n-gram sequences, or transition graphs, each capturing distinct aspects of the application's behavior. Frequency vectors offer a straightforward numerical approach for quick comparisons, while n-gram sequences and transition graphs provide more detailed behavioral context.
-
-Ultimately, behavioral fingerprinting based on kernel-level system call patterns enhances our understanding of application behavior, supports precise application identification, and significantly improves privacy and security analysis within the Android ecosystem \cite{felt2011androidprivacy}.
-
-
 % --------------------------------------------------
 %  Research Methodology
 % --------------------------------------------------
@@ -815,26 +714,63 @@ Importantly, this thesis constitutes a natural extension of the SYSDROID framewo
 
 \section{Research Design}
 
-The research design employs a kernel-level tracing approach to profile behavioral patterns of popular Android messaging applications without requiring app instrumentation. The primary goal is to transparently capture system-level activities, such as system calls, IPC, and network interactions, to detect privacy-sensitive behaviors. Kernel-level tracing was chosen over user-level or API-based approaches due to its transparency, accuracy, and non-invasive nature. Experiments were performed on a rooted Android device using Magisk and bootloader unlocking for kernel tracing filesystem (\texttt{tracefs}) access.
+The research design employs a hybrid methodology combining static and dynamic analysis to profile behavioral patterns of popular Android messaging applications without requiring app instrumentation.
 
-The study follows a minimal intervention, ``black-box'' methodology with no modifications to apps or OS components, focusing solely on kernel observations. Technical tools used include \texttt{ftrace}, \texttt{kprobes}, ADB, custom shell scripts, and Python scripts for parsing and processing trace data into structured formats (JSON).
+Static analysis was employed as the initial step of the hybrid approach due to its ability to rapidly identify potential privacy-sensitive behaviors directly from application binaries without execution. By analyzing application code statically, it is possible to preemptively identify potential leakage points, risky APIs, and suspicious interactions that merit further dynamic investigation. Static analysis provides scalability, repeatability, and early-stage detection capabilities, significantly reducing the scope and complexity required for dynamic analysis.
 
-An additional design decision was the use of \texttt{kprobes} and \texttt{ftrace} instead of more advanced or emerging technologies such as eBPF. This choice was primarily driven by the principle of simplicity, in line with Occam's razor---opting for the simplest effective solution when more complex alternatives are unnecessary. Since the research objectives could be fully met using established, low-level tracing tools, there was no compelling need to adopt or upgrade to more sophisticated frameworks. This approach facilitated ease of deployment, lower learning curve, and minimized potential system instability or compatibility issues, while still ensuring comprehensive data collection for the study's requirements.
+Androguard was chosen for primary static analysis due to its ease of use, rapid execution, and convenient Python-based interface, allowing seamless integration with existing scripting and processing workflows. Subsequently, Mobile Security Framework (MobSF)—an open-source security analysis platform that integrates both static and dynamic analysis capabilities—was utilized. MobSF was selected because of its comprehensive reporting features, intuitive graphical interface, and efficient analytical capabilities, streamlining the analytical process and facilitating deeper insights into application behavior.
 
-Design principles such as reproducibility, low overhead, and the detection capability for IPC, sensitive resource access, and network activities are prioritized. A sliding window approach is applied for detailed temporal analysis.
+The dynamic analysis leveraged kernel-level tracing, chosen for its transparency, accuracy, and non-invasive nature, relying heavily on existing capabilities provided by SYSDROID, which was extended further for the needs of this analysis. Experiments were conducted on a rooted Android device using Magisk and bootloader unlocking to access the kernel tracing filesystem (tracefs). Tools employed include ftrace, kprobes, ADB, custom shell scripts, and Python utilities for parsing and processing trace data into structured formats (JSON).
 
-Data quality is ensured via validation and heuristic cleaning to filter irrelevant daemon activities. Comprehensive downstream analysis, including statistical evaluation, visualization, and a web-based interface, will be thoroughly detailed in subsequent sections.
+An essential design decision was the use of kprobes and ftrace instead of more advanced technologies such as eBPF, aligning with the principle of simplicity. Established tracing tools were sufficient to meet the research objectives, avoiding unnecessary complexity and facilitating ease of deployment, lower learning curve, and minimized potential system instability or compatibility issues.
 
-In particular, the tracing process is initiated through a set of \texttt{bash} scripts executed directly on the Android device. These scripts dynamically configure and activate \texttt{kprobes} and \texttt{tracepoints} to monitor relevant kernel-level events, targeting specific system calls and function entries of interest. The resulting raw trace data is collected from the \texttt{tracefs} interface and securely exported to the host system.
+Tracing was initiated using bash scripts executed directly on the Android device, dynamically configuring and activating kprobes and tracepoints targeting specific kernel events. Raw trace data from tracefs was exported securely to the host system, processed, and cleaned via Python scripts, employing PID-based filtering and heuristic techniques.
 
-Once exported, custom Python scripts are used to process and clean the raw logs. These scripts apply PID-based filtering and heuristic techniques to isolate information flows originating from the specific messaging application under analysis, while removing noise introduced by unrelated background system processes. The cleaned data is transformed into structured formats such as JSON or CSV to support downstream processing.
+Design principles such as reproducibility, low overhead, and capability to detect IPC, sensitive resource access, and network activities were prioritized. A sliding window approach enabled detailed temporal analysis, ensuring data quality through validation and heuristic cleaning to filter irrelevant activities.
 
-The final stage of the pipeline involves visualization. Static visualizations are generated using Python plotting libraries (e.g., \texttt{matplotlib}), providing summary statistics and event distributions. In parallel, an interactive web-based visualization tool has been developed using \texttt{Flask} and \texttt{D3.js}. This interface offers dynamic filtering by PID, event type, and timestamps, along with timeline-based views and graph-based summaries of system interactions.
-\section{Experimental Setup}
+Visualization involved generating static summaries using Python libraries (e.g., matplotlib) for statistical evaluation and event distributions. Concurrently, an interactive web-based visualization tool, developed using Flask and D3.js, provided dynamic filtering and detailed timeline-based interaction summaries.
+
+Detailed descriptions of the methodology and pipeline implementation are elaborated in subsequent chapters.
+
+
+\section{Static Analysis Pipeline}
+
+\subsection{Tool Selection and Rationale}
+
+The static analysis phase relied primarily on two open-source tools: Androguard and MobSF. These tools were selected based on their usability, extensibility, and ability to produce structured, interpretable results suitable for early-phase exploration.
+
+Androguard was chosen as the first-stage analyzer due to its lightweight nature and Python-based interface. It allows decompilation of APK files into Dalvik bytecode, extraction of manifest metadata, and traversal of call graphs. Its scripting capabilities enabled batch processing and direct generation of structured CSV reports. Specifically, the CSV file used in this study summarizes permission usage, class hierarchies, and API call references for quick inspection.
+
+Following this, MobSF (Mobile Security Framework) was used for deeper inspection. MobSF is a versatile tool supporting both static and dynamic analysis through a unified web interface or API. It performs deep inspection of Android APKs and generates detailed PDF reports. In this study, MobSF's output included permissions, dangerous API patterns, intent filters, and trackers, as demonstrated by the PDF report generated for the Telegram APK.
+
+The combined use of these tools offered both programmatic flexibility and interpretability. Androguard served as the automated backend for pre-filtering and rapid metadata extraction, while MobSF provided comprehensive summaries that supported manual cross-verification and security-relevant insights. This dual-tool strategy enabled efficient triaging of application behavior prior to dynamic analysis.
+
+
+
+\subsection{Setup and Execution Workflow}
+
+The APKs of the three messaging applications (Signal, Messenger, Telegram) were extracted directly from the device using ADB. These APKs were then analyzed using both Androguard and MobSF in separate environments.
+
+Androguard was set up in a Python virtual environment on WSL2. After installing version 4.1.3 and its dependencies, a custom script was used to automatically extract information about permissions, component exposure, cryptographic usage, suspicious API calls, and code structure. The output was exported in structured CSV and JSON format, offering a quick behavioral profile for each application.
+
+MobSF, on the other hand, was run through Docker for convenience and reproducibility. The official Docker image was used to launch the web-based analysis engine, which provided high-level reports summarizing potentially dangerous permissions, intent filters, trackers, and native libraries. Each PDF report enabled visual inspection and supported security triage.
+
+Together, these tools offered a balanced combination of lightweight automated analysis and rich visual reporting, enabling a fast yet informative static assessment of each target application.
+
+
+\subsection{Challenges and Limitations}
+
+While Androguard and MobSF were successfully integrated into the pipeline, the broader landscape of static analysis tools for Android presented significant challenges. Several well-established tools proved difficult to use in practice. For example, FlowDroid required complex setup involving specific Java versions and Android platform SDKs, and frequently failed to resolve context-sensitive paths in larger applications. Similarly, tools like Amandroid and QARK either lacked active maintenance or had compatibility issues with recent APK formats and OS environments. In particular, several tools failed to handle APKs signed with modern signature schemes (v2/v3), or encountered class resolution errors due to obfuscated code and multidex structures. As a result, their integration was deemed impractical within the constraints of this study’s timeline and reproducibility requirements. This further justified the decision to rely on tools with minimal dependencies and verified stability, prioritizing efficiency over theoretical completeness.
+
+
+
+
+\section{Dynamic Analysis Pipeline}
+\subsection{Experimental Setup}
 
 The experimental setup involves detailed technical preparation and precise procedures to ensure kernel-level tracing capability. The device selected was a OnePlus Nord CE 4 Lite (CPH2621, EU variant) running Android 15 (SDK 35). It supports System-as-Root (\texttt{isSAR=true}), features A/B partitioning (\texttt{isAB=true}), and includes an accessible ramdisk.
 
-\subsection{Root Access and Boot Image Preparation}
+\subsubsection{Root Access and Boot Image Preparation}
 
 The device was prepared for root access using Magisk, following guidelines from xda-developers. Developer Options, OEM Unlocking, and USB Debugging were activated. Android SDK Platform Tools were installed on the computer, with the path added to environment variables, enabling communication via ADB.
 
@@ -851,13 +787,13 @@ python payload_dumper.py payload.bin
 fastboot flash boot_a magisk_patched-28100_4owcs.img
 \end{lstlisting}
 
-\subsection{ADB Setup and Execution Environment}
+\subsubsection{ADB Setup and Execution Environment}
 
 The ADB setup enabled detailed interaction between the computer and the rooted device, allowing the execution of custom shell scripts for tracing and Python scripts for detailed data parsing and cleaning. Issues regarding portability and trace events were tracked and resolved using a structured GitHub project setup.
 
 This configuration ensured reliable kernel-level data collection, maintaining reproducibility, accuracy, and minimal system intrusion.
 
-\subsection{Identifying Sensitive Database Files}
+\subsubsection{Identifying Sensitive Database Files}
 
 In order to monitor access to sensitive databases (such as \texttt{contacts2.db} or \texttt{mmssms.db}), each target file needed to be uniquely identified using its inode and device ID. The \texttt{stat} command was used to extract this metadata, which provided both the inode number and the major/minor device number of the filesystem hosting the file. An example command is shown in Listing~\ref{lst:db-stat}.
 
@@ -867,7 +803,7 @@ adb shell stat /data/data/com.android.providers.contacts/databases/contacts2.db
 
 The output of this command includes the \texttt{Device}, \texttt{Inode}, and full path, which were stored as part of a JSON metadata mapping. These values were then used to match trace events against specific sensitive files during analysis.
 
-\subsection{Device Node Mapping for Hardware Resources}
+\subsubsection{Device Node Mapping for Hardware Resources}
 
 To associate trace events with hardware resources such as the camera, microphone, or NFC module, we identified the corresponding character device nodes exposed by the kernel. Each device node in \texttt{/dev} is linked to a major and minor number pair, which can be extracted from the \texttt{/sys/class/**/dev} entries. A loop was used to recursively enumerate device nodes and extract their metadata, as illustrated in Listing~\ref{lst:device-node-scan}.
 
@@ -886,7 +822,7 @@ dev_t = (major << 20) | minor
 
 This encoding was used in the trace parser to associate low-level device accesses with high-level categories such as camera or audio input.
 
-\subsection{Automation and Metadata Serialization}
+\subsubsection{Automation and Metadata Serialization}
 
 To automate both processes, a collaborator (Giannis Karyotakis) contributed Bash and Python scripts that programmatically retrieved and serialized this metadata into structured JSON files. These mappings were then used during the trace parsing phase to enrich low-level kernel events with high-level semantic labels.
 
@@ -907,7 +843,7 @@ An excerpt of the structured metadata format is shown in Listing~\ref{lst:json-m
 }
 \end{lstlisting}
 
-\section{System Architecture and Data Flow}
+\subsection{System Architecture and Data Flow}
 
 The system is architected as a multi-layered pipeline for capturing, processing, and analysing kernel-level behavioural data on Android devices. Figure~\ref{fig:architecture} illustrates the overall architecture and the principal data flow across its components.
 
@@ -927,7 +863,7 @@ Each component of the system—ranging from mobile-side tracing and contextual e
 
 
 
-\subsection{Codebase Structure}
+\subsubsection{Codebase Structure}
 
 The implementation is organised into logically separated top-level modules, reflecting the core phases of the data collection, processing, and visualisation pipeline. The structure is designed to promote modularity, reproducibility, and ease of experimentation. The main directories are described below:
 
@@ -946,7 +882,7 @@ The implementation is organised into logically separated top-level modules, refl
 \end{description}
 
 
-\subsection{Instrumentation Layer (Mobile-Side Tracing Engine)}
+\subsubsection{Instrumentation Layer (Mobile-Side Tracing Engine)}
 
 The instrumentation layer is responsible for capturing low-level system interactions occurring on the Android device. The initial implementation of the tracing subsystem was developed by Nikos Alexopoulos as part of the SYSDROID project at AUEB, and forms the foundational backbone of this thesis. This base layer leverages dynamic kernel probes (\texttt{kprobes}) and static \texttt{tracepoints} exposed via the \texttt{ftrace} interface, allowing efficient interception of system call and function-level activity in the kernel.
 
@@ -972,7 +908,7 @@ Instrumentation is activated through on-device \texttt{bash} scripts, which dyna
 This modular instrumentation layer is lightweight, compatible with existing Android kernels, and deployable without kernel recompilation or Android framework modifications. It provides the raw behavioral signal that drives the parsing, slicing, and behavior reconstruction pipeline described in the following sections.
 
 
-\subsection{Resource Resolver Layer}
+\subsubsection{Resource Resolver Layer}
 
 The \emph{Resource Resolver Layer} bridges the semantic gap between
 raw kernel identifiers and human–readable resource categories.  It
@@ -1077,45 +1013,12 @@ as it supplies essential metadata to the behaviour-reconstruction
 pipeline described in the following sections.
 
 
-\subsection{Parsing and Pre-Processing (Computer-Side)}
+\subsubsection{Parsing and Pre-Processing (Computer-Side)}
+After the raw kernel traces were collected from the device, they were quickly pre-processed using a lightweight Python parser. Each trace line was split using regular expressions to extract the main header fields (task, PID, CPU, flags, timestamp, event name) and the detailed key-value pairs. Numerical fields were converted to plain decimal form, flags were normalized, and paths were cleaned of extra characters.
 
-After raw traces are pulled from the device, a lightweight two-phase
-parser converts each \texttt{tracefs} line into a structured Python
-object:
+Next, a sequence of basic filters removed background noise: well-known system daemons were excluded, short-lived file descriptors were ignored, and redundant Binder transaction chatter was collapsed. Finally, the cleaned trace events were divided into overlapping windows to enable manageable and context-preserving analysis in the next steps. This simplified approach followed the same principles as in SysDroid but was adapted for faster exploratory profiling.
 
-\begin{enumerate}[label=(\roman*)]
-  \item \textbf{Tokenisation:} A single \texttt{regex} separates the
-        fixed header \emph{(task--PID, CPU, flags, timestamp,
-        event-name)} from the variable key--value payload.
-
-  \item \textbf{Field casting:} Numerical fields are normalized
-        (\texttt{hex}~$\rightarrow$~\texttt{decimal},
-        bit-flags~$\rightarrow$~boolean), and path arguments are de-quoted.
-\end{enumerate}
-
-
-
-\noindent
-Three incremental “cleaners’’ are then applied:
-
-\begin{compactitem}
-  \item \emph{Daemon filter} — drops events whose \texttt{TASK} belongs
-        to ubiquitous Android services (\texttt{zygote}, \texttt{surfaceflinger}, …).
-  \item \emph{Ephemeral-FD filter} — removes events on short-lived
-        pipes/sockets that never propagate beyond the same PID tree.
-  \item \emph{Binder-noise filter} — collapses tight
-        \texttt{ioctl(BINDER\_WRITE\_READ)} ping-pong cycles.
-\end{compactitem}
-
-\noindent
-Clean events are partitioned into overlapping windows
-($200$–$500$~records, $20\%$ overlap).
-This bound on temporal scope mitigates dependence explosion while
-preserving IPC causality, mirroring the empirical setting of
-SysDroid~\cite{sysdroid2025}.
-
-
-\subsection{Slicing and Information-Flow Tracking}
+\subsubsection{Slicing and Information-Flow Tracking}
 
 For each window and seed PID $p$, we reconstruct per-process
 information flows using the dual-pass IPC slicing algorithm adapted
@@ -1156,7 +1059,7 @@ The resulting flow descriptors are serialised to
 PDF plots and the interactive Flask–D3 dashboard.
 
 
-\subsection{Device Storage and Export Formats}
+\subsubsection{Device Storage and Export Formats}
 
 Raw trace data is initially stored on the device under filenames that reflect the target process under observation (e.g., \texttt{photo\_remote\_phone.child2024.trace}). These files are produced by the instrumentation layer and capture low-level kernel events relevant to the selected application.
 
@@ -1172,7 +1075,7 @@ This layered output structure supports traceability, modular analysis, and easy 
 
 
 
-\subsection{Data Visualization and User Interface Design}
+\subsubsection{Data Visualization and User Interface Design}
 
 To facilitate high-level interpretation of low-level system behavior, the visual interface offers:
 
@@ -1196,7 +1099,7 @@ To facilitate high-level interpretation of low-level system behavior, the visual
 \label{fig:statistics_view}
 \end{figure}
 
-\subsection{Pipeline Summary}
+\subsubsection{Pipeline Summary}
 
 To close this architecture chapter, Figure \ref{fig:pipeline} condenses the entire workflow into eight blocks: configuration and probe activation, low-overhead collection via \texttt{tracefs}, host-side parsing, cleaning, IPC slicing, export, a Flask API, and finally a D3.js dashboard.  Each block is self-contained, so downstream components can be swapped without touching the upstream instrumentation layer.
 
@@ -1236,22 +1139,31 @@ To close this architecture chapter, Figure \ref{fig:pipeline} condenses the enti
 \label{fig:pipeline}
 \end{figure}
 
-\section{Workload Setup and Usage Scenarios}
-\subsection{Target Applications}\label{sec:apps}
+\section{Workload Design and Usage Scenarios}
 
+\subsection{Target Application}
+Three representative Android messaging applications were selected: Signal, Messenger (Meta), and Telegram. Signal stands out for its open-source Signal Protocol, which enforces strict E2EE and minimal metadata, making it a strong benchmark for privacy behavior. Messenger, as a dominant commercial product, provides high-volume, complex user interaction patterns. Telegram adds diversity with its cloud-based and secret chat modes and public channels. This focused corpus balances privacy strength, usage scale, and technical feasibility.
 
-\textbf{Selection criteria}
+\subsection{Execution Scenarios and Scheduling}
+Dynamic tracing was executed under four systematically defined scenarios per app: full permissions, restricted permissions, background passive state, and active foreground use including messaging and video calls. Each run lasted around five minutes and was repeated to ensure consistency. Static scans used the prepared scripts and tools to generate CSV, JSON, and PDF reports per APK, cross-validated with runtime findings.
 
+\subsection{Data Volume and Collected Artifacts}
+Static analysis produced compact artifacts (CSV <100 kB, PDF ~100–200 kB). Dynamic traces were larger, typically 50–300 MB per session depending on activity and hook density. Table~\ref{tab:static-sizes} summarizes static output sizes; dynamic logs provided high-resolution behavioral records for flow reconstruction and visualization.
 
-\subsection{Interaction Scenarios}\label{sec:scenarios}
-
-\noindent
-
-
-\subsection{Session Schedule and Duration}\label{sec:schedule}
-
-
-\subsection{Trace Volume and Storage Footprint}\label{sec:trace-volume}
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Application} & \textbf{CSV size (kB)} & \textbf{PDF size (kB)} \\
+\hline
+Signal & 50 & 120 \\
+Messenger & 80 & 180 \\
+Telegram & 45 & 110 \\
+\hline
+\end{tabular}
+\caption{Approximate static analysis file sizes}
+\label{tab:static-sizes}
+\end{table}
 
 
 % --------------------------------------------------
