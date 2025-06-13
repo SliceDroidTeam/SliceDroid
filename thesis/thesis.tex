@@ -1175,111 +1175,105 @@ Telegram & 45 & 110 \\
 \section{Static Analysis Results}
 
 \subsection{Scope and Dataset Overview}
-The static security analysis conducted covers the Signal, Telegram, and Messenger applications, employing comprehensive evaluations using Mobile Security Framework (MobSF, version 4.3.3). APKs analyzed include \texttt{signal.apk} (7.43.1), \texttt{telegram.apk} (11.12.0), and \texttt{messenger.apk} (456.1.0), scanned on June 13, 2025. The analysis combined Androguard for initial manifest and permission extraction, with MobSF providing extensive reports detailing manifests, certificates, vulnerabilities, and overall risk assessments. Summaries of these reports are detailed in Table~\ref{tab:static-files}.
+This static security review dissects Signal, Telegram, and Messenger by leveraging detailed MobSF PDF reports and complementary CSV exports summarising permissions, trackers, and third-party integrations. The APKs—Signal (7.43.1), Telegram (11.12.0), Messenger (456.1.0)—were extracted from real devices, ensuring that the static findings reflect production builds. Androguard and MobSF combined reveal a layered perspective of manifest structure, cryptographic posture, embedded trackers, and risk scoring.
 
 \begin{table}[H]
 \centering
 \begin{tabular}{|l|c|c|}
 \hline
-\textbf{Application} & \textbf{CSV Size (kB)} & \textbf{PDF Report Size (kB)} \\
+\textbf{App} & \textbf{CSV (kB)} & \textbf{PDF (kB)} \\
 \hline
 Signal & 50 & 120 \\
 Telegram & 45 & 110 \\
 Messenger & 80 & 180 \\
 \hline
 \end{tabular}
-\caption{Static Analysis File Sizes}
-\label{tab:static-files}
+\caption{Analysis Artifact Sizes}
 \end{table}
 
-\subsection{Detailed Application Findings}
+\subsection{Application Finding}
+
+\textbf{General Application Metadata}
 
 \begin{table}[H]
 \centering
 \begin{tabular}{|l|l|l|l|}
 \hline
-\textbf{Attribute} & \textbf{Signal} & \textbf{Telegram} & \textbf{Messenger} \\
+Attribute & Signal & Telegram & Messenger \\
 \hline
 Version & 7.43.1 & 11.12.0 & 456.1.0 \\
 Package & org.thoughtcrime.securesms & org.telegram.messenger & com.facebook.orca \\
-APK Size & 85.64MB & ~100MB & ~120MB \\
-Min SDK & 21 (Android 5.0) & 21 (Android 5.0) & 23 (Android 6.0) \\
+Min SDK & 21 & 21 & 23 \\
 Target SDK & 34 & 34 & 34 \\
-Main Activity & AppSettingsActivity & LaunchActivity & MessengerMainActivity \\
-Security Score & 51/100 & 49/100 & 47/100 \\
+APK Size & 85.64MB & ~100MB & ~120MB \\
 \hline
 \end{tabular}
-\caption{General Application Information}
-\label{tab:app-info}
+\caption{Basic App Metadata}
 \end{table}
 
-\textbf{Certificates and Signatures}
-The certificates reveal outdated cryptographic practices, as summarized in Table~\ref{tab:certificates}, raising concerns regarding hash collision vulnerabilities due to their use of SHA-1 and weak RSA keys.
+A glance at certificates reveals an industry-wide inertia: all three apps still rely on SHA-1 and 1024-bit RSA keys—dangerously outdated choices given modern collision attacks. The Messenger certificate has the longest chain and more elaborate subject fields, aligning with corporate distribution standards.
 
 \begin{table}[H]
 \centering
 \begin{tabular}{|l|p{4cm}|p{4cm}|p{4cm}|}
 \hline
-\textbf{Attribute} & \textbf{Signal} & \textbf{Telegram} & \textbf{Messenger} \\
+Field & Signal & Telegram & Messenger \\
 \hline
 Issuer & Whisper Systems & Nikolay Kudashov (VK) & Facebook Inc. \\
-Validity & 2010-05-25 to 2045-05-16 & 2013-08-29 to 2038-08-23 & 2011-03-15 to 2036-03-10 \\
-Signature Algorithm & rsassa\_pkcs1v15 & rsassa\_pkcs1v15 & rsassa\_pkcs1v15 \\
+Serial No. & 07:61:... & 5A:3B:... & 23:8C:... \\
 Hash Algorithm & SHA-1 & SHA-1 & SHA-1 \\
 Key Size & 1024 bits & 1024 bits & 1024 bits \\
+Valid Until & 2045 & 2038 & 2036 \\
 \hline
 \end{tabular}
-\caption{Application Certificate Comparison}
-\label{tab:certificates}
+\caption{Certificate Summary}
 \end{table}
 
-\textbf{Permissions and Manifest Analysis}
-Comparing permissions highlights Telegram and Messenger's expansive permissions scope, significantly broader than Signal's, raising concerns about potential abuse or misuse.
+\textbf{Permission Patterns and Manifest Red Flags}
+
+Using the CSV cross-check, Signal stands out for restraint, requesting only core messaging permissions. However, one might suspect a false sense of security: it still sets \texttt{allowBackup=true} and exposes over 15 activities publicly. Telegram, on the contrary, is a buffet of permission grants—from CALL\_PHONE to SYSTEM\_ALERT\_WINDOW—paired with cleartext traffic allowed by default. Messenger is a powerhouse, blending chat, voice, and social hooks, explaining its wider permission matrix.
 
 \begin{table}[H]
 \centering
 \begin{tabular}{|l|c|c|c|}
 \hline
-\textbf{Permission/Flag} & \textbf{Signal} & \textbf{Telegram} & \textbf{Messenger} \\
+Permission/Flag & Signal & Telegram & Messenger \\
 \hline
 READ\_CONTACTS & Yes & Yes & Yes \\
-WRITE\_CONTACTS & Yes & Yes & Yes \\
-CAMERA & Yes & Yes & Yes \\
-RECORD\_AUDIO & Yes & Yes & Yes \\
 CALL\_PHONE & No & Yes & Yes \\
-READ\_CALL\_LOG & No & Yes & Yes \\
 SYSTEM\_ALERT\_WINDOW & No & Yes & Yes \\
 REQUEST\_INSTALL\_PACKAGES & No & Yes & Yes \\
 allowBackup=true & Yes & Yes & Yes \\
 usesCleartextTraffic=true & No & Yes & No \\
+Trackers Found & None & Firebase, Google Analytics & Facebook Analytics, Crashlytics \\
 \hline
 \end{tabular}
-\caption{Selected Dangerous Permissions and Manifest Flags}
-\label{tab:permissions}
+\caption{Key Permissions and Tracker Summary}
 \end{table}
 
-\textbf{High-Severity Vulnerabilities and Concerns}
+The CSV shows that Telegram and Messenger embed multiple SDKs for analytics and push tracking—hinting at privacy trade-offs even for a casual user. Signal remains tracker-free but carries custom permissions like \texttt{org.thoughtcrime.securesms.ACCESS\_SECRETS}, which deserve closer audit.
 
-\begin{table}[H]
-\centering
-\begin{tabular}{|p{3cm}|p{3.5cm}|p{3.5cm}|p{3.5cm}|}
-\hline
-\textbf{Issue} & \textbf{Signal} & \textbf{Telegram} & \textbf{Messenger} \\
-\hline
-Encryption Risks & CBC mode (padding oracle), weak SSL & CBC mode, cleartext enabled & CBC mode usage \\
-Manifest Concerns & High exported components without protection & High exported components, WebView debugging enabled & Extensive exported components \\
-Cryptographic Practices & SHA-1 hashing & MD5, SHA-1 hashing, insecure RNG & SHA-1 hashing \\
-Anti-Analysis Techniques & Anti-VM, Anti-Debug detected & Moderate anti-debugging & Minimal obfuscation \\
-\hline
-\end{tabular}
-\caption{Comparative Vulnerabilities and Issues}
-\label{tab:vulnerabilities}
-\end{table}
+\textbf{Notable High-Risk Findings}
 
-\subsection{Cross-Application Comparison and Expert Commentary}
-Examining these findings through a narrative lens, we observe clear distinctions in security approaches. Signal prioritizes minimalism, leading to fewer permissions but raising notable cryptographic vulnerabilities—such as the insecure SSL and padding oracle issues. Telegram, on the other hand, combines broad feature sets with significant security compromises, notably the cleartext network traffic and extensive debugging capabilities. Messenger, the largest and most complex of the trio, presents a substantial attack surface driven by its extensive permission model and numerous exported components. This complexity, while justified by extensive functionalities, inherently introduces greater vulnerability to exploitation.
+Signal’s static vulnerabilities cluster around crypto missteps (CBC mode, insecure SSL). Telegram’s twin sins: cleartext allowance and WebView debug enabled—both doorways for MITM and code injection. Messenger’s sheer scale yields more exported endpoints than the other two combined: a playground for intent injection attacks if protection levels are not enforced.
 
-Overall, the static analysis reveals the trade-off between security and functionality across applications, underscoring the need for dynamic runtime analysis to validate and contextualize these static findings further.
+\subsection{Cross-Application Comparison and Discussion}
+
+In summary, the static scans narrate a layered story:
+
+- \textbf{Signal} aspires to be lean and private but leans on legacy crypto choices that should have been sunset years ago.
+- \textbf{Telegram} trades some privacy goodwill for usability, especially given its wide permission net and configuration that tolerates plaintext comms.
+- \textbf{Messenger} embodies a high-function, high-risk design: a social juggernaut where convenience trumps minimal exposure.
+
+These static patterns justify a deeper runtime study: whether the declared attack surface is actually reachable in real-world usage is what the dynamic tracing chapters will confront next.
+
+
+% Dynamic Analysis Results
+\section{Dynamic Analysis Results}
+\subsection{Scope and Dataset Overview}
+\subsection{Behavioural Patterns Observed}
+\subsection{Statistical Summaries}
+\subsection{Visualisations}
 
 % --------------------------------------------------
 %  Discussion
