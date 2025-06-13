@@ -1170,15 +1170,116 @@ Telegram & 45 & 110 \\
 %  Results
 % --------------------------------------------------
 \chapter{Results}
-\section{Scope and Dataset Overview}\label{sec:results:dataset}
 
-\section{Behavioural Patterns Observed}\label{sec:results:patterns}
+% Static Analysis Results
+\section{Static Analysis Results}
 
-\section{Cross‑Application Comparison}\label{sec:results:comparison}
+\subsection{Scope and Dataset Overview}
+The static security analysis conducted covers the Signal, Telegram, and Messenger applications, employing comprehensive evaluations using Mobile Security Framework (MobSF, version 4.3.3). APKs analyzed include \texttt{signal.apk} (7.43.1), \texttt{telegram.apk} (11.12.0), and \texttt{messenger.apk} (456.1.0), scanned on June 13, 2025. The analysis combined Androguard for initial manifest and permission extraction, with MobSF providing extensive reports detailing manifests, certificates, vulnerabilities, and overall risk assessments. Summaries of these reports are detailed in Table~\ref{tab:static-files}.
 
-\section{Statistical Summaries}\label{sec:results:stats}
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Application} & \textbf{CSV Size (kB)} & \textbf{PDF Report Size (kB)} \\
+\hline
+Signal & 50 & 120 \\
+Telegram & 45 & 110 \\
+Messenger & 80 & 180 \\
+\hline
+\end{tabular}
+\caption{Static Analysis File Sizes}
+\label{tab:static-files}
+\end{table}
 
-\section{Visualisations}\label{sec:results:viz}
+\subsection{Detailed Application Findings}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|l|l|l|}
+\hline
+\textbf{Attribute} & \textbf{Signal} & \textbf{Telegram} & \textbf{Messenger} \\
+\hline
+Version & 7.43.1 & 11.12.0 & 456.1.0 \\
+Package & org.thoughtcrime.securesms & org.telegram.messenger & com.facebook.orca \\
+APK Size & 85.64MB & ~100MB & ~120MB \\
+Min SDK & 21 (Android 5.0) & 21 (Android 5.0) & 23 (Android 6.0) \\
+Target SDK & 34 & 34 & 34 \\
+Main Activity & AppSettingsActivity & LaunchActivity & MessengerMainActivity \\
+Security Score & 51/100 & 49/100 & 47/100 \\
+\hline
+\end{tabular}
+\caption{General Application Information}
+\label{tab:app-info}
+\end{table}
+
+\textbf{Certificates and Signatures}
+The certificates reveal outdated cryptographic practices, as summarized in Table~\ref{tab:certificates}, raising concerns regarding hash collision vulnerabilities due to their use of SHA-1 and weak RSA keys.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|p{4cm}|p{4cm}|p{4cm}|}
+\hline
+\textbf{Attribute} & \textbf{Signal} & \textbf{Telegram} & \textbf{Messenger} \\
+\hline
+Issuer & Whisper Systems & Nikolay Kudashov (VK) & Facebook Inc. \\
+Validity & 2010-05-25 to 2045-05-16 & 2013-08-29 to 2038-08-23 & 2011-03-15 to 2036-03-10 \\
+Signature Algorithm & rsassa\_pkcs1v15 & rsassa\_pkcs1v15 & rsassa\_pkcs1v15 \\
+Hash Algorithm & SHA-1 & SHA-1 & SHA-1 \\
+Key Size & 1024 bits & 1024 bits & 1024 bits \\
+\hline
+\end{tabular}
+\caption{Application Certificate Comparison}
+\label{tab:certificates}
+\end{table}
+
+\textbf{Permissions and Manifest Analysis}
+Comparing permissions highlights Telegram and Messenger's expansive permissions scope, significantly broader than Signal's, raising concerns about potential abuse or misuse.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Permission/Flag} & \textbf{Signal} & \textbf{Telegram} & \textbf{Messenger} \\
+\hline
+READ\_CONTACTS & Yes & Yes & Yes \\
+WRITE\_CONTACTS & Yes & Yes & Yes \\
+CAMERA & Yes & Yes & Yes \\
+RECORD\_AUDIO & Yes & Yes & Yes \\
+CALL\_PHONE & No & Yes & Yes \\
+READ\_CALL\_LOG & No & Yes & Yes \\
+SYSTEM\_ALERT\_WINDOW & No & Yes & Yes \\
+REQUEST\_INSTALL\_PACKAGES & No & Yes & Yes \\
+allowBackup=true & Yes & Yes & Yes \\
+usesCleartextTraffic=true & No & Yes & No \\
+\hline
+\end{tabular}
+\caption{Selected Dangerous Permissions and Manifest Flags}
+\label{tab:permissions}
+\end{table}
+
+\textbf{High-Severity Vulnerabilities and Concerns}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{3cm}|p{3.5cm}|p{3.5cm}|p{3.5cm}|}
+\hline
+\textbf{Issue} & \textbf{Signal} & \textbf{Telegram} & \textbf{Messenger} \\
+\hline
+Encryption Risks & CBC mode (padding oracle), weak SSL & CBC mode, cleartext enabled & CBC mode usage \\
+Manifest Concerns & High exported components without protection & High exported components, WebView debugging enabled & Extensive exported components \\
+Cryptographic Practices & SHA-1 hashing & MD5, SHA-1 hashing, insecure RNG & SHA-1 hashing \\
+Anti-Analysis Techniques & Anti-VM, Anti-Debug detected & Moderate anti-debugging & Minimal obfuscation \\
+\hline
+\end{tabular}
+\caption{Comparative Vulnerabilities and Issues}
+\label{tab:vulnerabilities}
+\end{table}
+
+\subsection{Cross-Application Comparison and Expert Commentary}
+Examining these findings through a narrative lens, we observe clear distinctions in security approaches. Signal prioritizes minimalism, leading to fewer permissions but raising notable cryptographic vulnerabilities—such as the insecure SSL and padding oracle issues. Telegram, on the other hand, combines broad feature sets with significant security compromises, notably the cleartext network traffic and extensive debugging capabilities. Messenger, the largest and most complex of the trio, presents a substantial attack surface driven by its extensive permission model and numerous exported components. This complexity, while justified by extensive functionalities, inherently introduces greater vulnerability to exploitation.
+
+Overall, the static analysis reveals the trade-off between security and functionality across applications, underscoring the need for dynamic runtime analysis to validate and contextualize these static findings further.
 
 % --------------------------------------------------
 %  Discussion
