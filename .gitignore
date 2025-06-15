@@ -33,3 +33,6 @@ venv/
 /Figures
 Exports/*
 outputs
+
+trace.trace
+trace.trace.gz

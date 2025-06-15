@@ -248,31 +248,13 @@ with gzip.open("data/traces/trace.trace.gz", "rb") as f_in, \
      open("data/traces/trace.trace", "wb") as f_out:
     f_out.write(f_in.read())
 
-# ---------------------
-# Detect and run with venv's python if available
-# ---------------------
-
-venv_python = None
-
-# Look for any directory whose name contains "venv"
-for name in os.listdir("."):
-    if os.path.isdir(name) and "venv" in name.lower():
-        # On Windows, the venv python is in Scripts/python.exe
-        if sys.platform.startswith("win"):
-            candidate = os.path.join(name, "Scripts", "python.exe")
-        else:
-            # On Linux/macOS, it's in bin/python
-            candidate = os.path.join(name, "bin", "python")
-        if os.path.isfile(candidate):
-            venv_python = candidate
-            break
 
 dashboard = os.path.join("webapp", "app.py")
 
 print("[*] Starting web dashboard...")
 # Start the Flask app as a background process:
 server_proc = subprocess.Popen(
-    [venv_python or "python", dashboard],
+    [sys.executable, dashboard],
     stderr=subprocess.STDOUT
 )
 
