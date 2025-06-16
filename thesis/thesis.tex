@@ -716,24 +716,42 @@ Importantly, this thesis constitutes a natural extension of the SYSDROID framewo
 
 \section{Research Design}
 
-The research design employs a hybrid methodology combining static and dynamic analysis to profile behavioral patterns of popular Android messaging applications without requiring app instrumentation.
+The research design adopts a hybrid static–dynamic methodology to systematically uncover and characterise behavioural and security aspects of contemporary Android messaging applications without intrusive instrumentation.
 
-Static analysis was employed as the initial step of the hybrid approach due to its ability to rapidly identify potential privacy-sensitive behaviors directly from application binaries without execution. By analyzing application code statically, it is possible to preemptively identify potential leakage points, risky APIs, and suspicious interactions that merit further dynamic investigation. Static analysis provides scalability, repeatability, and early-stage detection capabilities, significantly reducing the scope and complexity required for dynamic analysis.
+\subsection{Target Application Selection}
 
-Androguard was chosen for primary static analysis due to its ease of use, rapid execution, and convenient Python-based interface, allowing seamless integration with existing scripting and processing workflows. Subsequently, Mobile Security Framework (MobSF)—an open-source security analysis platform that integrates both static and dynamic analysis capabilities—was utilized. MobSF was selected because of its comprehensive reporting features, intuitive graphical interface, and efficient analytical capabilities, streamlining the analytical process and facilitating deeper insights into application behavior.
+A key design decision was the careful selection of three representative Android messaging applications: \textit{Signal}, \textit{Messenger} (Meta), and \textit{Telegram}. This selection was not arbitrary but strategically motivated by the need to balance contrasting privacy models, popularity, feature diversity, and technical feasibility of analysis.
 
-The dynamic analysis leveraged kernel-level tracing, chosen for its transparency, accuracy, and non-invasive nature, relying heavily on existing capabilities provided by SYSDROID, which was extended further for the needs of this analysis. Experiments were conducted on a rooted Android device using Magisk and bootloader unlocking to access the kernel tracing filesystem (tracefs). Tools employed include ftrace, kprobes, ADB, custom shell scripts, and Python utilities for parsing and processing trace data into structured formats (JSON).
+\textbf{Signal} was chosen as a privacy benchmark. It implements the widely respected open-source Signal Protocol, providing robust end-to-end encryption (E2EE) by design and exposing minimal metadata to intermediaries or servers. Its architecture prioritises decentralisation and ephemeral message storage, making it an ideal candidate to assess how a privacy-first approach is reflected both statically (in code) and dynamically (in runtime traces).
 
-An essential design decision was the use of kprobes and ftrace instead of more advanced technologies such as eBPF, aligning with the principle of simplicity. Established tracing tools were sufficient to meet the research objectives, avoiding unnecessary complexity and facilitating ease of deployment, lower learning curve, and minimized potential system instability or compatibility issues.
+\textbf{Messenger}, developed by Meta, was selected as a mainstream, feature-rich counterpart. It dominates global markets with billions of active users and offers a vast array of integrated features—messaging, voice/video calls, payments, and third-party integrations. This complexity translates to richer permission usage, diverse IPC pathways, and potential privacy trade-offs, serving as a high-volume, real-world stress case for the hybrid analysis pipeline.
 
-Tracing was initiated using bash scripts executed directly on the Android device, dynamically configuring and activating kprobes and tracepoints targeting specific kernel events. Raw trace data from tracefs was exported securely to the host system, processed, and cleaned via Python scripts, employing PID-based filtering and heuristic techniques.
+\textbf{Telegram} complements the corpus by introducing a hybrid architecture: it offers both cloud-based messaging (storing messages on remote servers by default) and opt-in secret chats that utilise local device storage and ephemeral encryption keys. Additionally, Telegram supports public channels and bots, introducing unique server-client interaction patterns. Its popularity among privacy-conscious users yet fundamentally different technical approach compared to Signal enriches comparative insights.
 
-Design principles such as reproducibility, low overhead, and capability to detect IPC, sensitive resource access, and network activities were prioritized. A sliding window approach enabled detailed temporal analysis, ensuring data quality through validation and heuristic cleaning to filter irrelevant activities.
+Selecting these three applications thus ensures coverage across a spectrum:
+- From strict E2EE and minimum metadata (Signal),
+- To mainstream commercial solutions with extended functionality (Messenger),
+- To hybrid models blending cloud storage with privacy-enhanced modes (Telegram).
 
-Visualization involved generating static summaries using Python libraries (e.g., matplotlib) for statistical evaluation and event distributions. Concurrently, an interactive web-based visualization tool, developed using Flask and D3.js, provided dynamic filtering and detailed timeline-based interaction summaries.
+This deliberate triangulation ensures that the findings are generalisable and illustrate how different privacy philosophies and design trade-offs manifest in practical, widely deployed systems.
 
-Detailed descriptions of the methodology and pipeline implementation are elaborated in subsequent chapters.
+\subsection{Static Analysis Methodology}
 
+Static analysis was employed as the initial phase of the hybrid approach due to its capacity to rapidly detect privacy-critical behaviors directly within application binaries without requiring execution. By systematically inspecting code structures, manifest configurations, and declared permissions, potential leakage vectors, risky API calls, and suspicious data flows can be flagged early, effectively narrowing the scope and complexity of the subsequent dynamic investigation.
+
+For this purpose, two well-established tools were used in combination: \textsc{Androguard} and the Mobile Security Framework (\textsc{MobSF}). Their integration provided both automation-friendly scripting and comprehensive security reporting capabilities. A detailed justification of why these specific tools were selected, along with their comparative strengths, is presented in Section~4.2.1 (\emph{Tool Selection and Rationale}).
+
+\subsection{Dynamic Analysis Methodology}
+
+Dynamic behavioural analysis leveraged kernel-level tracing to observe runtime interactions transparently and with high fidelity. This component extended the \textsc{SYSDROID} framework and was deployed on a rooted Android device with Magisk and an unlocked bootloader, granting controlled access to the kernel tracing filesystem (\texttt{tracefs}). Instrumentation leveraged \texttt{ftrace}, \texttt{kprobes}, ADB utilities, shell scripts, and Python post-processors to parse raw trace data into structured JSON suitable for behavioural profiling.
+
+A design principle prioritised simplicity and reproducibility over advanced but more invasive technologies like eBPF. The use of \texttt{kprobes} and \texttt{ftrace} alone provided sufficient observability with minimal overhead and system impact, while remaining compatible with a wide range of device kernels.
+
+Tracing sessions were orchestrated via bash scripts deployed on-device, dynamically registering and enabling probe points targeting sensitive kernel events relevant to IPC, resource access, and networking. Extracted traces were securely offloaded, filtered by process IDs, and cleaned with heuristics to remove noise.
+
+Finally, behavioural summaries were visualised both statically—via Python tools like \texttt{matplotlib}—and interactively, through a custom Flask–D3.js web interface supporting timeline exploration and event-based drill-down.
+
+Detailed implementation aspects and trace artefacts are discussed in the following chapters.
 
 \section{Static Analysis Pipeline}
 
@@ -884,7 +902,7 @@ The implementation is organised into logically separated top-level modules, refl
 \end{description}
 
 
-\subsubsection{Instrumentation Layer (Mobile-Side Tracing Engine)}
+\subsubsection{Instrumentation Layer}
 
 The instrumentation layer is responsible for capturing low-level system interactions occurring on the Android device. The initial implementation of the tracing subsystem was developed by Nikos Alexopoulos as part of the SYSDROID project at AUEB, and forms the foundational backbone of this thesis. This base layer leverages dynamic kernel probes (\texttt{kprobes}) and static \texttt{tracepoints} exposed via the \texttt{ftrace} interface, allowing efficient interception of system call and function-level activity in the kernel.
 
@@ -1015,7 +1033,7 @@ as it supplies essential metadata to the behaviour-reconstruction
 pipeline described in the following sections.
 
 
-\subsubsection{Parsing and Pre-Processing (Computer-Side)}
+\subsubsection{Parsing and Pre-Processing}
 After the raw kernel traces were collected from the device, they were quickly pre-processed using a lightweight Python parser. Each trace line was split using regular expressions to extract the main header fields (task, PID, CPU, flags, timestamp, event name) and the detailed key-value pairs. Numerical fields were converted to plain decimal form, flags were normalized, and paths were cleaned of extra characters.
 
 Next, a sequence of basic filters removed background noise: well-known system daemons were excluded, short-lived file descriptors were ignored, and redundant Binder transaction chatter was collapsed. Finally, the cleaned trace events were divided into overlapping windows to enable manageable and context-preserving analysis in the next steps. This simplified approach followed the same principles as in SysDroid but was adapted for faster exploratory profiling.
@@ -1125,16 +1143,67 @@ To close this architecture chapter, Figure \ref{fig:pipeline} condenses the enti
 \label{fig:pipeline}
 \end{figure}
 
-\section{Workload Design and Usage Scenarios}
+\subsection{Workload Design and Usage Scenarios}
 
-\subsection{Target Application}
-Three representative Android messaging applications were selected: Signal, Messenger (Meta), and Telegram. Signal stands out for its open-source Signal Protocol, which enforces strict E2EE and minimal metadata, making it a strong benchmark for privacy behavior. Messenger, as a dominant commercial product, provides high-volume, complex user interaction patterns. Telegram adds diversity with its cloud-based and secret chat modes and public channels. This focused corpus balances privacy strength, usage scale, and technical feasibility.
+To capture meaningful behavioural variations and to systematically compare how each application responds under distinct runtime conditions, dynamic kernel-level tracing was organised into four carefully defined usage scenarios per target app. This multi-scenario design enables direct cross-scenario comparison, revealing differences in resource usage, inter-process communication (IPC), and network interactions when permissions or user activity levels vary.
 
-\subsection{Execution Scenarios and Scheduling}
-Dynamic tracing was executed under four systematically defined scenarios per app: full permissions, restricted permissions, background passive state, and active foreground use including messaging and video calls. Each run lasted around five minutes and was repeated to ensure consistency. Static scans used the prepared scripts and tools to generate CSV, JSON, and PDF reports per APK, cross-validated with runtime findings.
+\begin{itemize}
+  \item \textbf{Full Permissions Scenario:} The application was run with all permissions granted, allowing observation of its maximum functional scope. This baseline scenario serves as a reference to which restricted and passive states can be compared, helping to isolate which activities depend on specific permissions.
 
-\subsection{Data Volume and Collected Artifacts}
-Static analysis produced compact artifacts (CSV <100 kB, PDF ~100–200 kB). Dynamic traces were larger, typically 50–300 MB per session depending on activity and hook density. Table~\ref{tab:static-sizes} summarizes static output sizes; dynamic logs provided high-resolution behavioral records for flow reconstruction and visualization.
+  \item \textbf{Restricted Permissions Scenario:} Selected sensitive permissions (e.g., location, microphone, or contacts) were deliberately disabled through the Android settings. This condition was designed to examine how the application adapts when permission-dependent features are blocked—whether it attempts repeated access, triggers fallback code, or suppresses functionality altogether. Comparing this scenario to the full permissions case highlights how gracefully or aggressively each app handles denied permissions.
+
+  \item \textbf{Background Passive Scenario:} The app was left running in the background with normal permissions but without user interaction. This scenario was included to detect silent background behaviours such as periodic syncs, push notification handling, or unexpected network calls that occur independently of user input. Analysing this passive state alongside active usage reveals latent behaviours that could impact privacy or battery consumption.
+
+  \item \textbf{Active Foreground Scenario:} The app was actively used for normal tasks such as messaging, media sharing, and voice or video calls where applicable. This scenario represents the peak operational state with frequent user actions, providing a reference for typical real-world usage patterns. Comparing it with the passive and restricted runs helps pinpoint which kernel-level events are triggered exclusively by user-initiated activity versus background processes.
+\end{itemize}
+
+Each scenario execution lasted approximately one minutes to capture sufficient behavioural samples and was repeated multiple times to enhance reliability and minimise outlier effects. The runs were systematically scheduled in a consistent sequence—starting from passive, followed by restricted, then full permissions, and concluding with active usage—to ensure stable device conditions and to avoid cross-contamination of residual states.
+
+By applying this structured workload design, the resulting traces enable detailed side-by-side comparisons. This makes it possible to clearly identify behavioural deviations across permission settings and activity states, providing deeper insights into each application's runtime privacy implications and resource footprint.
+
+
+% --------------------------------------------------
+%  Results
+% --------------------------------------------------
+\chapter{Results}
+
+\section{Static Analysis Results}
+
+This chapter presents a detailed \emph{static} security appraisal of three widely used instant messaging clients—\textit{Signal}, \textit{Telegram}, and \textit{Meta Messenger}—based on production-signed APK packages acquired directly from physical Android devices using the ADB. Specifically, each APK was retrieved via the following commands:
+
+First, all installed packages on the device were enumerated with:
+\begin{lstlisting}[language=bash]
+adb shell pm list packages
+\end{lstlisting}
+
+Next, the full installation path of a selected package was queried:
+\begin{lstlisting}[language=bash]
+adb shell pm path <package_name>
+\end{lstlisting}
+
+Finally, the APK was pulled to the local workstation:
+\begin{lstlisting}[language=bash]
+adb pull /data/app/<apk_path> ./
+\end{lstlisting}
+
+The subsequent static evaluation utilises tools including \textsc{MobSF}, \textsc{Androguard}, and \textsc{APKID} to thoroughly dissect manifest configurations, bytecode payloads, native binaries, and embedded resources.
+
+\subsection{Scope and Dataset Footprint}
+
+The static security review was systematically conducted in five incremental stages to ensure breadth and depth of inspection.
+
+\textbf{Manifest Analysis} scrutinised high-risk configuration flags—most notably the \lstinline{allowBackup} attribute, the exposure of components via exported activities and services, and the full set of declared Android permissions.
+
+\textbf{Bytecode Inspection} involved decompiling and scanning the compiled \texttt{.dex} code, pinpointing insecure coding constructs, potential logic flaws, and signatures of known vulnerabilities.
+
+\textbf{Native Library Hardening} assessed the integrity of any packaged native binaries, verifying the presence of critical exploit mitigations such as Non-Executable Stack (NX), Position-Independent Executable (PIE), Stack Canaries, RELRO (Relocation Read-Only), and \textsc{FORTIFY} source hardening.
+
+\textbf{Secret Scanning} leveraged entropy-based heuristics to detect embedded sensitive data, such as API tokens, secret keys, and credentials inadvertently hard-coded in resources or source strings.
+
+Finally, \textbf{Anti-Analysis and Obfuscation Review} catalogued defensive mechanisms against dynamic or static reverse engineering, including anti-debugging checks, emulator detection routines, and custom obfuscation artefacts.
+
+
+The artifacts from this multi-phase assessment were compiled as succinct CSV exports (each under 100 kB) and comprehensive PDF reports (typically between 100 and 200 kB).
 
 \begin{table}[H]
 \centering
@@ -1147,25 +1216,9 @@ Messenger & 80 & 180 \\
 Telegram & 45 & 110 \\
 \hline
 \end{tabular}
-\caption{Approximate static analysis file sizes}
+\caption{Approximate sizes of static analysis output files}
 \label{tab:static-sizes}
 \end{table}
-
-% --------------------------------------------------
-%  Results
-% --------------------------------------------------
-\chapter{Results}
-\section{Static Analysis Results}
-
-This chapter provides a comprehensive \emph{static} security evaluation of three prominent messaging applications—\textit{Signal}, \textit{Telegram}, and \textit{Meta Messenger}—based on production-signed APKs sourced from the Google Play Store in June 2025. The analysis leverages advanced tools including \textsc{MobSF}, \textsc{Androguard}, and \textsc{APKID} to thoroughly inspect embedded resources, native libraries, and signing certificates.
-
-\subsection{Scope and Methodology}
-The static assessment was carried out in five successive stages.
-\textbf{Manifest Analysis} reviewed sensitive flags—most notably \lstinline{allowBackup}, the set of exported components, and every declared permission.
-\textbf{Bytecode Inspection} then examined the compiled \texttt{.dex} payloads, hunting for unsafe coding practices and known vulnerability patterns.
-\textbf{Native Library Hardening} evaluated bundled native libraries against modern defence mechanisms, checking for NX, PIE, stack canaries, RELRO and \textsc{FORTIFY} usage.
-\textbf{Secret Scanning} applied entropy-based heuristics to surface hard-coded secrets such as API keys or credentials.
-Finally, \textbf{Anti-Analysis and Obfuscation} mapped anti-debug measures, anti-VM tricks and compiler artefacts to gauge each app’s resistance to reverse engineering.
 
 \subsection{Detailed Application Findings}
 The following pages present the most relevant static observations for the three
