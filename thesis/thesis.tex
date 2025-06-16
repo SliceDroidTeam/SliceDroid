@@ -233,27 +233,15 @@ and user trust.
 
 \paragraph{Problem Statement}
 
-Although prior work has explored various aspects of Android application behavior,
-systematic analyses of messaging applications using kernel-level tracing remain
-relatively scarce~\cite{DynamicSecurityAnalysis2023}. As a result, certain aspects
-of runtime behavior—particularly those relevant to privacy and low-level system
-interactions—are not yet well understood. This study seeks to modestly contribute
-to this area by examining kernel-level traces of messaging apps under real-world
-usage conditions, with the aim of informing future research and supporting more
-transparent application behavior assessments.
+Although prior work has explored various aspects of Android application behavior, systematic comparative analysis of privacy-sensitive applications—specifically messaging apps—using kernel-level tracing remains under-explored \cite{DynamicSecurityAnalysis2023}. Consequently, certain facets of runtime behavior—especially those tied to privacy and low-level system interactions—are not yet well understood. This study seeks to contribute to this area by examining kernel-level traces of messaging apps under real-world usage conditions, with the aim of informing future research and supporting more transparent assessments of application behavior.
 
 \section{Research Objectives}
 
 The specific research objectives addressed in this thesis are categorized as follows:
 
-\subsection*{Primary Objectives}
-\begin{itemize}
-\item Identify potential violations of the principle of data minimization.
-\item Analyze mismatches between granted permissions and real-time resource usage.
-\item Detect unauthorized or hidden access to sensitive user data.
-\item Compare the behavioral profiles of privacy-focused apps (e.g., Signal)
-and more commercial alternatives.
-\end{itemize}
+\subsection*{Primary Objective}
+
+To devise a robust, kernel-level tracing methodology that uncovers data-minimisation breaches, permission–runtime mismatches, and hidden data access, while contrasting privacy-centric messengers (e.g., \textit{Signal}) with mainstream platforms.
 
 \subsection*{Analytical and Technical Sub-Objectives}
 \begin{itemize}
@@ -280,34 +268,23 @@ research questions:
 
 \vspace{0.5em}
 \noindent\fbox{\parbox{\textwidth}{
-\textbf{Q1.} What kernel-level operations do popular messaging applications perform
-during normal usage?
+\textbf{Q1.} What systematic methodology can be used for a comparative security & privacy analysis of mobile messaging applications?
 }}
 
 \vspace{0.5em}
 \noindent\fbox{\parbox{\textwidth}{
-\textbf{Q2.} Are there deviations between the declared permissions of these
-applications and their actual behavior at runtime?
+\textbf{Q2.} Is \emph{static} analysis alone sufficient to uncover privacy-intrusive behaviour, or do kernel-level traces reveal additional hidden operations and syscall patterns?
 }}
 
 \vspace{0.5em}
 \noindent\fbox{\parbox{\textwidth}{
-\textbf{Q3.} Can kernel-level tracing techniques identify unexpected or potentially
-invasive operations performed without user interaction?
+\textbf{Q3.} Which system calls do popular messaging apps issue during normal use, and how do these calls align with—or diverge from—their declared permissions?
 }}
 
 \vspace{0.5em}
 \noindent\fbox{\parbox{\textwidth}{
-\textbf{Q4.} How does the behavior of privacy-focused apps compare to that of
-commercial messaging platforms at the kernel level?
+\textbf{Q4.} How do privacy-centric apps (e.g., \textit{Signal}) compare to mainstream platforms in terms of data minimisation, syscall footprint, and overall privacy posture?
 }}
-
-\vspace{0.5em}
-\noindent\fbox{\parbox{\textwidth}{
-\textbf{Q5.} What kind of patterns in system calls can be used to characterize
-privacy-relevant behavior?
-}}
-
 
 \section{Limitations}
 
@@ -318,7 +295,7 @@ To provide a realistic perspective on the scope of this thesis, we distinguish b
 \begin{itemize}
 \item \textbf{Timeframe}: The study was conducted within the schedule of an undergraduate thesis, limiting the breadth of experiments (e.g., number of devices, sessions, and repetitions).
 \item \textbf{Hardware Diversity}: Tracing was performed on a small set of consumer-grade devices; results may not generalize to tablets, custom ROMs, or low-end hardware with limited kernel visibility.
-\item \textbf{App Selection}: The analysis focused on three major messaging applications (WhatsApp, Telegram, Signal), leaving out lesser-known or region-specific apps that may exhibit different interaction patterns.
+\item \textbf{App Selection}: The analysis focused on three major messaging applications (Messenger, Telegram, Signal), leaving out lesser-known or region-specific apps that may exhibit different interaction patterns.
 \item \textbf{Infrastructure Limitations}: The available storage and compute resources constrained long-term tracing, especially for large volumes of high-frequency events.
 \end{itemize}
 
@@ -338,25 +315,32 @@ To provide a realistic perspective on the scope of this thesis, we distinguish b
 \section{Thesis Outline}
 This thesis is organized into the following chapters:
 
-\begin{itemize}[leftmargin=1.7em]
-  \item \textbf{Chapter 1 – Introduction:} Presents the rise of mobile messaging and privacy risks, highlights limits of Android permissions and E2EE, motivates kernel-level tracing, and states the thesis goals, research questions, and scope.
+\textbf{Chapter 1 – Introduction:} Presents the rise of mobile messaging and privacy risks, highlights limits of Android permissions and E2EE, motivates kernel-level tracing, and states the thesis goals, research questions, and scope.
 
-  \item \textbf{Chapter 2 – Related Work:} Reviews static analysis, user-space and kernel-space dynamic instrumentation, and prior privacy studies on messaging apps, pinpointing the gap in systematic runtime profiling of encrypted services.
+\vspace{0.4em}
+\textbf{Chapter 2 – Related Work:} Reviews static analysis, user-space and kernel-space dynamic instrumentation, and prior privacy studies on messaging apps, pinpointing the gap in systematic runtime profiling of encrypted services.
 
-  \item \textbf{Chapter 3 – Technical Background:} Summarises Android/Linux architecture, Binder IPC, SELinux, and the system-call interface; explains \texttt{ftrace}/\texttt{kprobes} and the semantic gap between kernel events and user actions.
+\vspace{0.4em}
+\textbf{Chapter 3 – Technical Background:} Summarises Android/Linux architecture, Binder IPC, SELinux, and the system-call interface; explains \texttt{ftrace}/\texttt{kprobes} and the semantic gap between kernel events and user actions.
 
-  \item \textbf{Chapter 4 – Methodology \& System Design:} Describes device setup, tracing configuration, data-processing pipeline, feature extraction, and the web-based visualisation dashboard.
+\vspace{0.4em}
+\textbf{Chapter 4 – Methodology \& System Design:} Describes device setup, tracing configuration, data-processing pipeline, feature extraction, and the web-based visualisation dashboard.
 
-  \item \textbf{Chapter 5 – Results:} Reports empirical findings for WhatsApp, Telegram, and Signal: syscall frequencies, permission-behaviour mismatches, and comparative visuals of privacy-relevant patterns.
+\vspace{0.4em}
+\textbf{Chapter 5 – Results:} Reports empirical findings for WhatsApp, Telegram, and Signal: syscall frequencies, permission–behaviour mismatches, and comparative visuals of privacy-relevant patterns.
 
-  \item \textbf{Chapter 6 – Discussion:} Relates results to the research questions, examines implications for transparency and metadata leakage, and outlines methodological limitations and improvements.
+\vspace{0.4em}
+\textbf{Chapter 6 – Discussion:} Relates results to the research questions, examines implications for transparency and metadata leakage, and outlines methodological limitations and improvements.
 
-  \item \textbf{Chapter 7 – Conclusions:} Recaps contributions, emphasises the value of kernel tracing for privacy audits, and proposes future work (more apps, automated behaviour classification, multi-layer tracing).
+\vspace{0.4em}
+\textbf{Chapter 7 – Conclusions:} Recaps contributions, emphasises the value of kernel tracing for privacy audits, and proposes future work (more apps, automated behaviour classification, multi-layer tracing).
 
-  \item \textbf{Appendix A – Additional Data Tables:} Supplementary tables and charts supporting Chapter 5.
+\vspace{0.4em}
+\textbf{Appendix A – Additional Data Tables:} Supplementary tables and charts supporting Chapter 5.
 
-  \item \textbf{Appendix B – Code:} Selected scripts and configuration files used for tracing and analysis.
-\end{itemize}
+\vspace{0.4em}
+\textbf{Appendix B – Code:} Selected scripts and configuration files used for tracing and analysis.
+
 
 
 % --------------------------------------------------
