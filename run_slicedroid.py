@@ -175,14 +175,21 @@ print(f"[*] Found {len(devices)} connected device(s):")
 for device in devices:
     print(f"    - {device}")
 
-# if file exists in /data/mappings, then skip the rdevs
+# Check if rdevs.txt and regularfiles.txt exist to skip the script
 mapping_dir = "data/mappings"
 skip_rdev = False
 if os.path.isdir(mapping_dir):
-    for filename in os.listdir(mapping_dir):
-        if re.match(r"cat2devs.txt", filename):
-            skip_rdev = True
-            break
+    rdevs_file = os.path.join(mapping_dir, "rdevs.txt")
+    regularfiles_file = os.path.join(mapping_dir, "regularfiles.txt")
+    
+    if os.path.exists(rdevs_file) and os.path.exists(regularfiles_file):
+        print("[*] Found existing rdevs.txt and regularfiles.txt, skipping resource resolution script...")
+        skip_rdev = True
+    else:
+        for filename in os.listdir(mapping_dir):
+            if re.match(r"cat2devs.txt", filename):
+                skip_rdev = True
+                break
 
 if not skip_rdev:
     # Collect st_devs and r_devs
