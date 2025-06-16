@@ -36,3 +36,5 @@ outputs
 
 trace.trace
 trace.trace.gz
+data
+pixel_data

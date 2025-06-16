@@ -177,14 +177,14 @@ for device in devices:
 
 # if file exists in /data/mappings, then skip the rdevs
 mapping_dir = "data/mappings"
-skip_rdev = True
+skip_rdev = False
 if os.path.isdir(mapping_dir):
     for filename in os.listdir(mapping_dir):
         if re.match(r"cat2devs.txt", filename):
-            found = False
+            skip_rdev = True
             break
 
-if skip_rdev:
+if not skip_rdev:
     # Collect st_devs and r_devs
     stdev_script = os.path.join("scripts", "resources_resolver", "run_stdev_rdev_trace.py")
     subprocess.run(["python", stdev_script], check=True, stderr=subprocess.STDOUT)
@@ -215,6 +215,25 @@ subprocess.run(
 print("[*] Pushing config files to device...")
 subprocess.run(
     [adb_command, "push", "scripts/tracer/config_files", "/data/local/tmp/config_files"],
+    check=True
+)
+
+print("[*] Converting configuration files to Unix format...")
+subprocess.run(
+    [
+        adb_command, "shell", "su", "-c",
+        # cd into the folder, find all files, and run dos2unix on each one
+        "cd /data/local/tmp/config_files && " 
+        "find /data/local/tmp/config_files -type f | while IFS= read -r f; do "
+        "dos2unix \"$f\"; "
+        "done"
+    ],
+    check=True
+)
+
+print("Setting selinux permissive mode. Don't forget to set it back to enforcing after tracing!")
+subprocess.run(
+    [adb_command, "shell", "su", "-c", "setenforce 0"],
     check=True
 )
 
