@@ -1061,22 +1061,6 @@ The resulting flow descriptors are serialised to
 PDF plots and the interactive Flask–D3 dashboard.
 
 
-\subsubsection{Device Storage and Export Formats}
-
-Raw trace data is initially stored on the device under filenames that reflect the target process under observation (e.g., \texttt{photo\_remote\_phone.child2024.trace}). These files are produced by the instrumentation layer and capture low-level kernel events relevant to the selected application.
-
-In parallel, the output of the Resource Resolver Layer is saved as JSON files (e.g., \texttt{cat2\_dev\_Nothing.json}, \texttt{cat2\_dev\_OnePlus.json}), mapping device identifiers and inode values to high-level semantic categories such as \emph{camera}, \emph{contacts}, or \emph{bluetooth}.
-
-After processing and slicing, final outputs are stored in two formats:
-\begin{itemize}
-  \item \texttt{Exports/}: structured datasets in \texttt{CSV} and \texttt{JSON} format, suitable for further analysis or feeding into the dashboard.
-  \item \texttt{Figures/}: visual summaries of behavioral patterns in \texttt{PDF} format, including timelines and resource access distributions.
-\end{itemize}
-
-This layered output structure supports traceability, modular analysis, and easy visual inspection across all stages of the pipeline.
-
-
-
 \subsubsection{Data Visualization and User Interface Design}
 
 To facilitate high-level interpretation of low-level system behavior, the visual interface offers:
