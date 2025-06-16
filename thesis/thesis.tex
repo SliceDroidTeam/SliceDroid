@@ -3,25 +3,42 @@
 % --------------------------------------------------
 %  Packages
 % --------------------------------------------------
-\usepackage[utf8]{inputenc}  % Support for UTF-8 encoding
-\usepackage[english]{babel}  % English language support
-\usepackage{amsmath,amssymb} % Math packages
-\usepackage{geometry}        % Page geometry
-\usepackage{setspace}        % Line spacing
-\usepackage{graphicx}        % Insert images
-\usepackage{hyperref}        % Hyperlinks in the PDF
-\usepackage{float}         % Improved float handling
-\usepackage{listings}        % Code listings
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+
+% ---------------------------------------------------------
+% math & layout
+\usepackage{amsmath,amssymb}
+\usepackage{geometry}
+\usepackage{setspace}
+
+% ---------------------------------------------------------
+% graphics, colour, hyperlinks
+\usepackage{graphicx}
 \usepackage{xcolor}
+\usepackage{hyperref}
+
+% ---------------------------------------------------------
+% floats, algorithms, code
+\usepackage{float}
 \usepackage[ruled,vlined]{algorithm2e}
-\usepackage{booktabs}        % For \midrule, \toprule, \bottomrule in tables
-\usepackage{paralist}        % For compact lists and enumerate*
+\usepackage{listings}
+
+% ---------------------------------------------------------
+% tables & lists
+\usepackage{booktabs}
+\usepackage{paralist}
 \usepackage{enumitem}
+
+% ---------------------------------------------------------
+% symbols for ✓ / ✗
+\usepackage{pifont}          % <-- THIS LINE FIXES \ding
+\newcommand{\cmark}{\ding{51}} % ✓
+\newcommand{\xmark}{\ding{55}} % ✗
+
+% tikz
 \usepackage{tikz}
-\usepackage{amssymb}
-\usetikzlibrary{arrows.meta, positioning, shadows.blur}
-
-
+\usetikzlibrary{arrows.meta,positioning,shadows.blur}
 % Define JSON language for listings
 \lstdefinelanguage{json}{
     basicstyle=\ttfamily\small,
@@ -93,8 +110,8 @@
         {\large Department of Management Science and Technology}\\[1.5cm]
 
         {\Huge \textbf{Undergraduate Thesis}}\\[1.2cm]
-        {\Large \textbf{Behavioral Profiling of Popular Messaging Apps Using Kernel-Level Tracing}}\\[2cm]
-
+        {\Large \textbf{Hybrid Behavioral Profiling of Popular Messaging Apps
+       via Custom Kernel-Level Tracing}}\\[2cm]
         \textbf{Student:}\\
         Foivos - Timotheos Proestakis\\
         Student ID: 8210126\\[1.5cm]
@@ -1473,7 +1490,7 @@ profile), although its secret sprawl (\textasciitilde500 literals) and a
 
 \begin{table}[htbp]
   \centering
-  \caption{Aggregate static-risk indicators (MobSF baseline + manual review).}
+  \caption{Aggregate static-risk indicators.}
   \label{tab:risk-matrix}
   \begin{tabular}{|l|c|c|c|c|}
     \hline
