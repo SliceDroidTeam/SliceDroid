@@ -29,9 +29,6 @@ function setupAppEventListeners() {
         }
     });
     
-    // Refresh button
-    $('#refresh-apps-btn').click(refreshAppsFromDevice);
-    
     // Analyze app button (does both generate targets and analyze)
     $('#analyze-app').click(analyzeApp);
 }
@@ -44,7 +41,6 @@ function loadApps() {
         
         // Update dropdown
         updateAppDropdown();
-        updateRefreshButton(data.device_status);
         
     }).fail(function(jqXHR) {
         console.error('Failed to load apps:', jqXHR);
@@ -75,47 +71,6 @@ function updateAppDropdown() {
     });
 }
 
-function updateRefreshButton(deviceStatus) {
-    const refreshBtn = $('#refresh-apps-btn');
-    
-    if (deviceStatus && deviceStatus.device_connected) {
-        refreshBtn.removeClass('btn-outline-warning btn-outline-primary')
-                  .addClass('btn-outline-success')
-                  .html('<i class="fas fa-mobile-alt"></i> Device Connected');
-    } else if (deviceStatus && deviceStatus.adb_available) {
-        refreshBtn.removeClass('btn-outline-success btn-outline-primary')
-                  .addClass('btn-outline-warning')
-                  .html('<i class="fas fa-wifi"></i> Connect Device');
-    } else {
-        refreshBtn.removeClass('btn-outline-success btn-outline-warning')
-                  .addClass('btn-outline-primary')
-                  .html('<i class="fas fa-sync"></i> Refresh Apps');
-    }
-}
-
-function refreshAppsFromDevice() {
-    const refreshBtn = $('#refresh-apps-btn');
-    const originalText = refreshBtn.html();
-    
-    // Show loading state
-    refreshBtn.html('<i class="fas fa-spinner fa-spin"></i> Refreshing...').prop('disabled', true);
-    $('#app-status').html('<small>Refreshing apps from device...</small>');
-    
-    $.post('/api/apps/refresh', function(data) {
-        if (data.success) {
-            // Reload apps
-            loadApps();
-            $('#app-status').html(`<small class="text-success">Refreshed successfully! Found ${data.message}</small>`);
-        } else {
-            $('#app-status').html(`<small class="text-danger">Refresh failed: ${data.error}</small>`);
-        }
-    }).fail(function(jqXHR) {
-        $('#app-status').html('<small class="text-danger">Refresh failed. Check device connection.</small>');
-    }).always(function() {
-        // Restore button
-        refreshBtn.html(originalText).prop('disabled', false);
-    });
-}
 
 
 function analyzeApp() {

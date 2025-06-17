@@ -20,19 +20,15 @@ class AppInfo:
     icon_url: Optional[str] = None
 
 class AppMapperService:
-    def __init__(self, project_root: Path, auto_connect: bool = True):
+    def __init__(self, project_root: Path, auto_connect: bool = False):
         self.project_root = project_root
         self.mapping_file = project_root / "data" / "app_mapping.json"
         self.mapper_script = project_root / "scripts" / "tracker" / "app_mapper.py"
         self.apps_cache = {}
         self.device_connected = False
         
-        # Load existing mapping first
+        # Load existing mapping
         self.load_mapping()
-        
-        # Auto-connect to device on startup if enabled
-        if auto_connect:
-            self.auto_connect_and_refresh()
         
     def load_mapping(self) -> Dict[str, AppInfo]:
         """Load app mapping from file"""
