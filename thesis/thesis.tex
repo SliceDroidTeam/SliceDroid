@@ -463,37 +463,34 @@ captured by eBPF-based kernel monitors
 \subsection{Tracing Infrastructures}
 Kernel hooks sit beneath both the Java/ART runtime and Linux user-space, capturing syscalls, Binder traffic, scheduler switches and network I/O with negligible perturbation.  Their vantage point is indispensable once payloads are encrypted in user space—TLS bursts, Binder IPC patterns and power wakes are often the only artefacts left to observe.  Prior art clusters into four tool-centric strands:
 
-\begin{enumerate}[label=(\roman*.)]
-  \item \textbf{eBPF- and \textit{ftrace}-based collectors.}
-        \emph{BPFroid} streams per-UID syscalls, Binder calls and network events from stock kernels to a malware detector at $\sim$3 % energy cost and 70 % Genome accuracy, without custom firmware.
-        Earlier, \emph{ID-Syscall} logged syscall sequences via a loadable module on Android 4.x, showing that rich behavioural signals are already available on commodity devices—albeit exploited only for coarse binary classification.
+\paragraph{(i) eBPF- and \textit{ftrace}-based collectors.}
+\emph{BPFroid} streams per-UID syscalls, Binder calls and network events from stock kernels to a malware detector at $\sim$3 % energy cost and 70 % Genome accuracy, without custom firmware.
+Earlier, \emph{ID-Syscall} logged syscall sequences via a loadable module on Android 4.x, showing that rich behavioural signals are already available on commodity devices—albeit exploited only for coarse binary classification.
 
-  \item \textbf{Network-centric and covert-channel tracing.}
-        Celik \& Gligor detect stegomalware solely from timing and packet-size anomalies in vanilla \textit{ftrace} logs, proving that scheduler, socket and power events suffice to expose covert channels—yet Binder traffic is omitted.
+\paragraph{(ii) Network-centric and covert-channel tracing.}
+Celik \& Gligor detect stegomalware solely from timing and packet-size anomalies in vanilla \textit{ftrace} logs, proving that scheduler, socket and power events suffice to expose covert channels—yet Binder traffic is omitted.
 
-  \item \textbf{Hardware-assisted monitors.}
-        \emph{HART} streams ARM ETM traces of proprietary kernel modules almost for free, but ETM is often fused-off in production phones and lacks user-process context.
+\paragraph{(iii) Hardware-assisted monitors.}
+\emph{HART} streams ARM ETM traces of proprietary kernel modules almost for free, but ETM is often fused-off in production phones and lacks user-process context.
 
-  \item \textbf{Production-scale, low-overhead tracing.}
-        Google’s \emph{Perfetto} unifies \textit{ftrace}, Binder and user-space counters into multi-GB, SQL-queryable traces for start-up and jank analysis, while \emph{eMook} adds per-PID eBPF filters, cutting system cost by 85 %.  These toolchains enable week-long field studies on battery devices but remain untapped for security and messaging use-cases.
-\end{enumerate}
+\paragraph{(iv) Production-scale, low-overhead tracing.}
+Google’s \emph{Perfetto} unifies \textit{ftrace}, Binder and user-space counters into multi-GB, SQL-queryable traces for start-up and jank analysis, while \emph{eMook} adds per-PID eBPF filters, cutting system cost by 85 %. These toolchains enable week-long field studies on battery devices but remain untapped for security and messaging use-cases.
 
 \subsection{Behaviour Reconstruction \& Transparency}
 After tracing primitives matured, attention shifted to re-assembling high-level behaviours from low-level footprints:
 
-\begin{enumerate}[label=(\roman*.)]
-  \item \textbf{Cross-layer behaviour reconstruction.}
-        \emph{CopperDroid} fuses syscalls with Binder payloads via Virtual-Machine Introspection; \emph{Dagger} builds syscall–IPC provenance graphs; and \emph{SliceDroid} slices kernel traces along Binder causality, covering privileged system apps on real devices with minimal overhead. Multi-layer instrumentation can reach finer granularity but at 5–40 × runtime overhead, making it lab-only~\cite{placeholder_citation_1}.
+\paragraph{(i) Cross-layer behaviour reconstruction.}
+\emph{CopperDroid} fuses syscalls with Binder payloads via Virtual-Machine Introspection; \emph{Dagger} builds syscall–IPC provenance graphs; and \emph{SliceDroid} slices kernel traces along Binder causality, covering privileged system apps on real devices with minimal overhead. Multi-layer instrumentation can reach finer granularity but at 5–40 × runtime overhead, making it lab-only~\cite{placeholder_citation_1}.
 
-  \item \textbf{Dynamic taint and information-flow trackers.}
-        TaintDroid, TaintART, ARTist and FSAFlow instrument the ART/Java runtime to propagate taints at object level; they are precise but incur noticeable slowdown, require framework changes and can be detected by malware—limitations avoided by pure kernel tracing~\cite{placeholder_citation_2}.
+\paragraph{(ii) Dynamic taint and information-flow trackers.}
+TaintDroid, TaintART, ARTist and FSAFlow instrument the ART/Java runtime to propagate taints at object level; they are precise but incur noticeable slowdown, require framework changes and can be detected by malware—limitations avoided by pure kernel tracing~\cite{placeholder_citation_2}.
 
-  \item \textbf{Provenance-system perspectives.}
-        Enterprise frameworks such as CamFlow, Hi-Fi and Spade record lightweight syscall provenance for APT detection on desktop systems; Android’s semantic gap hampers their direct reuse, but Binder-aware kernel tracing (e.g., SliceDroid) can supply the missing context and extend host-based detection to mobile~\cite{placeholder_citation_3}.
+\paragraph{(iii) Provenance-system perspectives.}
+Enterprise frameworks such as CamFlow, Hi-Fi and Spade record lightweight syscall provenance for APT detection on desktop systems; Android’s semantic gap hampers their direct reuse, but Binder-aware kernel tracing (e.g., SliceDroid) can supply the missing context and extend host-based detection to mobile~\cite{placeholder_citation_3}.
 
-  \item \textbf{Built-in transparency mechanisms.}
-        Since Android 12, status-bar indicators flag camera/mic use by third-party apps, yet they exclude system services and can be bypassed via permission abuse, overlays or framework bugs. Kernel-level device-file tracing, as done by SliceDroid, closes these blind spots~\cite{placeholder_citation_4}.
-\end{enumerate}
+\paragraph{(iv) Built-in transparency mechanisms.}
+
+Since Android 12, status-bar indicators flag camera/mic use by third-party apps, yet they exclude system services and can be bypassed via permission abuse, overlays or framework bugs. Kernel-level device-file tracing, as done by SliceDroid, closes these blind spots~\cite{placeholder_citation_4}.
 
 \medskip
 \noindent\textbf{Synthesis.}
