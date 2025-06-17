@@ -243,6 +243,8 @@ subprocess.run(
     [adb_command, "shell", "su", "-c", "setenforce 0"],
     check=True
 )
+# Ensure the data directory exists
+os.makedirs(os.path.join("data", "traces"), exist_ok=True)
 
 # Start the tracing script as a subprocess that we can control
 print("[*] Initializing system call tracer...")
