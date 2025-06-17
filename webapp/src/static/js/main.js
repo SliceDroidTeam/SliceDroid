@@ -22,6 +22,9 @@ $(document).ready(function() {
         
         // Initialize upload functionality
         initializeUploadFunctionality();
+        
+        // Initialize app selection
+        initializeAppSelection();
     }).catch(function(error) {
         console.error('Failed to load configuration:', error);
         updateAppStatus('warning', 'Fallback Mode');
@@ -32,6 +35,9 @@ $(document).ready(function() {
         
         // Initialize upload functionality
         initializeUploadFunctionality();
+        
+        // Initialize app selection
+        initializeAppSelection();
     });
 });
 
@@ -107,7 +113,6 @@ function loadAllData() {
         loadAdvancedAnalytics();
         
         // Load new enhanced analysis
-        loadSecurityAnalysis();
         loadNetworkAnalysis();
         loadProcessAnalysis();
     } catch (error) {
@@ -849,270 +854,6 @@ function loadAdvancedAnalyticsWithConfig() {
     });
 }
 
-// Enhanced Security Analysis Functions
-function loadSecurityAnalysis() {
-    const pid = $('#pid-filter').val();
-    let url = '/api/security-analysis';
-    if (pid) url += `?pid=${pid}`;
-
-    console.log('Loading security analysis from:', url);
-
-    // Show loading
-    $('#security-loading').show();
-    $('#security-content').hide();
-    $('#security-error').hide();
-
-    $.getJSON(url, function(data) {
-        console.log('Security analysis data received:', data);
-        if (data.error) {
-            showSecurityError(data.error);
-        } else {
-            securityData = data;
-            renderSecurityAnalysis(data);
-        }
-    }).fail(function(jqXHR) {
-        console.error('Security analysis failed:', jqXHR);
-        const errorMsg = jqXHR.responseJSON?.error || 'No security analysis data available';
-        showSecurityError(errorMsg);
-    }).always(function() {
-        $('#security-loading').hide();
-    });
-}
-
-function renderSecurityAnalysis(data) {
-    $('#security-content').show();
-    $('#security-error').hide();
-    $('#security-loading').hide();
-
-    // Wait for container to be fully visible before rendering charts
-    setTimeout(() => {
-        // Update risk badge
-        updateSecurityRiskBadge(data.risk_assessment);
-
-        // Render summary cards
-        renderSecuritySummary(data);
-
-        // Render security timeline with container check
-        if (document.getElementById('security-timeline-chart') && 
-            document.getElementById('security-timeline-chart').offsetWidth > 0) {
-            renderSecurityTimeline(data.timeline_data);
-        } else {
-            setTimeout(() => renderSecurityTimeline(data.timeline_data), 500);
-        }
-
-        // Render security events list
-        renderSecurityEventsList(data.security_analysis);
-
-        // Render recommendations
-        renderSecurityRecommendations(data.recommendations);
-    }, 200);
-}
-
-function updateSecurityRiskBadge(riskAssessment) {
-    const badge = $('#security-risk-badge');
-    if (!riskAssessment) {
-        badge.text('No Data').removeClass().addClass('badge');
-        return;
-    }
-
-    const riskLevel = riskAssessment.risk_category || 'UNKNOWN';
-    badge.text(riskLevel)
-         .removeClass()
-         .addClass(`badge security-badge risk-${riskLevel.toLowerCase()}`);
-}
-
-function renderSecuritySummary(data) {
-    const summaryContainer = $('#security-summary');
-    summaryContainer.empty();
-
-    if (!data.security_analysis || !data.security_analysis.summary) {
-        summaryContainer.html('<div class="col-12"><div class="alert alert-info">No security summary available</div></div>');
-        return;
-    }
-
-    const summary = data.security_analysis.summary;
-    const summaryCards = [
-        {
-            title: 'Suspicious File Access',
-            value: summary.total_suspicious_file_access || 0,
-            type: summary.total_suspicious_file_access > 0 ? 'danger' : 'success',
-            icon: 'fas fa-file-exclamation'
-        },
-        {
-            title: 'Binder Transactions',
-            value: summary.total_binder_transactions || 0,
-            type: summary.total_binder_transactions > 20 ? 'warning' : 'info',
-            icon: 'fas fa-exchange-alt'
-        },
-        {
-            title: 'IOCTL Operations',
-            value: summary.total_ioctl_operations || 0,
-            type: summary.total_ioctl_operations > 0 ? 'warning' : 'success',
-            icon: 'fas fa-cogs'
-        },
-        {
-            title: 'Suspicious Activities',
-            value: summary.total_suspicious_activities || 0,
-            type: summary.total_suspicious_activities > 0 ? 'danger' : 'success',
-            icon: 'fas fa-exclamation-triangle'
-        }
-    ];
-
-    summaryCards.forEach(card => {
-        summaryContainer.append(`
-            <div class="col-md-3 mb-2">
-                <div class="summary-card ${card.type}">
-                    <div class="card-value">${card.value}</div>
-                    <div class="card-label">${card.title}</div>
-                </div>
-            </div>
-        `);
-    });
-}
-
-function renderSecurityTimeline(timelineData) {
-    if (!timelineData || timelineData.length === 0) {
-        $('#security-timeline-chart').html('<div class="alert alert-info">No security events found</div>');
-        return;
-    }
-
-    // Create simple timeline chart
-    const container = d3.select('#security-timeline-chart');
-    container.html('');
-
-    const margin = {top: 20, right: 20, bottom: 30, left: 50};
-    const width = container.node().clientWidth - margin.left - margin.right;
-    const height = 180;
-
-    const svg = container.append('svg')
-        .attr('width', width + margin.left + margin.right)
-        .attr('height', height + margin.top + margin.bottom)
-        .append('g')
-        .attr('transform', `translate(${margin.left},${margin.top})`);
-
-    // Filter security events
-    const securityEvents = timelineData.filter(d => d.category === 'security');
-    
-    if (securityEvents.length === 0) {
-        container.html('<div class="alert alert-info">No security events in timeline</div>');
-        return;
-    }
-
-    // Create time scale
-    const timeExtent = d3.extent(securityEvents, d => d.timestamp);
-    const x = d3.scaleTime()
-        .domain(timeExtent)
-        .range([0, width]);
-
-    // Create severity scale
-    const y = d3.scaleOrdinal()
-        .domain(['low', 'medium', 'high'])
-        .range([height - 20, height/2, 20]);
-
-    // Add dots for events
-    svg.selectAll('.security-dot')
-        .data(securityEvents)
-        .enter()
-        .append('circle')
-        .attr('class', 'security-dot')
-        .attr('cx', d => x(new Date(d.timestamp * 1000)))
-        .attr('cy', d => y(d.severity || 'low'))
-        .attr('r', 4)
-        .attr('fill', d => d.severity === 'high' ? '#dc3545' : 
-                          d.severity === 'medium' ? '#ffc107' : '#28a745')
-        .on('mouseover', function(event, d) {
-            showSecurityTooltip(event, d);
-        })
-        .on('mouseout', hideSecurityTooltip);
-
-    // Add axes
-    svg.append('g')
-        .attr('transform', `translate(0,${height})`)
-        .call(d3.axisBottom(x).ticks(5));
-
-    svg.append('g')
-        .call(d3.axisLeft(y));
-}
-
-function renderSecurityEventsList(securityAnalysis) {
-    const container = $('#security-events-list');
-    container.empty();
-
-    if (!securityAnalysis) {
-        container.html('<div class="alert alert-info">No security events available</div>');
-        return;
-    }
-
-    const events = [
-        ...(securityAnalysis.suspicious_file_access || []),
-        ...(securityAnalysis.binder_communications || []).slice(0, 5), // Limit binder events
-        ...(securityAnalysis.ioctl_operations || []),
-        ...(securityAnalysis.suspicious_activity || [])
-    ];
-
-    if (events.length === 0) {
-        container.html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> No security issues detected</div>');
-        return;
-    }
-
-    const eventList = $('<div class="event-list" style="max-height: 300px; overflow-y: auto;"></div>');
-    events.slice(0, 15).forEach(event => {
-        const timestamp = new Date(event.timestamp * 1000).toLocaleString();
-        let severity = 'medium';
-        let description = '';
-        
-        if (event.type && event.type.includes('suspicious')) {
-            severity = 'high';
-            description = `${event.operation || event.type}: ${event.pathname || event.details || 'System access'}`;
-        } else if (event.transaction) {
-            severity = 'low';
-            description = `Binder transaction: ${event.process}`;
-        } else if (event.device) {
-            severity = 'medium';
-            description = `Device access: ${event.device}`;
-        } else {
-            description = `${event.type || 'Security event'}: ${event.process || 'Unknown'}`;
-        }
-        
-        eventList.append(`
-            <div class="event-item event-severity-${severity}">
-                <div class="event-timestamp"><small>${timestamp}</small></div>
-                <div class="event-description">${description}</div>
-            </div>
-        `);
-    });
-
-    container.append(eventList);
-}
-
-function renderSecurityRecommendations(recommendations) {
-    const container = $('#security-recommendations');
-    container.empty();
-
-    if (!recommendations || recommendations.length === 0) {
-        container.html('<div class="alert alert-success"><i class="fas fa-thumbs-up"></i> No security recommendations at this time</div>');
-        return;
-    }
-
-    const recList = $('<div class="recommendations-list"></div>');
-    recommendations.forEach(rec => {
-        const priorityClass = rec.priority === 'HIGH' ? 'danger' : 
-                             rec.priority === 'MEDIUM' ? 'warning' : 'info';
-        
-        recList.append(`
-            <div class="alert alert-${priorityClass} alert-sm">
-                <strong>${rec.title}</strong><br>
-                <small>${rec.description}</small>
-            </div>
-        `);
-    });
-
-    container.append(recList);
-}
-
-function showSecurityError(error) {
-    $('#security-error').html(`<strong>Error:</strong> ${error}`).show();
-}
 
 // Enhanced Network Analysis Functions
 function loadNetworkAnalysis() {

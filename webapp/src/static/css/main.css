@@ -47,6 +47,215 @@ body {
     box-shadow: var(--shadow-card);
 }
 
+/* App Selection Styles */
+.apps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 15px;
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.app-card {
+    background: var(--background-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.app-card:hover {
+    border-color: var(--accent-color);
+    box-shadow: var(--shadow-card);
+    transform: translateY(-2px);
+}
+
+.app-card.selected {
+    border-color: var(--success-color);
+    background: rgba(39, 174, 96, 0.05);
+}
+
+.app-card.popular::before {
+    content: "⭐";
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 16px;
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.app-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    color: white;
+    font-size: 20px;
+}
+
+.app-info h5 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+
+.app-info small {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.app-details {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.app-category {
+    display: inline-block;
+    background: var(--accent-color);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.app-processes {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 5px;
+}
+
+.app-status {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success-color);
+}
+
+.app-status.not-running {
+    background: var(--text-muted);
+}
+
+.selected-app-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.selected-app-item:last-child {
+    border-bottom: none;
+}
+
+.selected-app-name {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.selected-app-package {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.remove-app-btn {
+    background: none;
+    border: none;
+    color: var(--danger-color);
+    cursor: pointer;
+    padding: 2px;
+    font-size: 12px;
+}
+
+.app-controls .form-control-modern {
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    font-size: 14px;
+}
+
+.category-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.category-social {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.category-entertainment {
+    background: #fce4ec;
+    color: #c2185b;
+}
+
+.category-productivity {
+    background: #e8f5e8;
+    color: #388e3c;
+}
+
+.category-communication {
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+.category-gaming {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.category-browsers {
+    background: #e1f5fe;
+    color: #0277bd;
+}
+
+.category-finance {
+    background: #fff8e1;
+    color: #f57f17;
+}
+
+.category-shopping {
+    background: #efebe9;
+    color: #5d4037;
+}
+
+.category-navigation {
+    background: #e0f2f1;
+    color: #00695c;
+}
+
+.category-photography {
+    background: #fafafa;
+    color: #424242;
+}
+
+.category-unknown {
+    background: var(--border-light);
+    color: var(--text-muted);
+}
+
 /* Header */
 .main-header {
     background: var(--background-secondary);

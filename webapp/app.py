@@ -20,6 +20,7 @@ from werkzeug.utils import secure_filename
 from src.services.trace_processor import TraceProcessor
 from src.services.advanced_analytics import AdvancedAnalytics
 from src.services.comprehensive_analyzer import ComprehensiveAnalyzer
+from src.services.app_mapper_service import AppMapperService
 import shutil
 
 def create_app(config_name='default'):
@@ -44,6 +45,7 @@ upload_progress = {}
 trace_processor = TraceProcessor(app.config_class)
 advanced_analytics = AdvancedAnalytics(app.config_class)
 comprehensive_analyzer = ComprehensiveAnalyzer(app.config_class)
+app_mapper = AppMapperService(app.config_class.PROJECT_ROOT)
 
 # Load device name mapping from rdevs.txt
 device_name_mapping = {}
@@ -631,84 +633,6 @@ def export_events():
         print(f"Error in export events: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
-@app.route('/api/security-analysis')
-def get_security_analysis():
-    """API endpoint for security analysis"""
-    try:
-        events = load_data()
-        pid = request.args.get('pid')
-        
-        # Validate PID parameter
-        target_pid = None
-        if pid:
-            if not pid.isdigit():
-                return jsonify({'error': 'Invalid PID parameter'}), 400
-            target_pid = int(pid)
-        
-        # Perform security analysis
-        security_analysis = comprehensive_analyzer.analyze_security_events(events, target_pid)
-        
-        # Generate risk assessment
-        risk_assessment = {
-            'risk_category': security_analysis['summary']['risk_level'],
-            'risk_score': (
-                security_analysis['summary']['total_privilege_escalations'] * 10 +
-                security_analysis['summary']['total_debugging_attempts'] * 5 +
-                security_analysis['summary']['total_suspicious_activities'] * 8 +
-                security_analysis['summary']['total_capability_changes'] * 3
-            )
-        }
-        
-        # Generate recommendations
-        recommendations = []
-        if security_analysis['summary']['total_privilege_escalations'] > 0:
-            recommendations.append({
-                'title': 'Privilege Escalation Detected',
-                'description': 'Monitor processes for unauthorized privilege changes',
-                'priority': 'HIGH'
-            })
-        if security_analysis['summary']['total_debugging_attempts'] > 0:
-            recommendations.append({
-                'title': 'Debugging Activity Detected',
-                'description': 'Review processes attempting to debug other processes',
-                'priority': 'MEDIUM'
-            })
-        if security_analysis['summary']['total_suspicious_activities'] > 0:
-            recommendations.append({
-                'title': 'Suspicious Memory Operations',
-                'description': 'Investigate memory protection changes for potential code injection',
-                'priority': 'HIGH'
-            })
-        
-        # Create timeline data for security events
-        timeline_data = []
-        for event in security_analysis['privilege_escalation']:
-            timeline_data.append({
-                'timestamp': event['timestamp'],
-                'event_type': event['type'],
-                'severity': 'high',
-                'process': event['process'],
-                'category': 'security'
-            })
-        for event in security_analysis['debugging_attempts']:
-            timeline_data.append({
-                'timestamp': event['timestamp'],
-                'event_type': 'debugging_attempt',
-                'severity': 'medium',
-                'process': event['process'],
-                'category': 'security'
-            })
-        
-        return jsonify({
-            'security_analysis': security_analysis,
-            'risk_assessment': risk_assessment,
-            'recommendations': recommendations,
-            'timeline_data': timeline_data
-        })
-        
-    except Exception as e:
-        print(f"Error in security analysis: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/network-analysis')
 def get_network_analysis():
@@ -758,6 +682,97 @@ def get_process_analysis():
         
     except Exception as e:
         print(f"Error in process analysis: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/apps')
+def get_apps():
+    """API endpoint for getting available apps"""
+    try:
+        category = request.args.get('category')
+        search = request.args.get('search')
+        
+        if search:
+            apps = app_mapper.search_apps(search)
+        else:
+            apps = app_mapper.get_all_apps(category)
+            
+        # Convert to dictionaries for JSON serialization
+        apps_data = [app_mapper.to_dict(app) for app in apps]
+        
+        return jsonify({
+            'apps': apps_data,
+            'categories': app_mapper.get_categories(),
+            'stats': app_mapper.get_app_stats(),
+            'device_status': app_mapper.get_device_status()
+        })
+        
+    except Exception as e:
+        print(f"Error in get_apps: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/apps/refresh', methods=['POST'])
+def refresh_apps():
+    """API endpoint for refreshing app mapping from device"""
+    try:
+        result = app_mapper.refresh_mapping_from_device()
+        
+        if 'error' in result:
+            return jsonify(result), 400
+        else:
+            return jsonify(result)
+            
+    except Exception as e:
+        print(f"Error in refresh_apps: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/apps/generate-targets', methods=['POST'])
+def generate_process_targets():
+    """API endpoint for generating process targets from selected apps"""
+    try:
+        data = request.get_json()
+        selected_apps = data.get('selected_apps', [])
+        
+        if not selected_apps:
+            return jsonify({'error': 'No apps selected'}), 400
+            
+        # Export process targets
+        targets_file = app_mapper.export_process_targets(selected_apps)
+        
+        # Get process names for confirmation
+        process_names = []
+        for app_id in selected_apps:
+            processes = app_mapper.get_processes_for_app(app_id)
+            process_names.extend(processes)
+            
+        unique_processes = sorted(list(set(process_names)))
+        
+        return jsonify({
+            'success': True,
+            'targets_file': targets_file,
+            'processes': unique_processes,
+            'message': f'Generated {len(unique_processes)} process targets'
+        })
+        
+    except Exception as e:
+        print(f"Error in generate_process_targets: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/apps/search')
+def search_apps():
+    """API endpoint for searching apps"""
+    try:
+        query = request.args.get('q', '')
+        
+        if not query:
+            return jsonify({'apps': []})
+            
+        apps = app_mapper.search_apps(query)
+        apps_data = [app_mapper.to_dict(app) for app in apps]
+        
+        return jsonify({'apps': apps_data})
+        
+    except Exception as e:
+        print(f"Error in search_apps: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/export/analysis')
