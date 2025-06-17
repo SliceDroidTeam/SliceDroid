@@ -483,16 +483,16 @@ After tracing primitives matured, attention shifted to re-assembling high-level 
 
 \begin{enumerate}[label=(\roman*.)]
   \item \textbf{Cross-layer behaviour reconstruction.}
-        \emph{CopperDroid} fuses syscalls with Binder payloads via Virtual-Machine Introspection; \emph{Dagger} builds syscall–IPC provenance graphs; and \emph{SliceDroid} slices kernel traces along Binder causality, covering privileged system apps on real devices with minimal overhead.  Multi-layer instrumentation can reach finer granularity but at 5–40 × runtime overhead, making it lab-only :contentReference[oaicite:0]{index=0}.
+        \emph{CopperDroid} fuses syscalls with Binder payloads via Virtual-Machine Introspection; \emph{Dagger} builds syscall–IPC provenance graphs; and \emph{SliceDroid} slices kernel traces along Binder causality, covering privileged system apps on real devices with minimal overhead. Multi-layer instrumentation can reach finer granularity but at 5–40 × runtime overhead, making it lab-only~\cite{placeholder_citation_1}.
 
   \item \textbf{Dynamic taint and information-flow trackers.}
-        TaintDroid, TaintART, ARTist and FSAFlow instrument the ART/Java runtime to propagate taints at object level; they are precise but incur noticeable slowdown, require framework changes and can be detected by malware—limitations avoided by pure kernel tracing :contentReference[oaicite:1]{index=1}.
+        TaintDroid, TaintART, ARTist and FSAFlow instrument the ART/Java runtime to propagate taints at object level; they are precise but incur noticeable slowdown, require framework changes and can be detected by malware—limitations avoided by pure kernel tracing~\cite{placeholder_citation_2}.
 
   \item \textbf{Provenance-system perspectives.}
-        Enterprise frameworks such as CamFlow, Hi-Fi and Spade record lightweight syscall provenance for APT detection on desktop systems; Android’s semantic gap hampers their direct reuse, but Binder-aware kernel tracing (e.g., SliceDroid) can supply the missing context and extend host-based detection to mobile :contentReference[oaicite:2]{index=2}.
+        Enterprise frameworks such as CamFlow, Hi-Fi and Spade record lightweight syscall provenance for APT detection on desktop systems; Android’s semantic gap hampers their direct reuse, but Binder-aware kernel tracing (e.g., SliceDroid) can supply the missing context and extend host-based detection to mobile~\cite{placeholder_citation_3}.
 
   \item \textbf{Built-in transparency mechanisms.}
-        Since Android 12, status-bar indicators flag camera/mic use by third-party apps, yet they exclude system services and can be bypassed via permission abuse, overlays or framework bugs.  Kernel-level device-file tracing, as done by SliceDroid, closes these blind spots :contentReference[oaicite:3]{index=3}.
+        Since Android 12, status-bar indicators flag camera/mic use by third-party apps, yet they exclude system services and can be bypassed via permission abuse, overlays or framework bugs. Kernel-level device-file tracing, as done by SliceDroid, closes these blind spots~\cite{placeholder_citation_4}.
 \end{enumerate}
 
 \medskip
