@@ -133,9 +133,28 @@
 %  Abstract
 % --------------------------------------------------
 \begin{abstract}
-This thesis examines kernel-level tracing techniques to create behavioral profiles of popular messaging applications.
+This thesis introduces a hybrid security analysis methodology for
+producing in-depth behavioral profiles of popular mobile messaging
+applications, combining static inspection with advanced custom kernel-level
+tracing. The proposed dynamic tracing approach builds upon and extends the
+SliceDroid framework to enable granular monitoring of system calls and kernel
+interactions. Three production-grade messaging apps—Signal, Telegram, and Meta
+Messenger—were statically analyzed to extract manifest configurations, cryptographic
+mechanisms, and embedded third-party components, revealing potential security and privacy
+weaknesses. For dynamic assessment, the enhanced SliceDroid facilitated tailored
+tracing experiments under diverse workload scenarios, including variations in
+permission configurations, background versus foreground execution, and realistic
+messaging behaviors. This setup enabled precise capture and post-processing of
+low-level activities such as file system operations, IPC mechanisms, network
+connections, and resource consumption patterns. Comparative analysis of the
+resulting traces highlights ....
+The findings validate the effectiveness of combining static analysis with a refined,
+extendable tracing architecture and contribute a more robust methodology for mobile app
+security evaluation and behavioral profiling.
 \end{abstract}
 \clearpage
+
+
 
 % --------------------------------------------------
 %  Acknowledgments
