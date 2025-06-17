@@ -855,12 +855,15 @@ function loadSecurityAnalysis() {
     let url = '/api/security-analysis';
     if (pid) url += `?pid=${pid}`;
 
+    console.log('Loading security analysis from:', url);
+
     // Show loading
     $('#security-loading').show();
     $('#security-content').hide();
     $('#security-error').hide();
 
     $.getJSON(url, function(data) {
+        console.log('Security analysis data received:', data);
         if (data.error) {
             showSecurityError(data.error);
         } else {
@@ -868,6 +871,7 @@ function loadSecurityAnalysis() {
             renderSecurityAnalysis(data);
         }
     }).fail(function(jqXHR) {
+        console.error('Security analysis failed:', jqXHR);
         const errorMsg = jqXHR.responseJSON?.error || 'No security analysis data available';
         showSecurityError(errorMsg);
     }).always(function() {
@@ -877,21 +881,31 @@ function loadSecurityAnalysis() {
 
 function renderSecurityAnalysis(data) {
     $('#security-content').show();
+    $('#security-error').hide();
+    $('#security-loading').hide();
 
-    // Update risk badge
-    updateSecurityRiskBadge(data.risk_assessment);
+    // Wait for container to be fully visible before rendering charts
+    setTimeout(() => {
+        // Update risk badge
+        updateSecurityRiskBadge(data.risk_assessment);
 
-    // Render summary cards
-    renderSecuritySummary(data);
+        // Render summary cards
+        renderSecuritySummary(data);
 
-    // Render security timeline
-    renderSecurityTimeline(data.timeline_data);
+        // Render security timeline with container check
+        if (document.getElementById('security-timeline-chart') && 
+            document.getElementById('security-timeline-chart').offsetWidth > 0) {
+            renderSecurityTimeline(data.timeline_data);
+        } else {
+            setTimeout(() => renderSecurityTimeline(data.timeline_data), 500);
+        }
 
-    // Render security events list
-    renderSecurityEventsList(data.security_analysis);
+        // Render security events list
+        renderSecurityEventsList(data.security_analysis);
 
-    // Render recommendations
-    renderSecurityRecommendations(data.recommendations);
+        // Render recommendations
+        renderSecurityRecommendations(data.recommendations);
+    }, 200);
 }
 
 function updateSecurityRiskBadge(riskAssessment) {
@@ -1128,21 +1142,36 @@ function loadNetworkAnalysis() {
 
 function renderNetworkAnalysis(data) {
     $('#network-content').show();
+    $('#network-error').hide();
+    $('#network-loading').hide();
 
-    // Update intensity badge
-    updateNetworkIntensityBadge(data.network_analysis);
+    // Wait for container to be fully visible before rendering charts
+    setTimeout(() => {
+        // Update intensity badge
+        updateNetworkIntensityBadge(data.network_analysis);
 
-    // Render summary cards
-    renderNetworkSummary(data);
+        // Render summary cards
+        renderNetworkSummary(data);
 
-    // Render network flow chart
-    renderNetworkFlowChart(data.network_analysis);
+        // Render network flow chart with container check
+        if (document.getElementById('network-flow-chart') && 
+            document.getElementById('network-flow-chart').offsetWidth > 0) {
+            renderNetworkFlowChart(data.network_analysis);
+        } else {
+            setTimeout(() => renderNetworkFlowChart(data.network_analysis), 500);
+        }
 
-    // Render protocol distribution
-    renderProtocolDistribution(data.network_analysis);
+        // Render protocol distribution with container check
+        if (document.getElementById('protocol-distribution-chart') && 
+            document.getElementById('protocol-distribution-chart').offsetWidth > 0) {
+            renderProtocolDistribution(data.network_analysis);
+        } else {
+            setTimeout(() => renderProtocolDistribution(data.network_analysis), 500);
+        }
 
-    // Render connection tables
-    renderConnectionTables(data.network_analysis);
+        // Render connection tables
+        renderConnectionTables(data.network_analysis);
+    }, 200);
 }
 
 function updateNetworkIntensityBadge(networkAnalysis) {
@@ -1718,18 +1747,33 @@ function loadProcessAnalysis() {
 
 function renderProcessAnalysis(data) {
     $('#process-content').show();
+    $('#process-error').hide();
+    $('#process-loading').hide();
 
-    // Render summary cards
-    renderProcessSummary(data);
+    // Wait for container to be fully visible before rendering charts
+    setTimeout(() => {
+        // Render summary cards
+        renderProcessSummary(data);
 
-    // Render process tree
-    renderProcessTree(data.process_analysis);
+        // Render process tree with container check
+        if (document.getElementById('process-tree-chart') && 
+            document.getElementById('process-tree-chart').offsetWidth > 0) {
+            renderProcessTree(data.process_analysis);
+        } else {
+            setTimeout(() => renderProcessTree(data.process_analysis), 500);
+        }
 
-    // Render process timeline
-    renderProcessTimeline(data.process_analysis);
+        // Render process timeline with container check
+        if (document.getElementById('process-timeline-chart') && 
+            document.getElementById('process-timeline-chart').offsetWidth > 0) {
+            renderProcessTimeline(data.process_analysis);
+        } else {
+            setTimeout(() => renderProcessTimeline(data.process_analysis), 500);
+        }
 
-    // Render suspicious patterns
-    renderSuspiciousPatterns(data.process_analysis);
+        // Render suspicious patterns
+        renderSuspiciousPatterns(data.process_analysis);
+    }, 200);
 }
 
 function renderProcessSummary(data) {

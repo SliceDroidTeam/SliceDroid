@@ -21,7 +21,18 @@ function createPieChart(containerId, data, title) {
         return;
     }
 
+    // Check if container exists and is visible
     const container = document.getElementById(containerId);
+    if (!container) {
+        console.error(`Chart container '${containerId}' not found`);
+        return;
+    }
+    
+    if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+        console.warn(`Chart container '${containerId}' is not visible, delaying render`);
+        setTimeout(() => createPieChart(containerId, data, title), 100);
+        return;
+    }
     const width = container.clientWidth;
     const height = Math.min(container.clientHeight, 350);
     const radius = Math.min(width, height) / 2 - 20;
