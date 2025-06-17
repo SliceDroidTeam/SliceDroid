@@ -30,15 +30,15 @@ def check_and_install_dependency(package_name, import_name=None):
             subprocess.check_call([
                 sys.executable, "-m", "pip", "install", package_name, "--user"
             ])
-            print(f"✅ {package_name} installed successfully")
+            print(f"[+] {package_name} installed successfully")
             return True
         except subprocess.CalledProcessError:
-            print(f"❌ Failed to install {package_name}")
+            print(f"[!] Failed to install {package_name}")
             return False
 
 def auto_setup():
     """Automatically setup all dependencies"""
-    print("🔧 Checking dependencies...")
+    print("[*] Checking dependencies...")
     return check_and_install_dependency("androguard", "androguard")
 
 # Auto-setup when imported
