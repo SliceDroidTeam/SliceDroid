@@ -1,5 +1,21 @@
 // Chart helper functions using D3.js
 
+// Loading state management
+function showChartLoading(containerId, message = 'Loading...') {
+    d3.select(`#${containerId}`).html(`
+        <div class="d-flex flex-column align-items-center justify-content-center h-100 p-4">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="sr-only">Loading...</span>
+            </div>
+            <div class="text-muted">${message}</div>
+        </div>
+    `);
+}
+
+function hideChartLoading(containerId) {
+    d3.select(`#${containerId}`).html("");
+}
+
 // Enhanced color schemes for different chart types
 const categoryColorSchemes = {
     security: ['#dc3545', '#fd7e14', '#ffc107', '#28a745', '#6c757d'],

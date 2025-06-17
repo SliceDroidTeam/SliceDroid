@@ -81,9 +81,34 @@ function analyzeApp() {
     
     const analyzeBtn = $('#analyze-app');
     const originalText = analyzeBtn.html();
+    const app = allApps.find(a => a.package_name === selectedApp);
+    const appName = app ? app.commercial_name : selectedApp;
     
-    // Show loading state
+    // Show loading state on button
     analyzeBtn.html('<i class="fas fa-spinner fa-spin"></i> Analyzing...').prop('disabled', true);
+    
+    // Show loading spinners on all chart containers
+    const chartContainers = [
+        'timeline-container',
+        'device-chart-container',
+        'event-chart-container', 
+        'top-devices-chart-container',
+        'network-flow-chart',
+        'protocol-distribution-chart',
+        'process-tree-chart',
+        'process-timeline-chart',
+        'behavior-timeline-chart',
+        'category-chart',
+        'network-chart',
+        'device-usage-chart',
+        'process-activity-chart'
+    ];
+    
+    chartContainers.forEach(containerId => {
+        if (document.getElementById(containerId)) {
+            showChartLoading(containerId, `Analyzing ${appName}...`);
+        }
+    });
     
     // Step 1: Generate process targets
     $('#app-status').html('<small>Step 1/2: Generating process targets...</small>');
@@ -97,7 +122,7 @@ function analyzeApp() {
         }),
         success: function(targetsData) {
             if (targetsData.success) {
-                // Step 2: Perform slicing analysis
+                // Step 2: Perform slicing analysis in background
                 $('#app-status').html('<small>Step 2/2: Performing app-specific slicing analysis...</small>');
                 
                 $.ajax({
@@ -114,17 +139,21 @@ function analyzeApp() {
                                     <strong>Analysis complete for ${analysisData.app_name}</strong><br>
                                     Process targets: ${targetsData.processes.join(', ')}<br>
                                     Target PID: ${analysisData.target_pid} | Events: ${analysisData.events_count}<br>
-                                    <strong>Charts now show data specific to this app!</strong>
+                                    <strong>Refreshing charts...</strong>
                                 </small>
                             `);
                             
-                            // Auto-refresh page to show new charts
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 3000);
+                            // Refresh all charts with new data instead of page reload
+                            refreshChartsWithNewData();
                             
                         } else {
                             $('#app-status').html(`<small class="text-danger">Analysis failed: ${analysisData.error}</small>`);
+                            // Clear loading spinners on error
+                            chartContainers.forEach(containerId => {
+                                if (document.getElementById(containerId)) {
+                                    hideChartLoading(containerId);
+                                }
+                            });
                         }
                     },
                     error: function(jqXHR) {
@@ -133,6 +162,13 @@ function analyzeApp() {
                             errorMsg += ': ' + jqXHR.responseJSON.error;
                         }
                         $('#app-status').html(`<small class="text-danger">${errorMsg}</small>`);
+                        
+                        // Clear loading spinners on error
+                        chartContainers.forEach(containerId => {
+                            if (document.getElementById(containerId)) {
+                                hideChartLoading(containerId);
+                            }
+                        });
                     },
                     complete: function() {
                         // Restore button
@@ -143,13 +179,60 @@ function analyzeApp() {
             } else {
                 $('#app-status').html(`<small class="text-danger">Failed to generate targets: ${targetsData.error}</small>`);
                 analyzeBtn.html(originalText).prop('disabled', false);
+                
+                // Clear loading spinners on error
+                chartContainers.forEach(containerId => {
+                    if (document.getElementById(containerId)) {
+                        hideChartLoading(containerId);
+                    }
+                });
             }
         },
         error: function(jqXHR) {
             $('#app-status').html('<small class="text-danger">Failed to generate process targets</small>');
             analyzeBtn.html(originalText).prop('disabled', false);
+            
+            // Clear loading spinners on error
+            chartContainers.forEach(containerId => {
+                if (document.getElementById(containerId)) {
+                    hideChartLoading(containerId);
+                }
+            });
         }
     });
+}
+
+function refreshChartsWithNewData() {
+    // Reload all chart data without full page refresh
+    setTimeout(() => {
+        // Refresh timeline
+        if (typeof loadTimelineData === 'function') {
+            loadTimelineData();
+        }
+        
+        // Refresh device stats
+        if (typeof loadDeviceStats === 'function') {
+            loadDeviceStats();
+        }
+        
+        // Refresh event stats  
+        if (typeof loadEventStats === 'function') {
+            loadEventStats();
+        }
+        
+        // Load all data function from main.js
+        if (typeof loadAllData === 'function') {
+            loadAllData();
+        }
+        
+        $('#app-status').html(`
+            <small class="text-success">
+                <strong>Charts updated successfully!</strong><br>
+                Now showing data specific to the selected app.
+            </small>
+        `);
+        
+    }, 500); // Small delay to ensure backend has finished writing files
 }
 
 // Helper function for escaping HTML

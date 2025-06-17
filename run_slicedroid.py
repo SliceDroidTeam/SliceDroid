@@ -185,7 +185,8 @@ if os.path.exists(app_mapper_script):
             sys.executable, app_mapper_script,
             "--create", 
             "--output", "data/app_mapping.json",
-            "--limit", "50"
+            "--limit", "50",
+            "--include-system"
         ], check=True, timeout=120)
         print("[*] App mapping completed successfully")
     except subprocess.TimeoutExpired:

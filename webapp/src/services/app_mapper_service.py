@@ -162,7 +162,8 @@ class AppMapperService:
                 "python", str(self.mapper_script),
                 "--create",
                 "--output", str(self.mapping_file),
-                "--limit", "30"  # Smaller limit for faster startup
+                "--limit", "30",  # Smaller limit for faster startup
+                "--include-system"
             ], capture_output=True, text=True, timeout=60)  # Shorter timeout
             
             if result.returncode == 0:
@@ -250,7 +251,8 @@ class AppMapperService:
                 "python", str(self.mapper_script),
                 "--create",
                 "--output", str(self.mapping_file),
-                "--limit", "50"  # Limit to prevent long execution
+                "--limit", "50",  # Limit to prevent long execution
+                "--include-system"
             ], capture_output=True, text=True, timeout=300)
             
             if result.returncode == 0:
