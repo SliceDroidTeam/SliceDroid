@@ -133,68 +133,28 @@
                             <div class="card-icon">
                                 <i class="fas fa-mobile-alt"></i>
                             </div>
-                            <h2 class="card-title">App Selection for Tracking</h2>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-outline-primary btn-sm" id="refresh-apps-btn">
-                                <i class="fas fa-sync"></i> Refresh from Device
-                            </button>
-                            <span class="badge" id="app-count-badge">0 apps</span>
+                            <h2 class="card-title">Select App for Analysis</h2>
                         </div>
                     </div>
 
-                    <!-- App Selection Interface -->
                     <div class="row">
-                        <div class="col-md-4">
-                            <div class="app-controls mb-3">
-                                <div class="input-group mb-2">
-                                    <input type="text" class="form-control form-control-modern" 
-                                           id="app-search" placeholder="Search apps...">
-                                    <button class="btn btn-outline-secondary" type="button" id="clear-search">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </div>
-                                
-                                <select class="form-control form-control-modern mb-2" id="category-filter">
-                                    <option value="">All Categories</option>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="app-select" class="form-label">Choose an app to analyze:</label>
+                                <select class="form-control form-control-modern" id="app-select">
+                                    <option value="">Loading apps...</option>
                                 </select>
-                                
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-success btn-sm" id="select-all-apps">
-                                        <i class="fas fa-check-square"></i> Select All
-                                    </button>
-                                    <button class="btn btn-secondary btn-sm" id="clear-all-apps">
-                                        <i class="fas fa-square"></i> Clear All
-                                    </button>
-                                </div>
                             </div>
-
-                            <div id="selected-apps-summary" class="card mb-3" style="display: none;">
-                                <div class="card-header">
-                                    <h6><i class="fas fa-list"></i> Selected Apps (<span id="selected-count">0</span>)</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div id="selected-apps-list"></div>
-                                    <button class="btn btn-primary btn-sm mt-2" id="generate-targets">
-                                        <i class="fas fa-cog"></i> Generate Process Targets
-                                    </button>
-                                </div>
-                            </div>
+                            <button class="btn btn-primary btn-lg" id="analyze-app" disabled>
+                                <i class="fas fa-play-circle"></i> Analyze Selected App
+                            </button>
                         </div>
-                        
-                        <div class="col-md-8">
-                            <div id="apps-loading" class="text-center p-3" style="display: none;">
-                                <div class="loading-spinner mx-auto mb-2"></div>
-                                <small>Loading apps from device...</small>
-                            </div>
-
-                            <div id="apps-grid" class="apps-grid">
-                                <!-- Apps will be populated here -->
-                            </div>
-
-                            <div id="apps-error" class="alert alert-info">
-                                <i class="fas fa-info-circle"></i> 
-                                Click "Refresh from Device" to load apps from connected Android device, or use the popular apps below.
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-primary" id="refresh-apps-btn">
+                                <i class="fas fa-sync"></i> Refresh Apps from Device
+                            </button>
+                            <div id="app-status" class="mt-2 text-muted">
+                                <small>Select an app from the dropdown to begin analysis</small>
                             </div>
                         </div>
                     </div>

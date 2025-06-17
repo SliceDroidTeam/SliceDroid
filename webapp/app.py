@@ -757,6 +757,64 @@ def generate_process_targets():
         print(f"Error in generate_process_targets: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+@app.route('/api/apps/analyze', methods=['POST'])
+def analyze_app():
+    """API endpoint for re-slicing events for a specific app"""
+    try:
+        data = request.get_json()
+        app_id = data.get('app_id')
+        
+        if not app_id:
+            return jsonify({'error': 'No app specified'}), 400
+        
+        # Load all events (original unfiltered data)
+        events = load_data()
+        if not events:
+            return jsonify({'error': 'No trace data available'}), 400
+        
+        # Get PIDs for the selected app
+        app_pids = app_mapper.get_pids_for_app(app_id, events)
+        if not app_pids:
+            return jsonify({'error': f'No PIDs found for app {app_id} in trace data'}), 400
+        
+        print(f"Found PIDs {app_pids} for app {app_id}")
+        
+        # Use the main PID (first one found) for slicing
+        target_pid = app_pids[0]
+        
+        # Perform slicing analysis for this specific app
+        sliced_events = comprehensive_analyzer.slice_events(events, target_pid, asynchronous=True)
+        
+        # Create app-specific processed events file
+        app_name = app_mapper.get_app_by_package(app_id)
+        app_display_name = app_name.commercial_name if app_name else app_id
+        
+        # Save sliced events to a new file for the dashboard to use
+        app_events_file = app.config_class.EXPORTS_DIR / f'app_{app_id.replace(".", "_")}_events.json'
+        app_events_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(app_events_file, 'w', encoding='utf-8') as f:
+            json.dump(sliced_events, f, indent=2, ensure_ascii=False)
+        
+        # Update the main processed events file to show app-specific data
+        main_events_file = app.config_class.PROCESSED_EVENTS_JSON
+        with open(main_events_file, 'w', encoding='utf-8') as f:
+            json.dump(sliced_events, f, indent=2, ensure_ascii=False)
+        
+        return jsonify({
+            'success': True,
+            'app_name': app_display_name,
+            'target_pid': target_pid,
+            'pids': app_pids,
+            'events_count': len(sliced_events),
+            'message': f'Analysis complete for {app_display_name}. Found {len(sliced_events)} relevant events.',
+            'events_file': str(app_events_file)
+        })
+        
+    except Exception as e:
+        print(f"Error in analyze_app: {e}")
+        return jsonify({'error': f'Analysis failed: {str(e)}'}), 500
+
 @app.route('/api/apps/search')
 def search_apps():
     """API endpoint for searching apps"""

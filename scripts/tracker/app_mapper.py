@@ -185,10 +185,13 @@ class AppMapper:
             if commercial_name:
                 print(f"  Found: {commercial_name}")
                 
+                # Determine category based on package name and commercial name
+                category = self._determine_app_category(package, commercial_name)
+                
                 mapping[package] = {
                     "package_name": package,
                     "commercial_name": commercial_name,
-                    "category": "App",
+                    "category": category,
                     "processes": [package],
                     "is_running": True
                 }
@@ -245,6 +248,44 @@ class AppMapper:
                     process_names.append(app_id)
         
         return list(set(process_names))
+
+    def _determine_app_category(self, package_name: str, commercial_name: str) -> str:
+        """Determine app category based on package name and commercial name"""
+        package_lower = package_name.lower()
+        name_lower = commercial_name.lower()
+        
+        # Social & Communication
+        social_keywords = ['messenger', 'telegram', 'signal', 'whatsapp', 'facebook', 'instagram', 'twitter', 'snapchat', 'discord', 'tiktok']
+        if any(keyword in package_lower or keyword in name_lower for keyword in social_keywords):
+            return "Social"
+        
+        # Entertainment & Media
+        entertainment_keywords = ['spotify', 'youtube', 'netflix', 'music', 'video', 'player', 'media']
+        if any(keyword in package_lower or keyword in name_lower for keyword in entertainment_keywords):
+            return "Entertainment"
+        
+        # System & Tools
+        system_keywords = ['android', 'google', 'system', 'safety', 'security', 'magisk', 'termux', 'key', 'verifier']
+        if any(keyword in package_lower or keyword in name_lower for keyword in system_keywords):
+            return "System"
+        
+        # Productivity & Utilities
+        productivity_keywords = ['office', 'document', 'note', 'calendar', 'mail', 'email', 'productivity']
+        if any(keyword in package_lower or keyword in name_lower for keyword in productivity_keywords):
+            return "Productivity"
+        
+        # Games
+        game_keywords = ['game', 'play', 'puzzle', 'arcade']
+        if any(keyword in package_lower or keyword in name_lower for keyword in game_keywords):
+            return "Games"
+        
+        # Browser
+        browser_keywords = ['browser', 'chrome', 'firefox', 'edge']
+        if any(keyword in package_lower or keyword in name_lower for keyword in browser_keywords):
+            return "Browser"
+        
+        # Default category
+        return "Other"
 
     def generate_pid_targets(self, selected_apps: List[str], output_file: str = None):
         """Generate pid_targets.txt for eBPF tracing"""

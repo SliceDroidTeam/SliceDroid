@@ -346,6 +346,21 @@ class AppMapperService:
         except Exception:
             return None
 
+    def get_pids_for_app(self, app_identifier: str, events: List[Dict]) -> List[int]:
+        """Get PIDs for app from trace events"""
+        process_names = self.get_processes_for_app(app_identifier)
+        if not process_names:
+            return []
+        
+        pids = set()
+        for event in events:
+            event_process = event.get('process', '')
+            if event_process in process_names:
+                if 'tgid' in event:
+                    pids.add(event['tgid'])
+        
+        return sorted(list(pids))
+
     def to_dict(self, app: AppInfo) -> Dict:
         """Convert AppInfo to dictionary for JSON serialization"""
         return {
