@@ -50,8 +50,7 @@ class AppMapperService:
                         is_running=info.get('is_running', False)
                     )
                 print(f"Loaded {len(self.apps_cache)} apps from mapping file")
-            else:
-                print("No app mapping file found")
+            # No print when mapping file doesn't exist - it's normal on first run
                 
         except Exception as e:
             print(f"Error loading app mapping: {e}")

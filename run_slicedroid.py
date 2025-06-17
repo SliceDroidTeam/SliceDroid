@@ -175,6 +175,28 @@ print(f"[*] Found {len(devices)} connected device(s):")
 for device in devices:
     print(f"    - {device}")
 
+# Create app mapping from connected device
+print("[*] Creating app mapping from connected device...")
+app_mapper_script = os.path.join("scripts", "tracker", "app_mapper.py")
+if os.path.exists(app_mapper_script):
+    try:
+        print("[*] Analyzing installed apps to extract commercial names...")
+        subprocess.run([
+            sys.executable, app_mapper_script,
+            "--create", 
+            "--output", "data/app_mapping.json",
+            "--limit", "50"
+        ], check=True, timeout=120)
+        print("[*] App mapping completed successfully")
+    except subprocess.TimeoutExpired:
+        print("[!] App mapping timed out, continuing with existing mapping...")
+    except subprocess.CalledProcessError as e:
+        print(f"[!] App mapping failed: {e}, continuing...")
+    except Exception as e:
+        print(f"[!] App mapping error: {e}, continuing...")
+else:
+    print("[!] App mapper script not found, skipping app mapping...")
+
 # Check if rdevs.txt and regularfiles.txt exist to skip the script
 mapping_dir = "data/mappings"
 skip_rdev = False
@@ -255,9 +277,9 @@ trace_process = subprocess.Popen(
 )
 
 print("\n" + "="*70)
-print("🔴 TRACING ACTIVE - Use your Android device now!")
-print("📱 Perform the actions you want to analyze...")
-print("⏹️  Press ENTER when finished to stop tracing and analyze results")
+print("[*] TRACING ACTIVE - Use your Android device now!")
+print("[*] Perform the actions you want to analyze...")
+print("[*] Press ENTER when finished to stop tracing and analyze results")
 print("="*70 + "\n")
 input()
 

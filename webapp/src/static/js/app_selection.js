@@ -10,10 +10,7 @@ let categories = [];
 function initializeAppSelection() {
     setupAppEventListeners();
     
-    // Show loading state initially
-    showAppConnectionStatus();
-    
-    // Load apps (which will auto-connect if possible)
+    // Load apps immediately without showing connection messages
     loadApps();
 }
 
@@ -71,16 +68,20 @@ function loadApps(category = '', search = '') {
         updateCategoryFilter();
         updateAppCountBadge(data.stats, data.device_status);
         renderApps(allApps);
-        updateDeviceStatus(data.device_status);
+        updateDeviceStatusQuiet(data.device_status);
         
-        // Hide error, show content
+        // Always hide error messages and show apps
         $('#apps-error').hide();
         $('#apps-grid').show();
         
+        // Show minimal status if no apps found
+        if (allApps.length === 0) {
+            $('#apps-error').html('<i class="fas fa-info-circle"></i> No apps found. Connect Android device and refresh for more apps.').show();
+        }
+        
     }).fail(function(jqXHR) {
         console.error('Failed to load apps:', jqXHR);
-        showAppError('Failed to load apps. Using default popular apps.');
-        // Keep showing popular apps even on error
+        $('#apps-error').html('<i class="fas fa-exclamation-triangle"></i> Unable to load apps. Check connection and refresh.').show();
     });
 }
 
@@ -101,7 +102,7 @@ function updateAppCountBadge(stats, deviceStatus) {
             badgeText += ` (${stats.popular_apps} popular)`;
         }
         if (deviceStatus && deviceStatus.device_connected) {
-            badgeText += ' 📱';
+            badgeText += ' (device)';
         }
         badge.text(badgeText);
     } else {
@@ -143,6 +144,29 @@ function updateDeviceStatus(deviceStatus) {
                   .html('<i class="fas fa-sync"></i> Refresh from Device');
         
         appsError.html('<i class="fas fa-info-circle"></i> Install ADB and connect Android device for live app discovery.');
+    }
+}
+
+function updateDeviceStatusQuiet(deviceStatus) {
+    if (!deviceStatus) return;
+    
+    const refreshBtn = $('#refresh-apps-btn');
+    
+    if (deviceStatus.device_connected) {
+        // Device connected - show success state quietly
+        refreshBtn.removeClass('btn-outline-primary btn-outline-warning')
+                  .addClass('btn-outline-success')
+                  .html('<i class="fas fa-mobile-alt"></i> Device Connected');
+    } else if (deviceStatus.adb_available) {
+        // ADB available but no device
+        refreshBtn.removeClass('btn-outline-primary btn-outline-success')
+                  .addClass('btn-outline-warning')
+                  .html('<i class="fas fa-wifi"></i> Connect Device');
+    } else {
+        // No ADB
+        refreshBtn.removeClass('btn-outline-success btn-outline-warning')
+                  .addClass('btn-outline-primary')
+                  .html('<i class="fas fa-sync"></i> Refresh from Device');
     }
 }
 
