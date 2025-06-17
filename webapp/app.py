@@ -782,6 +782,9 @@ def analyze_app():
         # Use the main PID (first one found) for slicing
         target_pid = app_pids[0]
         
+        # Generate process targets file automatically
+        app_mapper.export_process_targets([app_id])
+        
         # Perform slicing analysis for this specific app
         sliced_events = comprehensive_analyzer.slice_events(events, target_pid, asynchronous=True)
         

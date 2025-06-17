@@ -110,76 +110,36 @@ function analyzeApp() {
         }
     });
     
-    // Step 1: Generate process targets
-    $('#app-status').html('<small>Step 1/2: Generating process targets...</small>');
+    // Get process targets from existing app data  
+    const app = allApps.find(a => a.package_name === selectedApp);
+    const processTargets = app ? app.processes : [selectedApp];
+    
+    // Perform slicing analysis directly
+    $('#app-status').html('<small>Performing app-specific slicing analysis...</small>');
     
     $.ajax({
-        url: '/api/apps/generate-targets',
+        url: '/api/apps/analyze',
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify({
-            selected_apps: [selectedApp]
+            app_id: selectedApp
         }),
-        success: function(targetsData) {
-            if (targetsData.success) {
-                // Step 2: Perform slicing analysis in background
-                $('#app-status').html('<small>Step 2/2: Performing app-specific slicing analysis...</small>');
+        success: function(analysisData) {
+            if (analysisData.success) {
+                $('#app-status').html(`
+                    <small class="text-success">
+                        <strong>Analysis complete for ${analysisData.app_name}</strong><br>
+                        Process targets: ${processTargets.join(', ')}<br>
+                        Target PID: ${analysisData.target_pid} | Events: ${analysisData.events_count}<br>
+                        <strong>Refreshing charts...</strong>
+                    </small>
+                `);
                 
-                $.ajax({
-                    url: '/api/apps/analyze',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        app_id: selectedApp
-                    }),
-                    success: function(analysisData) {
-                        if (analysisData.success) {
-                            $('#app-status').html(`
-                                <small class="text-success">
-                                    <strong>Analysis complete for ${analysisData.app_name}</strong><br>
-                                    Process targets: ${targetsData.processes.join(', ')}<br>
-                                    Target PID: ${analysisData.target_pid} | Events: ${analysisData.events_count}<br>
-                                    <strong>Refreshing charts...</strong>
-                                </small>
-                            `);
-                            
-                            // Refresh all charts with new data instead of page reload
-                            refreshChartsWithNewData();
-                            
-                        } else {
-                            $('#app-status').html(`<small class="text-danger">Analysis failed: ${analysisData.error}</small>`);
-                            // Clear loading spinners on error
-                            chartContainers.forEach(containerId => {
-                                if (document.getElementById(containerId)) {
-                                    hideChartLoading(containerId);
-                                }
-                            });
-                        }
-                    },
-                    error: function(jqXHR) {
-                        let errorMsg = 'Analysis failed';
-                        if (jqXHR.responseJSON && jqXHR.responseJSON.error) {
-                            errorMsg += ': ' + jqXHR.responseJSON.error;
-                        }
-                        $('#app-status').html(`<small class="text-danger">${errorMsg}</small>`);
-                        
-                        // Clear loading spinners on error
-                        chartContainers.forEach(containerId => {
-                            if (document.getElementById(containerId)) {
-                                hideChartLoading(containerId);
-                            }
-                        });
-                    },
-                    complete: function() {
-                        // Restore button
-                        analyzeBtn.html(originalText).prop('disabled', false);
-                    }
-                });
+                // Refresh all charts with new data instead of page reload
+                refreshChartsWithNewData();
                 
             } else {
-                $('#app-status').html(`<small class="text-danger">Failed to generate targets: ${targetsData.error}</small>`);
-                analyzeBtn.html(originalText).prop('disabled', false);
-                
+                $('#app-status').html(`<small class="text-danger">Analysis failed: ${analysisData.error}</small>`);
                 // Clear loading spinners on error
                 chartContainers.forEach(containerId => {
                     if (document.getElementById(containerId)) {
@@ -189,8 +149,11 @@ function analyzeApp() {
             }
         },
         error: function(jqXHR) {
-            $('#app-status').html('<small class="text-danger">Failed to generate process targets</small>');
-            analyzeBtn.html(originalText).prop('disabled', false);
+            let errorMsg = 'Analysis failed';
+            if (jqXHR.responseJSON && jqXHR.responseJSON.error) {
+                errorMsg += ': ' + jqXHR.responseJSON.error;
+            }
+            $('#app-status').html(`<small class="text-danger">${errorMsg}</small>`);
             
             // Clear loading spinners on error
             chartContainers.forEach(containerId => {
@@ -198,6 +161,10 @@ function analyzeApp() {
                     hideChartLoading(containerId);
                 }
             });
+        },
+        complete: function() {
+            // Restore button
+            analyzeBtn.html(originalText).prop('disabled', false);
         }
     });
 }

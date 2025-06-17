@@ -5,7 +5,6 @@ Manages app mapping from Android devices using real APK analysis
 
 import os
 import json
-import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass
@@ -27,7 +26,7 @@ class AppMapperService:
         self.apps_cache = {}
         self.device_connected = False
         
-        # Load existing mapping
+        # Load existing mapping immediately without any delays
         self.load_mapping()
         
     def load_mapping(self) -> Dict[str, AppInfo]:
@@ -53,133 +52,6 @@ class AppMapperService:
             
         return self.apps_cache
 
-    def auto_connect_and_refresh(self):
-        """Auto-connect to ADB device and refresh on startup"""
-        print("[*] Auto-connecting to ADB device...")
-        
-        # Check if ADB is available
-        if not self._check_adb_available():
-            print("[!] ADB not found in PATH")
-            return
-            
-        # Try to connect to device
-        if self._try_adb_connection():
-            print("[+] ADB device connected successfully")
-            self.device_connected = True
-            
-            # Check if we have a recent mapping (less than 24 hours old)
-            if self._is_mapping_recent():
-                print("[*] Using recent app mapping from cache")
-                return
-                
-            # Refresh mapping from device in background
-            print("[*] Refreshing app mapping from device...")
-            self._background_refresh()
-        else:
-            print("[!] No ADB device found or connected")
-
-    def _check_adb_available(self) -> bool:
-        """Check if ADB is available"""
-        try:
-            result = subprocess.run(["adb", "version"], 
-                                  capture_output=True, text=True, timeout=5)
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return False
-
-    def _try_adb_connection(self) -> bool:
-        """Try to connect to ADB device"""
-        try:
-            # Start ADB server if not running
-            subprocess.run(["adb", "start-server"], 
-                         capture_output=True, timeout=10)
-            
-            # Check for devices
-            result = subprocess.run(["adb", "devices"], 
-                                  capture_output=True, text=True, timeout=10)
-            
-            devices = [line for line in result.stdout.splitlines() 
-                      if line.strip() and not line.startswith("List of devices")]
-            
-            connected_devices = [line for line in devices if "device" in line and "offline" not in line]
-            
-            if connected_devices:
-                print(f"[+] Found {len(connected_devices)} connected device(s)")
-                return True
-            else:
-                print("[!] No devices connected or authorized")
-                return False
-                
-        except subprocess.TimeoutExpired:
-            print("[!] ADB connection timeout")
-            return False
-        except Exception as e:
-            print(f"[!] ADB connection error: {e}")
-            return False
-
-    def _is_mapping_recent(self) -> bool:
-        """Check if mapping is recent (< 24 hours)"""
-        try:
-            if not self.mapping_file.exists():
-                return False
-                
-            import time
-            file_age = time.time() - self.mapping_file.stat().st_mtime
-            return file_age < (24 * 60 * 60)  # 24 hours in seconds
-            
-        except Exception:
-            return False
-
-    def _background_refresh(self):
-        """Refresh mapping in background"""
-        import threading
-        
-        def refresh_worker():
-            try:
-                result = self._quick_device_refresh()
-                if result.get('success'):
-                    print(f"[+] Background refresh completed: {result.get('message', '')}")
-                else:
-                    print(f"[!] Background refresh failed: {result.get('error', '')}")
-            except Exception as e:
-                print(f"[!] Background refresh error: {e}")
-        
-        # Start refresh in background thread
-        refresh_thread = threading.Thread(target=refresh_worker, daemon=True)
-        refresh_thread.start()
-
-    def _quick_device_refresh(self) -> Dict[str, str]:
-        """Quick refresh from device with limited number of apps"""
-        try:
-            if not self.mapper_script.exists():
-                return {"error": "App mapper script not found"}
-                
-            # Create data directory if needed
-            self.mapping_file.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Run script with smaller limit for faster startup
-            result = subprocess.run([
-                "python", str(self.mapper_script),
-                "--create",
-                "--output", str(self.mapping_file),
-                "--limit", "30",  # Smaller limit for faster startup
-                "--include-system"
-            ], capture_output=True, text=True, timeout=60)  # Shorter timeout
-            
-            if result.returncode == 0:
-                # Reload mapping
-                self.load_mapping()
-                return {
-                    "success": True,
-                    "message": f"Quick refresh completed with {len(self.apps_cache)} apps"
-                }
-            else:
-                return {"error": f"Script failed: {result.stderr}"}
-                
-        except subprocess.TimeoutExpired:
-            return {"error": "Quick refresh timed out"}
-        except Exception as e:
-            return {"error": f"Quick refresh failed: {str(e)}"}
 
     def get_all_apps(self, category: Optional[str] = None) -> List[AppInfo]:
         """Get all apps, optionally filtered by category"""
@@ -236,44 +108,6 @@ class AppMapperService:
             categories.add(app.category)
         return sorted(list(categories))
 
-    def refresh_mapping_from_device(self) -> Dict[str, str]:
-        """Refresh mapping from connected device"""
-        try:
-            # Check if script exists
-            if not self.mapper_script.exists():
-                return {"error": "App mapper script not found"}
-                
-            # Create data directory if needed
-            self.mapping_file.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Run script
-            result = subprocess.run([
-                "python", str(self.mapper_script),
-                "--create",
-                "--output", str(self.mapping_file),
-                "--limit", "50",  # Limit to prevent long execution
-                "--include-system"
-            ], capture_output=True, text=True, timeout=300)
-            
-            if result.returncode == 0:
-                # Reload mapping
-                self.load_mapping()
-                return {
-                    "success": True,
-                    "message": f"Mapping updated with {len(self.apps_cache)} apps",
-                    "output": result.stdout
-                }
-            else:
-                return {
-                    "error": f"Script failed: {result.stderr}",
-                    "output": result.stdout
-                }
-                
-        except subprocess.TimeoutExpired:
-            return {"error": "Mapping update timed out"}
-        except Exception as e:
-            return {"error": f"Failed to update mapping: {str(e)}"}
-
     def get_app_stats(self) -> Dict[str, int]:
         """Get app statistics"""
         stats = {
@@ -312,11 +146,51 @@ class AppMapperService:
                 
         return str(targets_file)
 
+    def refresh_mapping_from_device(self) -> Dict[str, str]:
+        """Refresh mapping from connected device"""
+        try:
+            import subprocess
+            
+            # Check if script exists
+            if not self.mapper_script.exists():
+                return {"error": "App mapper script not found"}
+                
+            # Create data directory if needed
+            self.mapping_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Run script
+            result = subprocess.run([
+                "python", str(self.mapper_script),
+                "--create",
+                "--output", str(self.mapping_file),
+                "--limit", "50",  # Limit to prevent long execution
+                "--include-system"
+            ], capture_output=True, text=True, timeout=300)
+            
+            if result.returncode == 0:
+                # Reload mapping
+                self.load_mapping()
+                return {
+                    "success": True,
+                    "message": f"Mapping updated with {len(self.apps_cache)} apps",
+                    "output": result.stdout
+                }
+            else:
+                return {
+                    "error": f"Script failed: {result.stderr}",
+                    "output": result.stdout
+                }
+                
+        except subprocess.TimeoutExpired:
+            return {"error": "Mapping update timed out"}
+        except Exception as e:
+            return {"error": f"Failed to update mapping: {str(e)}"}
+
     def get_device_status(self) -> Dict[str, any]:
-        """Get device and connection status"""
+        """Get device and connection status (fast version without checks)"""
         return {
             "device_connected": self.device_connected,
-            "adb_available": self._check_adb_available(),
+            "adb_available": True,  # Assume available to avoid subprocess calls
             "mapping_file_exists": self.mapping_file.exists(),
             "mapping_age_hours": self._get_mapping_age_hours(),
             "last_refresh": self._get_last_refresh_time()

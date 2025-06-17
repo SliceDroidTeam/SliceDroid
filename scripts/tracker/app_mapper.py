@@ -143,6 +143,44 @@ class AppMapper:
                 except:
                     pass
 
+    def _is_commercial_app(self, package_name: str, commercial_name: str) -> bool:
+        """Check if this is a commercial app worth including"""
+        package_lower = package_name.lower()
+        name_lower = commercial_name.lower() if commercial_name else ""
+        
+        # Always include user apps (non-system)
+        if not package_lower.startswith(('com.google.', 'com.android.', 'android.')):
+            return True
+            
+        # Google commercial apps worth including
+        google_commercial_apps = [
+            'com.google.android.youtube',           # YouTube
+            'com.google.android.apps.maps',         # Google Maps  
+            'com.google.android.gm',                # Gmail
+            'com.android.chrome',                   # Chrome
+            'com.google.android.googlequicksearchbox', # Google App
+            'com.google.android.apps.photos',       # Google Photos
+            'com.google.android.apps.docs',         # Google Docs
+            'com.google.android.apps.drive',        # Google Drive
+            'com.google.android.music',             # YouTube Music
+            'com.google.android.apps.translate',    # Google Translate
+            'com.google.android.calendar',          # Google Calendar
+            'com.google.android.contacts',          # Google Contacts
+            'com.google.android.dialer',            # Phone by Google
+            'com.google.android.apps.messaging',    # Messages by Google
+            'com.google.android.apps.podcasts',     # Google Podcasts
+            'com.google.android.keep',              # Google Keep
+            'com.google.android.play.games',        # Google Play Games
+            'com.android.vending'                   # Google Play Store
+        ]
+        
+        # Include if it's in our commercial apps list
+        if package_lower in google_commercial_apps:
+            return True
+            
+        # Skip other Google/Android system apps
+        return False
+
     def create_mapping(self, limit: int = 30, include_system: bool = False) -> Dict[str, Dict]:
         """Create mapping from package names to commercial names and processes"""
         mapping = {}
@@ -183,18 +221,18 @@ class AppMapper:
             commercial_name = self.get_app_label(package)
             
             if commercial_name:
-                print(f"  Found: {commercial_name}")
-                
-                # Determine category based on package name and commercial name
-                category = self._determine_app_category(package, commercial_name)
-                
-                mapping[package] = {
-                    "package_name": package,
-                    "commercial_name": commercial_name,
-                    "category": category,
-                    "processes": [package],
-                    "is_running": True
-                }
+                # Check if this is a commercial app worth including
+                if self._is_commercial_app(package, commercial_name):
+                    print(f"  Found: {commercial_name}")
+                    
+                    mapping[package] = {
+                        "package_name": package,
+                        "commercial_name": commercial_name,
+                        "processes": [package],
+                        "is_running": True
+                    }
+                else:
+                    print(f"  Skipping system app: {commercial_name}")
             else:
                 print(f"  APK analysis failed - skipping {package}")
         
@@ -249,43 +287,6 @@ class AppMapper:
         
         return list(set(process_names))
 
-    def _determine_app_category(self, package_name: str, commercial_name: str) -> str:
-        """Determine app category based on package name and commercial name"""
-        package_lower = package_name.lower()
-        name_lower = commercial_name.lower()
-        
-        # Social & Communication
-        social_keywords = ['messenger', 'telegram', 'signal', 'whatsapp', 'facebook', 'instagram', 'twitter', 'snapchat', 'discord', 'tiktok']
-        if any(keyword in package_lower or keyword in name_lower for keyword in social_keywords):
-            return "Social"
-        
-        # Entertainment & Media
-        entertainment_keywords = ['spotify', 'youtube', 'netflix', 'music', 'video', 'player', 'media']
-        if any(keyword in package_lower or keyword in name_lower for keyword in entertainment_keywords):
-            return "Entertainment"
-        
-        # System & Tools
-        system_keywords = ['android', 'google', 'system', 'safety', 'security', 'magisk', 'termux', 'key', 'verifier']
-        if any(keyword in package_lower or keyword in name_lower for keyword in system_keywords):
-            return "System"
-        
-        # Productivity & Utilities
-        productivity_keywords = ['office', 'document', 'note', 'calendar', 'mail', 'email', 'productivity']
-        if any(keyword in package_lower or keyword in name_lower for keyword in productivity_keywords):
-            return "Productivity"
-        
-        # Games
-        game_keywords = ['game', 'play', 'puzzle', 'arcade']
-        if any(keyword in package_lower or keyword in name_lower for keyword in game_keywords):
-            return "Games"
-        
-        # Browser
-        browser_keywords = ['browser', 'chrome', 'firefox', 'edge']
-        if any(keyword in package_lower or keyword in name_lower for keyword in browser_keywords):
-            return "Browser"
-        
-        # Default category
-        return "Other"
 
     def generate_pid_targets(self, selected_apps: List[str], output_file: str = None):
         """Generate pid_targets.txt for eBPF tracing"""
