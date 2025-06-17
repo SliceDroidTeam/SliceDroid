@@ -607,3 +607,62 @@ body {
 .tcp-flow { stroke: #28a745; }
 .udp-flow { stroke: #17a2b8; }
 .bluetooth-flow { stroke: #6f42c1; }
+
+/* Chart Controls */
+.chart-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.chart-controls .btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.chart-controls .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.chart-controls .btn i {
+    font-size: 10px;
+}
+
+.chart-controls .btn-outline-primary {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.chart-controls .btn-outline-primary:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+}
+
+.chart-controls .btn-outline-secondary {
+    border-color: var(--text-secondary);
+    color: var(--text-secondary);
+}
+
+.chart-controls .btn-outline-secondary:hover {
+    background-color: var(--text-secondary);
+    border-color: var(--text-secondary);
+    color: white;
+}
+
+.chart-controls .btn-outline-info {
+    border-color: #17a2b8;
+    color: #17a2b8;
+}
+
+.chart-controls .btn-outline-info:hover {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+    color: white;
+}

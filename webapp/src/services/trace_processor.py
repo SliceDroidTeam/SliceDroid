@@ -188,52 +188,44 @@ class TraceProcessor:
         return processed_events
     
     def _categorize_event(self, event):
-        """Categorize event for visualization purposes"""
+        """Categorize event for visualization purposes using simplified categories"""
         event_name = event.get('event', '')
         
-        # File system operations
-        if event_name in ['read_probe', 'write_probe', 'ioctl_probe']:
-            return 'filesystem'
+        # Read operations (traditional filesystem reads + hardware reads)
+        if event_name in ['read_probe'] or any(keyword in event_name for keyword in ['read', 'recv']):
+            return 'read'
         
-        # IPC operations
-        elif event_name in ['binder_transaction', 'binder_transaction_received',
-                           'unix_stream_sendmsg', 'unix_stream_recvmsg',
-                           'unix_dgram_sendmsg', 'unix_dgram_recvmsg']:
-            return 'ipc'
+        # Write operations (traditional filesystem writes + hardware writes) 
+        elif (event_name in ['write_probe', 'tracing_mark_write'] or 
+              any(keyword in event_name for keyword in ['write', 'send', 'enable', 'prepare', 'vote'])):
+            return 'write'
         
-        # Network operations
-        elif event_name in ['tcp_sendmsg', 'tcp_recvmsg', 'udp_sendmsg', 'udp_recvmsg',
-                           '__sys_socket', '__sys_connect', '__sys_bind', 'sock_sendmsg',
-                           'inet_sock_set_state']:
+        # IOCTL and hardware control operations
+        elif (event_name in ['ioctl_probe', 'android_vh_blk_account_io_done_handler', 'ioc_timer_fn'] or
+              any(keyword in event_name for keyword in ['ioctl', 'clk', 'runtime', 'suspend', 'resume', 'hw_'])):
+            return 'ioctl'
+        
+        # Binder and IPC operations  
+        elif (event_name in ['binder_transaction', 'binder_transaction_received'] or
+              any(keyword in event_name for keyword in ['binder', 'interrupt'])):
+            return 'binder'
+        
+        # Network operations (including audio/communication subsystems)
+        elif (event_name in ['tcp_sendmsg', 'tcp_recvmsg', 'udp_sendmsg', 'udp_recvmsg',
+                           'unix_stream_sendmsg', 'unix_stream_recvmsg', 'unix_dgram_sendmsg', 'unix_dgram_recvmsg',
+                           '__sys_socket', '__sys_connect', '__sys_bind', 'sock_sendmsg', 'inet_sock_set_state'] or
+              any(keyword in event_name for keyword in ['audio', 'bolero', 'swrm', 'digital_cdc', 'lpass_hw', 'sock', 'inet'])):
             return 'network'
-        
-        # Security operations
-        elif event_name in ['ptrace_attach', '__arm64_sys_setuid', '__arm64_sys_setresuid',
-                           '__arm64_sys_setresgid', '__arm64_sys_capset', '__arm64_sys_mprotect']:
-            return 'security'
-        
-        # Process operations
-        elif event_name in ['__arm64_sys_execve', 'load_elf_binary', 'sched_process_fork', 'sched_process_exec']:
-            return 'process'
-        
-        # Memory operations
-        elif event_name in ['mmap_probe']:
-            return 'memory'
-        
-        # Bluetooth operations
-        elif event_name in ['hci_sock_sendmsg', 'sco_sock_sendmsg', 'l2cap_sock_sendmsg']:
-            return 'bluetooth'
-        
-        # Device-specific operations
-        elif event_name in ['aoc_service_write_message']:
-            return 'device_specific'
         
         else:
             return 'other'
 
     def _is_visualization_relevant(self, event):
         """Check if an event is relevant for visualization"""
-        relevant_events = [
+        event_name = event.get('event', '')
+        
+        # Traditional system call events
+        traditional_events = [
             # File system operations
             'read_probe', 'write_probe', 'ioctl_probe',
             # IPC operations
@@ -255,8 +247,37 @@ class TraceProcessor:
             # Device-specific operations
             'aoc_service_write_message'
         ]
-
-        return event.get('event') in relevant_events
+        
+        # Hardware and low-level events (new support)
+        hardware_events = [
+            # Block I/O
+            'android_vh_blk_account_io_done_handler', 'ioc_timer_fn',
+            # System tracing
+            'tracing_mark_write',
+            # Audio subsystem
+            'audio_ext_clk_prepare', 'audio_ext_clk_unprepare',
+            'bolero_runtime_resume', 'bolero_runtime_suspend', 'bolero_clk_rsc_request_clock',
+            'digital_cdc_rsc_mgr_hw_vote_enable', 'digital_cdc_rsc_mgr_hw_vote_disable',
+            'rx_macro_mclk_enable', 'rx_swrm_clock',
+            'swrm_mstr_interrupt', 'swrm_request_hw_vote', 'swrm_runtime_resume', 'swrm_runtime_suspend', 'swrm_clk_request',
+            'lpass_hw_vote_prepare', 'lpass_hw_vote_unprepare',
+            # Power management
+            'pm_runtime', 'lpi_pinctrl_runtime_resume', 'lpi_pinctrl_runtime_suspend',
+            # Clock management
+            'clk_cnt', 'hw_clk_en'
+        ]
+        
+        # Check both traditional and hardware events
+        if event_name in traditional_events or event_name in hardware_events:
+            return True
+            
+        # Also check for generic patterns that might be relevant
+        relevant_patterns = ['handle', 'enable', 'status']
+        for pattern in relevant_patterns:
+            if pattern in event_name and len(event_name) < 50:  # Avoid very long event names
+                return True
+        
+        return False
 
     def _parse_ftrace_log(self, filepath):
         """

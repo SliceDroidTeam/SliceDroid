@@ -887,7 +887,7 @@ class ComprehensiveAnalyzer:
     
     def analyze_security_events(self, events, target_pid=None):
         """
-        Analyze security-related events for threat detection
+        Analyze security-related events for threat detection based on available events
         
         Args:
             events: List of parsed events
@@ -897,6 +897,10 @@ class ComprehensiveAnalyzer:
             Dictionary with security analysis results
         """
         security_analysis = {
+            'suspicious_file_access': [],
+            'sensitive_data_access': [],
+            'binder_communications': [],
+            'ioctl_operations': [],
             'privilege_escalation': [],
             'debugging_attempts': [],
             'memory_protection_changes': [],
@@ -905,125 +909,168 @@ class ComprehensiveAnalyzer:
             'summary': {}
         }
         
-        # Track privilege changes
-        uid_changes = []
-        gid_changes = []
-        capability_changes = []
+        # Track suspicious patterns based on available events
+        suspicious_paths = set()
+        binder_activity = []
+        ioctl_activity = []
+        file_access_patterns = {}
         
         for event in events:
             if target_pid and event.get('tgid') != target_pid:
                 continue
                 
             event_name = event.get('event', '')
+            details = event.get('details', {})
+            pathname = details.get('pathname', '')
+            timestamp = event.get('timestamp')
+            pid = event.get('tgid')
+            process = event.get('process', '')
             
-            # Privilege escalation detection
-            if event_name == '__arm64_sys_setuid':
-                uid = event.get('details', {}).get('uid', 0)
-                uid_changes.append({
-                    'timestamp': event.get('timestamp'),
-                    'pid': event.get('tgid'),
-                    'process': event.get('process'),
-                    'new_uid': uid,
-                    'is_root': uid == 0
-                })
-                if uid == 0:
-                    security_analysis['privilege_escalation'].append({
-                        'type': 'setuid_root',
-                        'timestamp': event.get('timestamp'),
-                        'process': event.get('process'),
-                        'details': event.get('details')
+            # Analyze file access patterns
+            if event_name in ['read_probe', 'write_probe']:
+                # Check for suspicious file paths
+                if pathname and any(suspicious in pathname.lower() for suspicious in [
+                    'passwd', 'shadow', 'sudoers', 'keys', 'private', 'secret', 
+                    'credential', 'token', 'config', 'etc', 'system'
+                ]):
+                    security_analysis['suspicious_file_access'].append({
+                        'type': f'suspicious_{event_name}',
+                        'timestamp': timestamp,
+                        'pid': pid,
+                        'process': process,
+                        'pathname': pathname,
+                        'operation': event_name.replace('_probe', ''),
+                        'details': details
                     })
-            
-            elif event_name in ['__arm64_sys_setresuid', '__arm64_sys_setresgid']:
-                ruid = event.get('details', {}).get('ruid', -1)
-                euid = event.get('details', {}).get('euid', -1)
-                suid = event.get('details', {}).get('suid', -1)
+                    suspicious_paths.add(pathname)
                 
-                if event_name == '__arm64_sys_setresuid':
-                    uid_changes.append({
-                        'timestamp': event.get('timestamp'),
-                        'pid': event.get('tgid'),
-                        'process': event.get('process'),
-                        'ruid': ruid, 'euid': euid, 'suid': suid,
-                        'escalation': any(uid == 0 for uid in [ruid, euid, suid] if uid != -1)
-                    })
+                # Track file access frequency per process
+                if pid not in file_access_patterns:
+                    file_access_patterns[pid] = {'read': 0, 'write': 0, 'paths': set()}
+                
+                if event_name == 'read_probe':
+                    file_access_patterns[pid]['read'] += 1
                 else:
-                    gid_changes.append({
-                        'timestamp': event.get('timestamp'),
-                        'pid': event.get('tgid'),
-                        'process': event.get('process'),
-                        'rgid': ruid, 'egid': euid, 'sgid': suid
-                    })
+                    file_access_patterns[pid]['write'] += 1
+                
+                file_access_patterns[pid]['paths'].add(pathname)
             
-            # Capability changes
-            elif event_name == '__arm64_sys_capset':
-                capability_changes.append({
-                    'timestamp': event.get('timestamp'),
-                    'pid': event.get('tgid'),
-                    'process': event.get('process'),
-                    'details': event.get('details')
+            # Analyze Binder communications (Android IPC)
+            elif event_name == 'binder_transaction':
+                binder_activity.append({
+                    'timestamp': timestamp,
+                    'pid': pid,
+                    'process': process,
+                    'transaction': details.get('transaction'),
+                    'details': details
                 })
-                security_analysis['capability_changes'].append({
-                    'timestamp': event.get('timestamp'),
-                    'process': event.get('process'),
-                    'details': event.get('details')
-                })
-            
-            # Debugging attempts
-            elif event_name == 'ptrace_attach':
-                security_analysis['debugging_attempts'].append({
-                    'timestamp': event.get('timestamp'),
-                    'pid': event.get('tgid'),
-                    'process': event.get('process'),
-                    'target_task': event.get('details', {}).get('task'),
-                    'details': event.get('details')
-                })
-            
-            # Memory protection changes
-            elif event_name == '__arm64_sys_mprotect':
-                prot = event.get('details', {}).get('prot', 0)
-                start = event.get('details', {}).get('start', 0)
-                length = event.get('details', {}).get('len', 0)
                 
-                # Check for executable memory creation (potential code injection)
-                executable = (prot & 0x4) != 0  # PROT_EXEC
-                writable = (prot & 0x2) != 0    # PROT_WRITE
-                
-                protection_change = {
-                    'timestamp': event.get('timestamp'),
-                    'pid': event.get('tgid'),
-                    'process': event.get('process'),
-                    'start_addr': hex(start),
-                    'length': length,
-                    'protection': {
-                        'executable': executable,
-                        'writable': writable,
-                        'readable': (prot & 0x1) != 0
-                    },
-                    'suspicious': executable and writable
-                }
-                
-                security_analysis['memory_protection_changes'].append(protection_change)
-                
-                if executable and writable:
+                # Check for excessive binder activity (potential malicious IPC)
+                if len(binder_activity) > 50:  # Threshold for suspicious activity
                     security_analysis['suspicious_activity'].append({
-                        'type': 'rwx_memory',
-                        'timestamp': event.get('timestamp'),
-                        'process': event.get('process'),
-                        'details': 'Memory region marked as read-write-execute'
+                        'type': 'excessive_binder_activity',
+                        'timestamp': timestamp,
+                        'process': process,
+                        'details': f'High frequency of binder transactions detected'
                     })
+            
+            # Analyze IOCTL operations
+            elif event_name == 'ioctl_probe':
+                ioctl_activity.append({
+                    'timestamp': timestamp,
+                    'pid': pid,
+                    'process': process,
+                    'pathname': pathname,
+                    'details': details
+                })
+                
+                # Check for potentially dangerous device access
+                if pathname and any(device in pathname.lower() for device in [
+                    'mem', 'kmem', 'port', 'random', 'urandom', 'zero', 'null'
+                ]):
+                    security_analysis['ioctl_operations'].append({
+                        'type': 'device_access',
+                        'timestamp': timestamp,
+                        'pid': pid,
+                        'process': process,
+                        'device': pathname,
+                        'details': details
+                    })
+        
+        # Analyze file access patterns for anomalies
+        for pid, patterns in file_access_patterns.items():
+            # High read/write ratio might indicate data exfiltration
+            total_operations = patterns['read'] + patterns['write']
+            if total_operations > 100:  # High activity threshold
+                read_ratio = patterns['read'] / total_operations
+                if read_ratio > 0.8:  # More than 80% reads
+                    security_analysis['suspicious_activity'].append({
+                        'type': 'potential_data_exfiltration',
+                        'timestamp': timestamp,
+                        'pid': pid,
+                        'details': f'High read activity: {patterns["read"]} reads, {patterns["write"]} writes'
+                    })
+                elif patterns['write'] > patterns['read'] * 3:  # Much more writes than reads
+                    security_analysis['suspicious_activity'].append({
+                        'type': 'potential_data_corruption',
+                        'timestamp': timestamp,
+                        'pid': pid,
+                        'details': f'High write activity: {patterns["write"]} writes, {patterns["read"]} reads'
+                    })
+            
+            # Access to many different paths might indicate reconnaissance
+            if len(patterns['paths']) > 20:
+                security_analysis['suspicious_activity'].append({
+                    'type': 'broad_file_system_access',
+                    'timestamp': timestamp,
+                    'pid': pid,
+                    'details': f'Access to {len(patterns["paths"])} different file paths'
+                })
+        
+        # Store binder and ioctl data
+        security_analysis['binder_communications'] = binder_activity
+        security_analysis['ioctl_operations'] = ioctl_activity
         
         # Generate summary
         security_analysis['summary'] = {
+            'total_suspicious_file_access': len(security_analysis['suspicious_file_access']),
+            'total_binder_transactions': len(binder_activity),
+            'total_ioctl_operations': len(ioctl_activity),
             'total_privilege_escalations': len(security_analysis['privilege_escalation']),
             'total_debugging_attempts': len(security_analysis['debugging_attempts']),
             'total_memory_changes': len(security_analysis['memory_protection_changes']),
             'total_capability_changes': len(security_analysis['capability_changes']),
             'total_suspicious_activities': len(security_analysis['suspicious_activity']),
-            'risk_level': self._calculate_risk_level(security_analysis)
+            'suspicious_paths_count': len(suspicious_paths),
+            'risk_level': self._calculate_risk_level_from_file_analysis(security_analysis)
         }
         
         return security_analysis
+    
+    def _calculate_risk_level_from_file_analysis(self, security_analysis):
+        """Calculate risk level based on file access analysis"""
+        score = 0
+        
+        # Suspicious file access is medium risk
+        score += len(security_analysis['suspicious_file_access']) * 5
+        
+        # Excessive binder activity is high risk
+        score += len(security_analysis['binder_communications']) * 3
+        
+        # IOCTL operations on sensitive devices is high risk
+        score += len(security_analysis['ioctl_operations']) * 8
+        
+        # General suspicious activities
+        score += len(security_analysis['suspicious_activity']) * 6
+        
+        if score >= 30:
+            return 'HIGH'
+        elif score >= 15:
+            return 'MEDIUM'
+        elif score > 0:
+            return 'LOW'
+        else:
+            return 'NONE'
     
     def _calculate_risk_level(self, security_analysis):
         """Calculate overall risk level based on security events"""
@@ -1062,17 +1109,21 @@ class ComprehensiveAnalyzer:
             Dictionary with network flow analysis results
         """
         network_analysis = {
+            'unix_stream_connections': [],
+            'unix_dgram_communications': [],
             'tcp_connections': [],
             'udp_communications': [],
             'socket_operations': [],
             'bluetooth_activity': [],
             'connection_timeline': [],
+            'flow_relationships': [],
             'summary': {}
         }
         
-        # Track connection states
+        # Track connection states and relationships
         active_sockets = {}
-        tcp_state_changes = []
+        process_connections = {}
+        communication_flows = []
         
         for event in events:
             if target_pid and event.get('tgid') != target_pid:
@@ -1082,87 +1133,125 @@ class ComprehensiveAnalyzer:
             timestamp = event.get('timestamp')
             process = event.get('process')
             details = event.get('details', {})
+            pid = event.get('tgid')
+            tid = event.get('tid')
             
-            # Socket creation and management
-            if event_name == '__sys_socket':
-                socket_info = {
+            # Unix domain socket stream communications
+            if event_name == 'unix_stream_sendmsg':
+                stream_send = {
                     'timestamp': timestamp,
-                    'pid': event.get('tgid'),
+                    'pid': pid,
+                    'tid': tid,
                     'process': process,
-                    'family': details.get('family'),
-                    'type': details.get('type'),
-                    'protocol': details.get('protocol'),
-                    'operation': 'create'
+                    'to_pid': details.get('topid'),
+                    'direction': 'send',
+                    'details': details
                 }
-                network_analysis['socket_operations'].append(socket_info)
+                network_analysis['unix_stream_connections'].append(stream_send)
+                
+                # Track flow relationship
+                if details.get('topid'):
+                    communication_flows.append({
+                        'from_pid': pid,
+                        'to_pid': details.get('topid'),
+                        'type': 'unix_stream',
+                        'direction': 'send',
+                        'timestamp': timestamp
+                    })
             
-            elif event_name == '__sys_connect':
-                connect_info = {
+            elif event_name == 'unix_stream_recvmsg':
+                stream_recv = {
                     'timestamp': timestamp,
-                    'pid': event.get('tgid'),
+                    'pid': pid,
+                    'tid': tid,
                     'process': process,
-                    'sockfd': details.get('sockfd'),
-                    'addr': details.get('addr'),
-                    'addrlen': details.get('addrlen'),
-                    'operation': 'connect'
+                    'from_pid': details.get('frompid'),
+                    'direction': 'receive',
+                    'details': details
                 }
-                network_analysis['socket_operations'].append(connect_info)
+                network_analysis['unix_stream_connections'].append(stream_recv)
+                
+                # Track flow relationship
+                if details.get('frompid'):
+                    communication_flows.append({
+                        'from_pid': details.get('frompid'),
+                        'to_pid': pid,
+                        'type': 'unix_stream',
+                        'direction': 'receive',
+                        'timestamp': timestamp
+                    })
             
-            elif event_name == '__sys_bind':
-                bind_info = {
+            # Unix domain socket datagram communications
+            elif event_name == 'unix_dgram_sendmsg':
+                dgram_send = {
                     'timestamp': timestamp,
-                    'pid': event.get('tgid'),
+                    'pid': pid,
+                    'tid': tid,
                     'process': process,
-                    'sockfd': details.get('sockfd'),
-                    'addr': details.get('addr'),
-                    'addrlen': details.get('addrlen'),
-                    'operation': 'bind'
+                    'direction': 'send',
+                    'details': details
                 }
-                network_analysis['socket_operations'].append(bind_info)
+                network_analysis['unix_dgram_communications'].append(dgram_send)
             
-            # TCP communications
+            elif event_name == 'unix_dgram_recvmsg':
+                dgram_recv = {
+                    'timestamp': timestamp,
+                    'pid': pid,
+                    'tid': tid,
+                    'process': process,
+                    'direction': 'receive',
+                    'inode': details.get('inode'),
+                    'details': details
+                }
+                network_analysis['unix_dgram_communications'].append(dgram_recv)
+            
+            # TCP communications (if present)
             elif event_name == 'tcp_sendmsg':
                 tcp_send = {
                     'timestamp': timestamp,
-                    'pid': event.get('tgid'),
+                    'pid': pid,
                     'process': process,
                     'socket': details.get('sk'),
                     'size': details.get('size'),
-                    'direction': 'send'
+                    'direction': 'send',
+                    'details': details
                 }
                 network_analysis['tcp_connections'].append(tcp_send)
             
             elif event_name == 'tcp_recvmsg':
                 tcp_recv = {
                     'timestamp': timestamp,
-                    'pid': event.get('tgid'),
+                    'pid': pid,
                     'process': process,
                     'socket': details.get('sk'),
                     'len': details.get('len'),
-                    'direction': 'receive'
+                    'direction': 'receive',
+                    'details': details
                 }
                 network_analysis['tcp_connections'].append(tcp_recv)
             
-            # UDP communications
+            # UDP communications (if present)
             elif event_name == 'udp_sendmsg':
                 udp_send = {
                     'timestamp': timestamp,
-                    'pid': event.get('tgid'),
+                    'pid': pid,
                     'process': process,
                     'socket': details.get('sock'),
                     'len': details.get('len'),
-                    'direction': 'send'
+                    'direction': 'send',
+                    'details': details
                 }
                 network_analysis['udp_communications'].append(udp_send)
             
             elif event_name == 'udp_recvmsg':
                 udp_recv = {
                     'timestamp': timestamp,
-                    'pid': event.get('tgid'),
+                    'pid': pid,
                     'process': process,
                     'socket': details.get('sk'),
                     'len': details.get('len'),
-                    'direction': 'receive'
+                    'direction': 'receive',
+                    'details': details
                 }
                 network_analysis['udp_communications'].append(udp_recv)
             
@@ -1170,83 +1259,130 @@ class ComprehensiveAnalyzer:
             elif event_name == 'inet_sock_set_state':
                 state_change = {
                     'timestamp': timestamp,
-                    'pid': event.get('tgid'),
+                    'pid': pid,
                     'process': process,
                     'details': details
                 }
-                tcp_state_changes.append(state_change)
                 network_analysis['connection_timeline'].append(state_change)
             
-            # Bluetooth communications
-            elif event_name in ['hci_sock_sendmsg', 'sco_sock_sendmsg', 'l2cap_sock_sendmsg']:
-                bt_activity = {
+            # General socket operations
+            elif 'socket' in event_name or 'sock' in event_name:
+                socket_op = {
                     'timestamp': timestamp,
-                    'pid': event.get('tgid'),
+                    'pid': pid,
                     'process': process,
-                    'type': event_name.replace('_sendmsg', ''),
-                    'error': details.get('error'),
-                    'direction': 'send'
+                    'event': event_name,
+                    'details': details
                 }
-                network_analysis['bluetooth_activity'].append(bt_activity)
-            
-            elif event_name == 'sock_sendmsg':
-                generic_send = {
-                    'timestamp': timestamp,
-                    'pid': event.get('tgid'),
-                    'process': process,
-                    'bytes_sent': details.get('num'),
-                    'direction': 'send'
-                }
-                # Add to appropriate category based on context
-                if any(bt in process.lower() for bt in ['bluetooth', 'bt', 'hci']):
-                    network_analysis['bluetooth_activity'].append(generic_send)
-                else:
-                    network_analysis['socket_operations'].append(generic_send)
+                network_analysis['socket_operations'].append(socket_op)
+        
+        # Process communication flows
+        network_analysis['flow_relationships'] = self._process_communication_flows(communication_flows)
         
         # Analyze patterns
         network_analysis['summary'] = self._analyze_network_patterns(network_analysis)
         
         return network_analysis
     
+    def _process_communication_flows(self, communication_flows):
+        """Process communication flows to identify relationships"""
+        flow_summary = {}
+        
+        for flow in communication_flows:
+            from_pid = flow['from_pid']
+            to_pid = flow['to_pid']
+            flow_type = flow['type']
+            
+            # Create unique flow identifier
+            flow_id = f"{from_pid}->{to_pid}"
+            
+            if flow_id not in flow_summary:
+                flow_summary[flow_id] = {
+                    'from_pid': from_pid,
+                    'to_pid': to_pid,
+                    'types': set(),
+                    'count': 0,
+                    'first_seen': flow['timestamp'],
+                    'last_seen': flow['timestamp']
+                }
+            
+            flow_summary[flow_id]['types'].add(flow_type)
+            flow_summary[flow_id]['count'] += 1
+            flow_summary[flow_id]['last_seen'] = max(flow_summary[flow_id]['last_seen'], flow['timestamp'])
+        
+        # Convert sets to lists for JSON serialization
+        for flow_id in flow_summary:
+            flow_summary[flow_id]['types'] = list(flow_summary[flow_id]['types'])
+        
+        return flow_summary
+    
     def _analyze_network_patterns(self, network_analysis):
         """Analyze network communication patterns"""
         summary = {
             'total_tcp_events': len(network_analysis['tcp_connections']),
             'total_udp_events': len(network_analysis['udp_communications']),
+            'total_unix_stream_events': len(network_analysis['unix_stream_connections']),
+            'total_unix_dgram_events': len(network_analysis['unix_dgram_communications']),
             'total_socket_operations': len(network_analysis['socket_operations']),
             'total_bluetooth_events': len(network_analysis['bluetooth_activity']),
             'tcp_send_count': 0,
             'tcp_recv_count': 0,
             'udp_send_count': 0,
             'udp_recv_count': 0,
+            'unix_stream_send_count': 0,
+            'unix_stream_recv_count': 0,
+            'unix_dgram_send_count': 0,
+            'unix_dgram_recv_count': 0,
             'active_protocols': set(),
-            'communication_intensity': 'LOW'
+            'communication_intensity': 'LOW',
+            'unique_flows': len(network_analysis['flow_relationships'])
         }
         
-        # Count send/receive operations
+        # Count send/receive operations for TCP
         for tcp_event in network_analysis['tcp_connections']:
             if tcp_event['direction'] == 'send':
                 summary['tcp_send_count'] += 1
             else:
                 summary['tcp_recv_count'] += 1
         
+        # Count send/receive operations for UDP
         for udp_event in network_analysis['udp_communications']:
             if udp_event['direction'] == 'send':
                 summary['udp_send_count'] += 1
             else:
                 summary['udp_recv_count'] += 1
         
+        # Count send/receive operations for Unix stream
+        for stream_event in network_analysis['unix_stream_connections']:
+            if stream_event['direction'] == 'send':
+                summary['unix_stream_send_count'] += 1
+            else:
+                summary['unix_stream_recv_count'] += 1
+        
+        # Count send/receive operations for Unix datagram
+        for dgram_event in network_analysis['unix_dgram_communications']:
+            if dgram_event['direction'] == 'send':
+                summary['unix_dgram_send_count'] += 1
+            else:
+                summary['unix_dgram_recv_count'] += 1
+        
         # Identify active protocols
         if summary['total_tcp_events'] > 0:
             summary['active_protocols'].add('TCP')
         if summary['total_udp_events'] > 0:
             summary['active_protocols'].add('UDP')
+        if summary['total_unix_stream_events'] > 0:
+            summary['active_protocols'].add('Unix Domain Sockets (Stream)')
+        if summary['total_unix_dgram_events'] > 0:
+            summary['active_protocols'].add('Unix Domain Sockets (Datagram)')
         if summary['total_bluetooth_events'] > 0:
             summary['active_protocols'].add('Bluetooth')
         
         # Calculate communication intensity
         total_events = (summary['total_tcp_events'] + 
                        summary['total_udp_events'] + 
+                       summary['total_unix_stream_events'] +
+                       summary['total_unix_dgram_events'] +
                        summary['total_bluetooth_events'])
         
         if total_events > 100:
@@ -1262,14 +1398,14 @@ class ComprehensiveAnalyzer:
     
     def analyze_process_genealogy(self, events, target_pid=None):
         """
-        Analyze process creation and execution patterns
+        Analyze process patterns based on available events (file access and IPC)
         
         Args:
             events: List of parsed events
             target_pid: Optional target process ID to filter
             
         Returns:
-            Dictionary with process genealogy analysis results
+            Dictionary with process analysis results
         """
         genealogy_analysis = {
             'process_creations': [],
@@ -1277,88 +1413,232 @@ class ComprehensiveAnalyzer:
             'elf_loads': [],
             'process_tree': {},
             'execution_timeline': [],
+            'process_activities': [],
+            'ipc_communications': [],
             'summary': {}
         }
         
-        # Track process relationships
-        parent_child_map = {}
-        process_info = {}
+        # Track process activities and patterns
+        process_activities = {}
+        unique_processes = set()
+        ipc_events = []
+        file_operations = []
         
         for event in events:
             event_name = event.get('event', '')
             timestamp = event.get('timestamp')
             pid = event.get('tgid')
             tid = event.get('tid')
-            process = event.get('process')
+            process = event.get('process', '')
             details = event.get('details', {})
             
-            # Process creation events
-            if event_name == 'sched_process_fork':
-                fork_event = {
-                    'timestamp': timestamp,
-                    'parent_pid': pid,
-                    'parent_process': process,
-                    'child_pid': details.get('child_pid', tid),
-                    'operation': 'fork'
+            unique_processes.add(pid)
+            
+            # Track process activity patterns
+            if pid not in process_activities:
+                process_activities[pid] = {
+                    'process_name': process,
+                    'first_seen': timestamp,
+                    'last_seen': timestamp,
+                    'total_events': 0,
+                    'read_operations': 0,
+                    'write_operations': 0,
+                    'ioctl_operations': 0,
+                    'binder_transactions': 0,
+                    'unix_communications': 0,
+                    'accessed_files': set(),
+                    'communication_partners': set()
                 }
-                genealogy_analysis['process_creations'].append(fork_event)
+            
+            activity = process_activities[pid]
+            activity['last_seen'] = timestamp
+            activity['total_events'] += 1
+            
+            # Analyze different event types
+            if event_name == 'read_probe':
+                activity['read_operations'] += 1
+                if details.get('pathname'):
+                    activity['accessed_files'].add(details['pathname'])
+                file_operations.append({
+                    'timestamp': timestamp,
+                    'pid': pid,
+                    'process': process,
+                    'operation': 'read',
+                    'pathname': details.get('pathname', ''),
+                    'details': details
+                })
+            
+            elif event_name == 'write_probe':
+                activity['write_operations'] += 1
+                if details.get('pathname'):
+                    activity['accessed_files'].add(details['pathname'])
+                file_operations.append({
+                    'timestamp': timestamp,
+                    'pid': pid,
+                    'process': process,
+                    'operation': 'write',
+                    'pathname': details.get('pathname', ''),
+                    'details': details
+                })
+            
+            elif event_name == 'ioctl_probe':
+                activity['ioctl_operations'] += 1
+                if details.get('pathname'):
+                    activity['accessed_files'].add(details['pathname'])
+                file_operations.append({
+                    'timestamp': timestamp,
+                    'pid': pid,
+                    'process': process,
+                    'operation': 'ioctl',
+                    'pathname': details.get('pathname', ''),
+                    'details': details
+                })
+            
+            elif event_name == 'binder_transaction':
+                activity['binder_transactions'] += 1
+                ipc_events.append({
+                    'timestamp': timestamp,
+                    'pid': pid,
+                    'process': process,
+                    'type': 'binder',
+                    'transaction': details.get('transaction'),
+                    'details': details
+                })
+            
+            elif event_name in ['unix_stream_sendmsg', 'unix_stream_recvmsg', 'unix_dgram_sendmsg', 'unix_dgram_recvmsg']:
+                activity['unix_communications'] += 1
+                peer_pid = details.get('topid') or details.get('frompid')
+                if peer_pid:
+                    activity['communication_partners'].add(peer_pid)
                 
-                # Build parent-child relationship
-                child_pid = details.get('child_pid', tid)
-                if pid not in parent_child_map:
-                    parent_child_map[pid] = []
-                parent_child_map[pid].append(child_pid)
-                
-                # Store process info
-                process_info[child_pid] = {
-                    'parent': pid,
-                    'name': process,
-                    'birth_time': timestamp
-                }
-            
-            elif event_name == 'sched_process_exec':
-                exec_event = {
+                ipc_events.append({
                     'timestamp': timestamp,
                     'pid': pid,
                     'process': process,
-                    'operation': 'exec'
-                }
-                genealogy_analysis['process_executions'].append(exec_event)
-                genealogy_analysis['execution_timeline'].append(exec_event)
-            
-            # Executable loading
-            elif event_name == 'load_elf_binary':
-                elf_event = {
-                    'timestamp': timestamp,
-                    'pid': pid,
-                    'process': process,
-                    'binary_info': details.get('bprm'),
-                    'operation': 'load_elf'
-                }
-                genealogy_analysis['elf_loads'].append(elf_event)
-                genealogy_analysis['execution_timeline'].append(elf_event)
-            
-            # System execve calls
-            elif event_name == '__arm64_sys_execve':
-                execve_event = {
-                    'timestamp': timestamp,
-                    'pid': pid,
-                    'process': process,
-                    'filename': details.get('filename'),
-                    'argv': details.get('argv'),
-                    'envp': details.get('envp'),
-                    'operation': 'execve'
-                }
-                genealogy_analysis['process_executions'].append(execve_event)
-                genealogy_analysis['execution_timeline'].append(execve_event)
+                    'type': event_name,
+                    'peer_pid': peer_pid,
+                    'details': details
+                })
         
-        # Build process tree structure
-        genealogy_analysis['process_tree'] = self._build_process_tree(parent_child_map, process_info)
+        # Convert sets to lists and calculate durations
+        for pid, activity in process_activities.items():
+            activity['accessed_files'] = list(activity['accessed_files'])
+            activity['communication_partners'] = list(activity['communication_partners'])
+            activity['duration'] = activity['last_seen'] - activity['first_seen']
+            activity['files_accessed_count'] = len(activity['accessed_files'])
+            activity['partners_count'] = len(activity['communication_partners'])
+        
+        # Build simplified process tree based on communication patterns
+        process_tree = self._build_communication_tree(process_activities, ipc_events)
+        
+        genealogy_analysis['process_activities'] = list(process_activities.values())
+        genealogy_analysis['ipc_communications'] = ipc_events
+        genealogy_analysis['process_tree'] = process_tree
         
         # Generate summary
-        genealogy_analysis['summary'] = self._analyze_process_patterns(genealogy_analysis, target_pid)
+        genealogy_analysis['summary'] = self._analyze_process_patterns_from_activities(
+            process_activities, ipc_events, file_operations, target_pid
+        )
         
         return genealogy_analysis
+    
+    def _build_communication_tree(self, process_activities, ipc_events):
+        """Build a tree structure based on communication patterns"""
+        tree = {}
+        
+        # Create nodes for each process
+        for pid, activity in process_activities.items():
+            tree[pid] = {
+                'pid': pid,
+                'process_name': activity['process_name'],
+                'total_events': activity['total_events'],
+                'duration': activity['duration'],
+                'communication_partners': activity['communication_partners'],
+                'children': []
+            }
+        
+        # Add communication relationships as edges
+        for event in ipc_events:
+            if event['type'] in ['unix_stream_sendmsg', 'unix_dgram_sendmsg']:
+                from_pid = event['pid']
+                to_pid = event.get('peer_pid')
+                if from_pid in tree and to_pid in tree:
+                    # Add as child relationship (simplified)
+                    if to_pid not in [child['pid'] for child in tree[from_pid]['children']]:
+                        tree[from_pid]['children'].append({
+                            'pid': to_pid,
+                            'relationship': 'communication_target'
+                        })
+        
+        return tree
+    
+    def _analyze_process_patterns_from_activities(self, process_activities, ipc_events, file_operations, target_pid):
+        """Analyze process patterns from activity data"""
+        total_processes = len(process_activities)
+        total_file_ops = len(file_operations)
+        total_ipc_events = len(ipc_events)
+        
+        # Find most active process
+        most_active = None
+        max_events = 0
+        for pid, activity in process_activities.items():
+            if activity['total_events'] > max_events:
+                max_events = activity['total_events']
+                most_active = {'pid': pid, 'events': max_events, 'name': activity['process_name']}
+        
+        # Detect suspicious patterns
+        suspicious_patterns = []
+        
+        for pid, activity in process_activities.items():
+            # High file access activity
+            if activity['files_accessed_count'] > 50:
+                suspicious_patterns.append({
+                    'type': 'high_file_access',
+                    'description': f'Process {pid} ({activity["process_name"]}) accessed {activity["files_accessed_count"]} different files'
+                })
+            
+            # Imbalanced read/write ratio
+            total_rw = activity['read_operations'] + activity['write_operations']
+            if total_rw > 100:
+                read_ratio = activity['read_operations'] / total_rw
+                if read_ratio > 0.9:
+                    suspicious_patterns.append({
+                        'type': 'excessive_reading',
+                        'description': f'Process {pid} has unusually high read activity ({activity["read_operations"]} reads vs {activity["write_operations"]} writes)'
+                    })
+                elif read_ratio < 0.1:
+                    suspicious_patterns.append({
+                        'type': 'excessive_writing',
+                        'description': f'Process {pid} has unusually high write activity ({activity["write_operations"]} writes vs {activity["read_operations"]} reads)'
+                    })
+            
+            # High communication activity
+            if activity['partners_count'] > 5:
+                suspicious_patterns.append({
+                    'type': 'high_communication_activity',
+                    'description': f'Process {pid} communicates with {activity["partners_count"]} different processes'
+                })
+        
+        # Calculate activity frequency
+        if total_file_ops > 1000:
+            activity_frequency = 'HIGH'
+        elif total_file_ops > 200:
+            activity_frequency = 'MEDIUM'
+        else:
+            activity_frequency = 'LOW'
+        
+        return {
+            'total_processes': total_processes,
+            'total_file_operations': total_file_ops,
+            'total_ipc_events': total_ipc_events,
+            'total_forks': 0,  # Not available in current trace
+            'total_execs': 0,  # Not available in current trace
+            'process_tree_depth': min(3, total_processes),  # Simplified depth
+            'most_active_process': most_active,
+            'activity_frequency': activity_frequency,
+            'suspicious_patterns': suspicious_patterns,
+            'unique_processes': total_processes
+        }
     
     def _build_process_tree(self, parent_child_map, process_info):
         """Build hierarchical process tree"""

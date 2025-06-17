@@ -9,6 +9,9 @@ let processData = {};
 
 // DOM ready
 $(document).ready(function() {
+    // Initialize UI first
+    initializeUI();
+    
     updateAppStatus('loading', 'Loading...');
 
     // Load configuration first, then data
@@ -16,6 +19,9 @@ $(document).ready(function() {
         updateAppStatus('success', 'System Ready');
         loadAllData();
         setupEventListeners();
+        
+        // Initialize upload functionality
+        initializeUploadFunctionality();
     }).catch(function(error) {
         console.error('Failed to load configuration:', error);
         updateAppStatus('warning', 'Fallback Mode');
@@ -23,6 +29,9 @@ $(document).ready(function() {
         setFallbackConfiguration();
         loadAllData();
         setupEventListeners();
+        
+        // Initialize upload functionality
+        initializeUploadFunctionality();
     });
 });
 
@@ -67,6 +76,9 @@ function setupEventListeners() {
     // Advanced analytics
     $('#load-analytics-btn').click(loadAdvancedAnalytics);
     $('#apply-analytics-config').click(loadAdvancedAnalyticsWithConfig);
+    
+    // Also bind to the actual configure button
+    $(document).on('click', '#apply-analytics-config', loadAdvancedAnalyticsWithConfig);
 
 }
 
@@ -634,7 +646,6 @@ function renderAdvancedAnalytics(data) {
         // Render detailed insights
         renderDetailedInsights(data);
 
-        showToast('Analysis Complete', 'Advanced analytics loaded successfully', 'success');
     } catch (error) {
         console.error('Error rendering analytics:', error);
         showToast('Rendering Error', 'Failed to display some analytics results', 'error');
@@ -908,22 +919,22 @@ function renderSecuritySummary(data) {
     const summary = data.security_analysis.summary;
     const summaryCards = [
         {
-            title: 'Privilege Escalations',
-            value: summary.total_privilege_escalations || 0,
-            type: summary.total_privilege_escalations > 0 ? 'danger' : 'success',
-            icon: 'fas fa-user-shield'
+            title: 'Suspicious File Access',
+            value: summary.total_suspicious_file_access || 0,
+            type: summary.total_suspicious_file_access > 0 ? 'danger' : 'success',
+            icon: 'fas fa-file-exclamation'
         },
         {
-            title: 'Debug Attempts',
-            value: summary.total_debugging_attempts || 0,
-            type: summary.total_debugging_attempts > 0 ? 'warning' : 'success',
-            icon: 'fas fa-bug'
+            title: 'Binder Transactions',
+            value: summary.total_binder_transactions || 0,
+            type: summary.total_binder_transactions > 20 ? 'warning' : 'info',
+            icon: 'fas fa-exchange-alt'
         },
         {
-            title: 'Memory Changes',
-            value: summary.total_memory_changes || 0,
-            type: summary.total_memory_changes > 0 ? 'info' : 'success',
-            icon: 'fas fa-memory'
+            title: 'IOCTL Operations',
+            value: summary.total_ioctl_operations || 0,
+            type: summary.total_ioctl_operations > 0 ? 'warning' : 'success',
+            icon: 'fas fa-cogs'
         },
         {
             title: 'Suspicious Activities',
@@ -1019,8 +1030,9 @@ function renderSecurityEventsList(securityAnalysis) {
     }
 
     const events = [
-        ...(securityAnalysis.privilege_escalation || []),
-        ...(securityAnalysis.debugging_attempts || []),
+        ...(securityAnalysis.suspicious_file_access || []),
+        ...(securityAnalysis.binder_communications || []).slice(0, 5), // Limit binder events
+        ...(securityAnalysis.ioctl_operations || []),
         ...(securityAnalysis.suspicious_activity || [])
     ];
 
@@ -1029,15 +1041,29 @@ function renderSecurityEventsList(securityAnalysis) {
         return;
     }
 
-    const eventList = $('<div class="event-list"></div>');
-    events.slice(0, 10).forEach(event => {
+    const eventList = $('<div class="event-list" style="max-height: 300px; overflow-y: auto;"></div>');
+    events.slice(0, 15).forEach(event => {
         const timestamp = new Date(event.timestamp * 1000).toLocaleString();
-        const severity = event.type === 'setuid_root' ? 'high' : 'medium';
+        let severity = 'medium';
+        let description = '';
+        
+        if (event.type && event.type.includes('suspicious')) {
+            severity = 'high';
+            description = `${event.operation || event.type}: ${event.pathname || event.details || 'System access'}`;
+        } else if (event.transaction) {
+            severity = 'low';
+            description = `Binder transaction: ${event.process}`;
+        } else if (event.device) {
+            severity = 'medium';
+            description = `Device access: ${event.device}`;
+        } else {
+            description = `${event.type || 'Security event'}: ${event.process || 'Unknown'}`;
+        }
         
         eventList.append(`
             <div class="event-item event-severity-${severity}">
-                <div class="event-timestamp">${timestamp}</div>
-                <div class="event-description">${event.type}: ${event.process || 'Unknown'}</div>
+                <div class="event-timestamp"><small>${timestamp}</small></div>
+                <div class="event-description">${description}</div>
             </div>
         `);
     });
@@ -1182,13 +1208,294 @@ function renderNetworkSummary(data) {
 }
 
 function renderNetworkFlowChart(networkAnalysis) {
-    if (!networkAnalysis) {
+    if (!networkAnalysis || !networkAnalysis.flow_relationships) {
         $('#network-flow-chart').html('<div class="alert alert-info">No network flow data available</div>');
         return;
     }
 
-    // Simple network activity chart
-    $('#network-flow-chart').html('<div class="alert alert-info">Network flow visualization will be implemented with D3.js</div>');
+    const flowData = networkAnalysis.flow_relationships;
+    const flowKeys = Object.keys(flowData);
+    
+    if (flowKeys.length === 0) {
+        $('#network-flow-chart').html('<div class="alert alert-info">No communication flows detected</div>');
+        return;
+    }
+
+    // Clear previous chart
+    d3.select('#network-flow-chart').html('');
+
+    // Add zoom controls
+    const controlsHtml = `
+        <div class="chart-controls mb-2">
+            <button class="btn btn-sm btn-outline-primary" id="flow-zoom-in" title="Zoom In">
+                <i class="fas fa-search-plus"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-primary" id="flow-zoom-out" title="Zoom Out">
+                <i class="fas fa-search-minus"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" id="flow-reset-zoom" title="Reset Zoom">
+                <i class="fas fa-expand-arrows-alt"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-info" id="flow-center" title="Center View">
+                <i class="fas fa-crosshairs"></i>
+            </button>
+        </div>
+    `;
+    d3.select('#network-flow-chart').append('div').html(controlsHtml);
+
+    // Set up dimensions
+    const container = d3.select('#network-flow-chart');
+    const containerWidth = container.node().getBoundingClientRect().width;
+    const width = containerWidth - 40;
+    const height = 280;
+
+    // Create main SVG with zoom container
+    const mainSvg = container
+        .append('svg')
+        .attr('width', width + 40)
+        .attr('height', height + 20)
+        .style('border', '1px solid #ddd')
+        .style('border-radius', '4px');
+
+    // Create zoom behavior
+    const zoom = d3.zoom()
+        .scaleExtent([0.3, 3])
+        .on('zoom', function(event) {
+            svg.attr('transform', event.transform);
+        });
+
+    // Apply zoom to main SVG
+    mainSvg.call(zoom);
+
+    // Create zoomable group
+    const svg = mainSvg
+        .append('g')
+        .attr('transform', 'translate(20,10)');
+
+    // Extract unique PIDs and create nodes
+    const pids = new Set();
+    const links = [];
+
+    flowKeys.forEach(flowKey => {
+        const flow = flowData[flowKey];
+        pids.add(flow.from_pid);
+        pids.add(flow.to_pid);
+        
+        links.push({
+            source: flow.from_pid,
+            target: flow.to_pid,
+            count: flow.count,
+            types: flow.types,
+            flowKey: flowKey
+        });
+    });
+
+    const nodes = Array.from(pids).map(pid => ({
+        id: pid,
+        pid: pid
+    }));
+
+    // Create force simulation
+    const simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+        .force('charge', d3.forceManyBody().strength(-300))
+        .force('center', d3.forceCenter(width / 2, height / 2));
+
+    // Create arrow markers
+    svg.append('defs').append('marker')
+        .attr('id', 'arrowhead')
+        .attr('viewBox', '-0 -5 10 10')
+        .attr('refX', 13)
+        .attr('refY', 0)
+        .attr('orient', 'auto')
+        .attr('markerWidth', 10)
+        .attr('markerHeight', 10)
+        .attr('xoverflow', 'visible')
+        .append('svg:path')
+        .attr('d', 'M 0,-5 L 10 ,0 L 0,5')
+        .attr('fill', '#999')
+        .style('stroke', 'none');
+
+    // Create links
+    const link = svg.append('g')
+        .attr('class', 'links')
+        .selectAll('line')
+        .data(links)
+        .enter().append('line')
+        .attr('stroke', '#999')
+        .attr('stroke-opacity', 0.6)
+        .attr('stroke-width', d => Math.min(8, Math.max(1, d.count / 2)))
+        .attr('marker-end', 'url(#arrowhead)');
+
+    // Create nodes
+    const node = svg.append('g')
+        .attr('class', 'nodes')
+        .selectAll('circle')
+        .data(nodes)
+        .enter().append('circle')
+        .attr('r', 20)
+        .attr('fill', d => {
+            const currentPid = $('#pid-filter').val();
+            return (currentPid && d.pid == currentPid) ? '#ff6b6b' : '#69b3ff';
+        })
+        .attr('stroke', '#333')
+        .attr('stroke-width', 2)
+        .call(d3.drag()
+            .on('start', dragstarted)
+            .on('drag', dragged)
+            .on('end', dragended));
+
+    // Add labels
+    const labels = svg.append('g')
+        .attr('class', 'labels')
+        .selectAll('text')
+        .data(nodes)
+        .enter().append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', '.35em')
+        .attr('font-size', '10px')
+        .attr('font-weight', 'bold')
+        .attr('fill', 'white')
+        .text(d => `PID ${d.pid}`);
+
+    // Add tooltips
+    node.on('mouseover', function(event, d) {
+        const tooltip = d3.select('body').append('div')
+            .attr('class', 'network-tooltip')
+            .style('position', 'absolute')
+            .style('background', 'rgba(0,0,0,0.8)')
+            .style('color', 'white')
+            .style('padding', '8px')
+            .style('border-radius', '4px')
+            .style('font-size', '12px')
+            .style('pointer-events', 'none')
+            .style('z-index', '1000');
+
+        // Count incoming and outgoing connections
+        const incoming = links.filter(l => l.target.id === d.id).length;
+        const outgoing = links.filter(l => l.source.id === d.id).length;
+
+        tooltip.html(`
+            <strong>Process ID: ${d.pid}</strong><br>
+            Incoming connections: ${incoming}<br>
+            Outgoing connections: ${outgoing}
+        `)
+        .style('left', (event.pageX + 10) + 'px')
+        .style('top', (event.pageY - 10) + 'px');
+    })
+    .on('mouseout', function() {
+        d3.selectAll('.network-tooltip').remove();
+    });
+
+    // Add link tooltips
+    link.on('mouseover', function(event, d) {
+        const tooltip = d3.select('body').append('div')
+            .attr('class', 'network-tooltip')
+            .style('position', 'absolute')
+            .style('background', 'rgba(0,0,0,0.8)')
+            .style('color', 'white')
+            .style('padding', '8px')
+            .style('border-radius', '4px')
+            .style('font-size', '12px')
+            .style('pointer-events', 'none')
+            .style('z-index', '1000');
+
+        tooltip.html(`
+            <strong>Communication Flow</strong><br>
+            From PID: ${d.source.id}<br>
+            To PID: ${d.target.id}<br>
+            Messages: ${d.count}<br>
+            Types: ${d.types.join(', ')}
+        `)
+        .style('left', (event.pageX + 10) + 'px')
+        .style('top', (event.pageY - 10) + 'px');
+    })
+    .on('mouseout', function() {
+        d3.selectAll('.network-tooltip').remove();
+    });
+
+    // Update positions on tick
+    simulation.on('tick', () => {
+        link
+            .attr('x1', d => d.source.x)
+            .attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x)
+            .attr('y2', d => d.target.y);
+
+        node
+            .attr('cx', d => d.x)
+            .attr('cy', d => d.y);
+
+        labels
+            .attr('x', d => d.x)
+            .attr('y', d => d.y);
+    });
+
+    // Zoom control functions
+    $('#flow-zoom-in').click(function() {
+        mainSvg.transition().duration(300).call(
+            zoom.scaleBy, 1.5
+        );
+    });
+
+    $('#flow-zoom-out').click(function() {
+        mainSvg.transition().duration(300).call(
+            zoom.scaleBy, 1 / 1.5
+        );
+    });
+
+    $('#flow-reset-zoom').click(function() {
+        mainSvg.transition().duration(500).call(
+            zoom.transform,
+            d3.zoomIdentity.translate(0, 0).scale(1)
+        );
+    });
+
+    $('#flow-center').click(function() {
+        // Calculate bounds of all nodes
+        const bounds = {
+            minX: d3.min(nodes, d => d.x || 0),
+            maxX: d3.max(nodes, d => d.x || 0),
+            minY: d3.min(nodes, d => d.y || 0),
+            maxY: d3.max(nodes, d => d.y || 0)
+        };
+        
+        const centerX = (bounds.minX + bounds.maxX) / 2;
+        const centerY = (bounds.minY + bounds.maxY) / 2;
+        
+        const targetX = (width / 2) - centerX;
+        const targetY = (height / 2) - centerY;
+        
+        mainSvg.transition().duration(500).call(
+            zoom.transform,
+            d3.zoomIdentity.translate(targetX + 20, targetY + 10).scale(1)
+        );
+    });
+
+    // Allow wheel zoom and pan
+    mainSvg.on('wheel.zoom', null);  // Remove default wheel behavior first
+    mainSvg.call(zoom);
+
+    // Prevent zoom on double-click but allow it manually
+    mainSvg.on('dblclick.zoom', null);
+
+    // Drag functions
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+    }
+
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+    }
 }
 
 function renderProtocolDistribution(networkAnalysis) {
@@ -1197,25 +1504,137 @@ function renderProtocolDistribution(networkAnalysis) {
         return;
     }
 
-    const protocols = networkAnalysis.summary.active_protocols || [];
+    const summary = networkAnalysis.summary;
+    const protocols = summary.active_protocols || [];
+    
     if (protocols.length === 0) {
         $('#protocol-distribution-chart').html('<div class="alert alert-info">No protocols detected</div>');
         return;
     }
 
-    // Create simple protocol list for now
-    let protocolHtml = '<ul class="list-group">';
-    protocols.forEach(protocol => {
-        protocolHtml += `<li class="list-group-item">${protocol}</li>`;
-    });
-    protocolHtml += '</ul>';
+    // Create protocol distribution with counts
+    const protocolData = [];
+    
+    if (summary.total_tcp_events > 0) {
+        protocolData.push({name: 'TCP', count: summary.total_tcp_events, color: '#007bff'});
+    }
+    if (summary.total_udp_events > 0) {
+        protocolData.push({name: 'UDP', count: summary.total_udp_events, color: '#28a745'});
+    }
+    if (summary.total_unix_stream_events > 0) {
+        protocolData.push({name: 'Unix Stream', count: summary.total_unix_stream_events, color: '#ffc107'});
+    }
+    if (summary.total_unix_dgram_events > 0) {
+        protocolData.push({name: 'Unix Datagram', count: summary.total_unix_dgram_events, color: '#dc3545'});
+    }
+    if (summary.total_bluetooth_events > 0) {
+        protocolData.push({name: 'Bluetooth', count: summary.total_bluetooth_events, color: '#6f42c1'});
+    }
 
-    $('#protocol-distribution-chart').html(protocolHtml);
+    if (protocolData.length === 0) {
+        $('#protocol-distribution-chart').html('<div class="alert alert-info">No protocol activity detected</div>');
+        return;
+    }
+
+    // Clear previous chart
+    d3.select('#protocol-distribution-chart').html('');
+
+    // Create pie chart
+    const width = 280;
+    const height = 280;
+    const radius = Math.min(width, height) / 2;
+
+    const svg = d3.select('#protocol-distribution-chart')
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .append('g')
+        .attr('transform', `translate(${width/2},${height/2})`);
+
+    const pie = d3.pie()
+        .value(d => d.count)
+        .sort(null);
+
+    const arc = d3.arc()
+        .innerRadius(0)
+        .outerRadius(radius - 10);
+
+    const arcs = svg.selectAll('.arc')
+        .data(pie(protocolData))
+        .enter().append('g')
+        .attr('class', 'arc');
+
+    arcs.append('path')
+        .attr('d', arc)
+        .attr('fill', d => d.data.color)
+        .attr('stroke', 'white')
+        .attr('stroke-width', 2)
+        .on('mouseover', function(event, d) {
+            const tooltip = d3.select('body').append('div')
+                .attr('class', 'protocol-tooltip')
+                .style('position', 'absolute')
+                .style('background', 'rgba(0,0,0,0.8)')
+                .style('color', 'white')
+                .style('padding', '8px')
+                .style('border-radius', '4px')
+                .style('font-size', '12px')
+                .style('pointer-events', 'none')
+                .style('z-index', '1000');
+
+            const percentage = ((d.data.count / d3.sum(protocolData, d => d.count)) * 100).toFixed(1);
+            
+            tooltip.html(`
+                <strong>${d.data.name}</strong><br>
+                Events: ${d.data.count}<br>
+                Percentage: ${percentage}%
+            `)
+            .style('left', (event.pageX + 10) + 'px')
+            .style('top', (event.pageY - 10) + 'px');
+        })
+        .on('mouseout', function() {
+            d3.selectAll('.protocol-tooltip').remove();
+        });
+
+    // Add labels
+    arcs.append('text')
+        .attr('transform', d => `translate(${arc.centroid(d)})`)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '12px')
+        .attr('font-weight', 'bold')
+        .attr('fill', 'white')
+        .text(d => d.data.count > 0 ? d.data.name : '');
 }
 
 function renderConnectionTables(networkAnalysis) {
-    // TCP connections
-    if (networkAnalysis && networkAnalysis.tcp_connections && networkAnalysis.tcp_connections.length > 0) {
+    // Show Unix Stream connections (most relevant for this trace data)
+    if (networkAnalysis && networkAnalysis.unix_stream_connections && networkAnalysis.unix_stream_connections.length > 0) {
+        let streamHtml = '<div class="table-responsive" style="max-height: 300px; overflow-y: auto;"><table class="table table-sm table-striped">';
+        streamHtml += '<thead class="table-dark sticky-top"><tr><th>Time</th><th>Direction</th><th>PID</th><th>To/From PID</th><th>Process</th></tr></thead><tbody>';
+        
+        // Show all connections, not just first 10
+        networkAnalysis.unix_stream_connections.forEach(conn => {
+            const time = new Date(conn.timestamp * 1000).toLocaleTimeString();
+            const peerPid = conn.direction === 'send' ? conn.to_pid : conn.from_pid;
+            const directionIcon = conn.direction === 'send' ? '→' : '←';
+            
+            streamHtml += `<tr>
+                <td><small>${time}</small></td>
+                <td><span class="badge ${conn.direction === 'send' ? 'bg-primary' : 'bg-success'}">${directionIcon} ${conn.direction}</span></td>
+                <td><strong>${conn.pid}</strong></td>
+                <td>${peerPid || 'N/A'}</td>
+                <td><small>${conn.process}</small></td>
+            </tr>`;
+        });
+        streamHtml += '</tbody></table></div>';
+        
+        streamHtml += `<small class="text-muted mt-2 d-block">Total: ${networkAnalysis.unix_stream_connections.length} Unix stream connections</small>`;
+        
+        $('#tcp-connections-table').html(streamHtml);
+        
+        // Update the header to reflect what we're showing
+        $('#tcp-connections-table').closest('.professional-card').find('h6').html('<i class="fas fa-exchange-alt"></i> Unix Stream Connections');
+    } else if (networkAnalysis && networkAnalysis.tcp_connections && networkAnalysis.tcp_connections.length > 0) {
+        // Fallback to TCP if available
         let tcpHtml = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Time</th><th>Direction</th><th>Size/Length</th></tr></thead><tbody>';
         networkAnalysis.tcp_connections.slice(0, 10).forEach(conn => {
             const time = new Date(conn.timestamp * 1000).toLocaleTimeString();
@@ -1224,11 +1643,37 @@ function renderConnectionTables(networkAnalysis) {
         tcpHtml += '</tbody></table></div>';
         $('#tcp-connections-table').html(tcpHtml);
     } else {
-        $('#tcp-connections-table').html('<div class="alert alert-info">No TCP connections</div>');
+        $('#tcp-connections-table').html('<div class="alert alert-info">No TCP or Unix stream connections</div>');
     }
 
-    // UDP communications
-    if (networkAnalysis && networkAnalysis.udp_communications && networkAnalysis.udp_communications.length > 0) {
+    // Show Unix Datagram communications
+    if (networkAnalysis && networkAnalysis.unix_dgram_communications && networkAnalysis.unix_dgram_communications.length > 0) {
+        let dgramHtml = '<div class="table-responsive" style="max-height: 300px; overflow-y: auto;"><table class="table table-sm table-striped">';
+        dgramHtml += '<thead class="table-dark sticky-top"><tr><th>Time</th><th>Direction</th><th>PID</th><th>Process</th><th>Inode</th></tr></thead><tbody>';
+        
+        // Show all communications, not just first 10
+        networkAnalysis.unix_dgram_communications.forEach(comm => {
+            const time = new Date(comm.timestamp * 1000).toLocaleTimeString();
+            const directionIcon = comm.direction === 'send' ? '→' : '←';
+            
+            dgramHtml += `<tr>
+                <td><small>${time}</small></td>
+                <td><span class="badge ${comm.direction === 'send' ? 'bg-warning' : 'bg-info'}">${directionIcon} ${comm.direction}</span></td>
+                <td><strong>${comm.pid}</strong></td>
+                <td><small>${comm.process}</small></td>
+                <td>${comm.inode || 'N/A'}</td>
+            </tr>`;
+        });
+        dgramHtml += '</tbody></table></div>';
+        
+        dgramHtml += `<small class="text-muted mt-2 d-block">Total: ${networkAnalysis.unix_dgram_communications.length} Unix datagram communications</small>`;
+        
+        $('#udp-communications-table').html(dgramHtml);
+        
+        // Update the header to reflect what we're showing
+        $('#udp-communications-table').closest('.professional-card').find('h6').html('<i class="fas fa-broadcast-tower"></i> Unix Datagram Communications');
+    } else if (networkAnalysis && networkAnalysis.udp_communications && networkAnalysis.udp_communications.length > 0) {
+        // Fallback to UDP if available
         let udpHtml = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Time</th><th>Direction</th><th>Length</th></tr></thead><tbody>';
         networkAnalysis.udp_communications.slice(0, 10).forEach(comm => {
             const time = new Date(comm.timestamp * 1000).toLocaleTimeString();
@@ -1237,7 +1682,7 @@ function renderConnectionTables(networkAnalysis) {
         udpHtml += '</tbody></table></div>';
         $('#udp-communications-table').html(udpHtml);
     } else {
-        $('#udp-communications-table').html('<div class="alert alert-info">No UDP communications</div>');
+        $('#udp-communications-table').html('<div class="alert alert-info">No UDP or Unix datagram communications</div>');
     }
 }
 
@@ -1299,22 +1744,22 @@ function renderProcessSummary(data) {
     const summary = data.process_analysis.summary;
     const summaryCards = [
         {
-            title: 'Process Forks',
-            value: summary.total_forks || 0,
+            title: 'Active Processes',
+            value: summary.total_processes || 0,
             type: 'info',
-            icon: 'fas fa-code-branch'
+            icon: 'fas fa-microchip'
         },
         {
-            title: 'Executions',
-            value: summary.total_execs || 0,
+            title: 'File Operations',
+            value: summary.total_file_operations || 0,
             type: 'success',
-            icon: 'fas fa-play'
+            icon: 'fas fa-file'
         },
         {
-            title: 'Tree Depth',
-            value: summary.process_tree_depth || 0,
+            title: 'IPC Events',
+            value: summary.total_ipc_events || 0,
             type: 'warning',
-            icon: 'fas fa-sitemap'
+            icon: 'fas fa-exchange-alt'
         },
         {
             title: 'Suspicious Patterns',
@@ -1342,8 +1787,55 @@ function renderProcessTree(processAnalysis) {
         return;
     }
 
-    // Placeholder for process tree visualization
-    $('#process-tree-chart').html('<div class="alert alert-info">Process tree visualization will be implemented with D3.js hierarchical layout</div>');
+    const processTree = processAnalysis.process_tree;
+    const processKeys = Object.keys(processTree);
+    
+    if (processKeys.length === 0) {
+        $('#process-tree-chart').html('<div class="alert alert-info">No process relationships detected</div>');
+        return;
+    }
+
+    // Create a simple process list view with activity information
+    let treeHtml = '<div class="process-tree-list" style="max-height: 350px; overflow-y: auto;">';
+    treeHtml += '<div class="row"><div class="col-12">';
+    treeHtml += '<h6><i class="fas fa-list"></i> Process Activity Summary</h6>';
+    treeHtml += '</div></div>';
+    
+    // Sort processes by total events (most active first)
+    const sortedProcesses = processKeys.sort((a, b) => {
+        const eventsA = processTree[a].total_events || 0;
+        const eventsB = processTree[b].total_events || 0;
+        return eventsB - eventsA;
+    });
+    
+    sortedProcesses.forEach(pid => {
+        const process = processTree[pid];
+        const duration = process.duration ? (process.duration / 1000).toFixed(2) + 's' : 'N/A';
+        const partners = process.communication_partners ? process.communication_partners.length : 0;
+        
+        treeHtml += `
+            <div class="process-item mb-2 p-2 border rounded">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>PID ${pid}</strong> - <small>${process.process_name || 'Unknown'}</small>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <span class="badge bg-primary">${process.total_events || 0} events</span>
+                        <span class="badge bg-info">${duration}</span>
+                        ${partners > 0 ? `<span class="badge bg-warning">${partners} partners</span>` : ''}
+                    </div>
+                </div>
+                ${process.children && process.children.length > 0 ? `
+                    <div class="mt-1">
+                        <small class="text-muted">Communicates with: ${process.children.map(c => `PID ${c.pid}`).join(', ')}</small>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    });
+    
+    treeHtml += '</div>';
+    $('#process-tree-chart').html(treeHtml);
 }
 
 function renderProcessTimeline(processAnalysis) {
@@ -1390,31 +1882,4 @@ function showProcessError(error) {
 
 // Upload and UI functionality are now handled in separate files
 
-// Initialize all functionality when DOM is ready
-$(document).ready(function() {
-    // Initialize UI first
-    initializeUI();
-    
-    // App initialization
-    updateAppStatus('loading', 'Loading...');
-
-    // Load configuration first, then data
-    loadConfiguration().then(function() {
-        updateAppStatus('success', 'System Ready');
-        loadAllData();
-        setupEventListeners();
-        
-        // Initialize upload functionality
-        initializeUploadFunctionality();
-    }).catch(function(error) {
-        console.error('Failed to load configuration:', error);
-        updateAppStatus('warning', 'Fallback Mode');
-        // Use fallback configuration
-        setFallbackConfiguration();
-        loadAllData();
-        setupEventListeners();
-        
-        // Initialize upload functionality
-        initializeUploadFunctionality();
-    });
-});
+// Note: DOM ready initialization is already handled above

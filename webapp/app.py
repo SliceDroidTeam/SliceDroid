@@ -631,6 +631,135 @@ def export_events():
         print(f"Error in export events: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+@app.route('/api/security-analysis')
+def get_security_analysis():
+    """API endpoint for security analysis"""
+    try:
+        events = load_data()
+        pid = request.args.get('pid')
+        
+        # Validate PID parameter
+        target_pid = None
+        if pid:
+            if not pid.isdigit():
+                return jsonify({'error': 'Invalid PID parameter'}), 400
+            target_pid = int(pid)
+        
+        # Perform security analysis
+        security_analysis = comprehensive_analyzer.analyze_security_events(events, target_pid)
+        
+        # Generate risk assessment
+        risk_assessment = {
+            'risk_category': security_analysis['summary']['risk_level'],
+            'risk_score': (
+                security_analysis['summary']['total_privilege_escalations'] * 10 +
+                security_analysis['summary']['total_debugging_attempts'] * 5 +
+                security_analysis['summary']['total_suspicious_activities'] * 8 +
+                security_analysis['summary']['total_capability_changes'] * 3
+            )
+        }
+        
+        # Generate recommendations
+        recommendations = []
+        if security_analysis['summary']['total_privilege_escalations'] > 0:
+            recommendations.append({
+                'title': 'Privilege Escalation Detected',
+                'description': 'Monitor processes for unauthorized privilege changes',
+                'priority': 'HIGH'
+            })
+        if security_analysis['summary']['total_debugging_attempts'] > 0:
+            recommendations.append({
+                'title': 'Debugging Activity Detected',
+                'description': 'Review processes attempting to debug other processes',
+                'priority': 'MEDIUM'
+            })
+        if security_analysis['summary']['total_suspicious_activities'] > 0:
+            recommendations.append({
+                'title': 'Suspicious Memory Operations',
+                'description': 'Investigate memory protection changes for potential code injection',
+                'priority': 'HIGH'
+            })
+        
+        # Create timeline data for security events
+        timeline_data = []
+        for event in security_analysis['privilege_escalation']:
+            timeline_data.append({
+                'timestamp': event['timestamp'],
+                'event_type': event['type'],
+                'severity': 'high',
+                'process': event['process'],
+                'category': 'security'
+            })
+        for event in security_analysis['debugging_attempts']:
+            timeline_data.append({
+                'timestamp': event['timestamp'],
+                'event_type': 'debugging_attempt',
+                'severity': 'medium',
+                'process': event['process'],
+                'category': 'security'
+            })
+        
+        return jsonify({
+            'security_analysis': security_analysis,
+            'risk_assessment': risk_assessment,
+            'recommendations': recommendations,
+            'timeline_data': timeline_data
+        })
+        
+    except Exception as e:
+        print(f"Error in security analysis: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/network-analysis')
+def get_network_analysis():
+    """API endpoint for network analysis"""
+    try:
+        events = load_data()
+        pid = request.args.get('pid')
+        
+        # Validate PID parameter
+        target_pid = None
+        if pid:
+            if not pid.isdigit():
+                return jsonify({'error': 'Invalid PID parameter'}), 400
+            target_pid = int(pid)
+        
+        # Perform network analysis
+        network_analysis = comprehensive_analyzer.analyze_network_flows(events, target_pid)
+        
+        return jsonify({
+            'network_analysis': network_analysis
+        })
+        
+    except Exception as e:
+        print(f"Error in network analysis: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/process-analysis')
+def get_process_analysis():
+    """API endpoint for process analysis"""
+    try:
+        events = load_data()
+        pid = request.args.get('pid')
+        
+        # Validate PID parameter
+        target_pid = None
+        if pid:
+            if not pid.isdigit():
+                return jsonify({'error': 'Invalid PID parameter'}), 400
+            target_pid = int(pid)
+        
+        # Perform process genealogy analysis
+        process_analysis = comprehensive_analyzer.analyze_process_genealogy(events, target_pid)
+        
+        return jsonify({
+            'process_analysis': process_analysis
+        })
+        
+    except Exception as e:
+        print(f"Error in process analysis: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 @app.route('/api/export/analysis')
 def export_analysis():
     """Export analysis results in specified format"""
