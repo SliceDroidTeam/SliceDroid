@@ -47,34 +47,64 @@ advanced_analytics = AdvancedAnalytics(app.config_class)
 comprehensive_analyzer = ComprehensiveAnalyzer(app.config_class)
 app_mapper = AppMapperService(app.config_class.PROJECT_ROOT)
 
-# Load device name mapping from rdevs.txt
+# Initialize device name mapping (load lazily)
 device_name_mapping = {}
-try:
-    rdevs_path = app.config_class.PROJECT_ROOT / 'data' / 'nodes_and_files_data' / 'rdevs.txt'
-    if rdevs_path.exists():
-        with open(rdevs_path, 'r') as f:
-            for line in f:
-                parts = line.strip().split()
-                if len(parts) >= 2:
-                    device_name = parts[0]
-                    device_id = int(parts[1])
-                    device_name_mapping[device_id] = device_name
-        print(f"Loaded {len(device_name_mapping)} device name mappings from {rdevs_path}")
-    else:
-        print(f"Device mapping file not found: {rdevs_path}")
-except Exception as e:
-    print(f"Error loading device name mapping: {e}")
+
+def load_device_mapping():
+    """Load device name mapping lazily"""
+    global device_name_mapping
+    if device_name_mapping:  # Already loaded
+        return device_name_mapping
+        
+    try:
+        rdevs_path = app.config_class.PROJECT_ROOT / 'data' / 'nodes_and_files_data' / 'rdevs.txt'
+        if rdevs_path.exists():
+            with open(rdevs_path, 'r') as f:
+                for line in f:
+                    parts = line.strip().split()
+                    if len(parts) >= 2:
+                        device_name = parts[0]
+                        device_id = int(parts[1])
+                        device_name_mapping[device_id] = device_name
+            print(f"Loaded {len(device_name_mapping)} device name mappings")
+        else:
+            print(f"Device mapping file not found: {rdevs_path}")
+    except Exception as e:
+        print(f"Error loading device name mapping: {e}")
+    
+    return device_name_mapping
+
+# Cache for loaded data to avoid repeated file reads
+_data_cache = {}
+_cache_timestamp = None
 
 def load_data():
-    """Load the processed events from JSON file"""
+    """Load the processed events from JSON file with caching"""
+    global _data_cache, _cache_timestamp
+    
     events_file = app.config_class.PROCESSED_EVENTS_JSON
+    
     try:
-        if Path(events_file).exists():
-            with open(events_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if not isinstance(data, list):
-                    return []
-                return data
+        if not Path(events_file).exists():
+            return []
+        
+        file_mtime = Path(events_file).stat().st_mtime
+        
+        # Use cache if file hasn't changed
+        if _cache_timestamp == file_mtime and 'events' in _data_cache:
+            return _data_cache['events']
+        
+        # Load fresh data
+        with open(events_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            if not isinstance(data, list):
+                return []
+            
+        # Update cache
+        _data_cache['events'] = data
+        _cache_timestamp = file_mtime
+        
+        return data
     except (json.JSONDecodeError, IOError) as e:
         print(f"Error loading data from {events_file}: {e}")
     return []
@@ -88,19 +118,14 @@ def get_unique_pids(events):
     return sorted(list(pids))
 
 def get_unique_devices(events):
-    """Extract unique devices from events"""
+    """Extract unique devices from events (optimized)"""
     devices = set()
     for event in events:
-        if 'details' in event:
-            # Check for both k_dev and k__dev (double underscore)
-            device_key = None
-            if 'k_dev' in event['details']:
-                device_key = 'k_dev'
-            elif 'k__dev' in event['details']:
-                device_key = 'k__dev'
-
-            if device_key and event['details'][device_key] != 0:
-                devices.add(event['details'][device_key])
+        details = event.get('details')
+        if details:
+            device_id = details.get('k_dev') or details.get('k__dev')
+            if device_id and device_id != 0:
+                devices.add(device_id)
     return sorted(list(devices))
 
 def filter_events(events, pid=None, device=None):
@@ -484,14 +509,20 @@ def upload_trace():
             'result': None
         }
 
-        # Start processing in background thread
+        # Start processing in background thread with optimizations
         def process_file():
             def progress_callback(progress, status):
                 upload_progress[upload_id]['progress'] = progress
                 upload_progress[upload_id]['status'] = status
+                print(f"[Upload {upload_id[:8]}] {progress}% - {status}")
 
             try:
-                result = trace_processor.process_trace_file(temp_file_path, progress_callback)
+                # Move file to final destination first for faster processing
+                final_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'uploaded_trace.trace'
+                shutil.move(temp_file_path, final_path)
+                
+                # Process with optimizations
+                result = trace_processor.process_trace_file(str(final_path), progress_callback)
                 upload_progress[upload_id]['result'] = result
                 upload_progress[upload_id]['completed'] = True
 
@@ -501,8 +532,9 @@ def upload_trace():
             except Exception as e:
                 upload_progress[upload_id]['error'] = str(e)
                 upload_progress[upload_id]['completed'] = True
+                print(f"[Upload Error] {e}")
             finally:
-                # Clean up temporary file
+                # Clean up temporary directory
                 try:
                     shutil.rmtree(temp_dir)
                 except:
@@ -903,13 +935,37 @@ def export_analysis():
         return jsonify({'error': 'Internal server error'}), 500
 
 def preload_trace_file():
-    """Pre-load the default trace file if it exists"""
+    """Pre-load and process the default trace file if it exists"""
     try:
         default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
         if default_trace_path.exists():
             print(f"Found default trace file: {default_trace_path}")
-            # Only load app mappings and device info, don't process events automatically
-            print("Default trace file available for processing when needed")
+            
+            # Check if already processed by looking for events JSON
+            events_json = app.config_class.PROCESSED_EVENTS_JSON
+            if Path(events_json).exists():
+                print("[*] Trace file already processed - skipping preprocessing")
+                return
+                
+            print("[*] Pre-processing trace file in background...")
+            
+            # Process the trace file in background thread for faster startup
+            def background_process():
+                try:
+                    processor = TraceProcessor(app.config_class.PROJECT_ROOT)
+                    success = processor.process_trace_file(str(default_trace_path))
+                    
+                    if success:
+                        print("[*] Background trace processing completed!")
+                    else:
+                        print("[!] Background trace processing failed")
+                except Exception as e:
+                    print(f"Background processing error: {e}")
+            
+            import threading
+            thread = threading.Thread(target=background_process)
+            thread.daemon = True
+            thread.start()
         else:
             print(f"No default trace file found at: {default_trace_path}")
     except Exception as e:
