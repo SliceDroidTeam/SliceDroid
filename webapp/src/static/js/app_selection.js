@@ -21,11 +21,13 @@ function setupAppEventListeners() {
             $('#analyze-app').prop('disabled', false);
             const app = allApps.find(a => a.package_name === selectedPackage);
             if (app) {
-                $('#app-status').html(`<small><strong>Selected:</strong> ${app.commercial_name} (${app.package_name}) - Ready to analyze</small>`);
+                $('#app-status').removeClass('alert-info alert-warning alert-danger').addClass('alert-success')
+                    .html(`<i class="fas fa-check-circle me-2"></i><span><strong>${app.commercial_name}</strong> selected and ready for analysis</span>`);
             }
         } else {
             $('#analyze-app').prop('disabled', true);
-            $('#app-status').html('<small>Select an app from the dropdown to begin analysis</small>');
+            $('#app-status').removeClass('alert-success alert-warning alert-danger').addClass('alert-info')
+                .html('<i class="fas fa-info-circle me-2"></i><span>Select an application from the dropdown to begin analysis</span>');
         }
     });
     
@@ -45,7 +47,8 @@ function loadApps() {
     }).fail(function(jqXHR) {
         console.error('Failed to load apps:', jqXHR);
         $('#app-select').html('<option value="">Failed to load apps</option>');
-        $('#app-status').html('<small class="text-danger">Failed to load apps. Try refreshing.</small>');
+        $('#app-status').removeClass('alert-info alert-success alert-warning').addClass('alert-danger')
+            .html('<i class="fas fa-exclamation-triangle me-2"></i><span>Failed to load applications. Please try refreshing the page.</span>');
     });
 }
 
@@ -66,7 +69,7 @@ function updateAppDropdown() {
     
     // Add all apps
     sortedApps.forEach(app => {
-        const option = $(`<option value="${app.package_name}">${app.commercial_name} (${app.category})</option>`);
+        const option = $(`<option value="${app.package_name}">${app.commercial_name}</option>`);
         select.append(option);
     });
 }
@@ -115,7 +118,8 @@ function analyzeApp() {
     const processTargets = app ? app.processes : [selectedApp];
     
     // Perform slicing analysis directly
-    $('#app-status').html('<small>Performing app-specific slicing analysis...</small>');
+    $('#app-status').removeClass('alert-info alert-success alert-danger').addClass('alert-warning')
+        .html('<i class="fas fa-spinner fa-spin me-2"></i><span>Performing app-specific analysis...</span>');
     
     $.ajax({
         url: '/api/apps/analyze',
@@ -126,20 +130,22 @@ function analyzeApp() {
         }),
         success: function(analysisData) {
             if (analysisData.success) {
-                $('#app-status').html(`
-                    <small class="text-success">
-                        <strong>Analysis complete for ${analysisData.app_name}</strong><br>
-                        Process targets: ${processTargets.join(', ')}<br>
-                        Target PID: ${analysisData.target_pid} | Events: ${analysisData.events_count}<br>
-                        <strong>Refreshing charts...</strong>
-                    </small>
-                `);
+                $('#app-status').removeClass('alert-info alert-warning alert-danger').addClass('alert-success')
+                    .html(`
+                        <i class="fas fa-check-circle me-2"></i>
+                        <span>
+                            <strong>Analysis complete for ${analysisData.app_name}</strong><br>
+                            <small>Process targets: ${processTargets.join(', ')} | Target PID: ${analysisData.target_pid} | Events: ${analysisData.events_count}</small><br>
+                            <small><i class="fas fa-sync fa-spin me-1"></i>Refreshing charts...</small>
+                        </span>
+                    `);
                 
                 // Refresh all charts with new data instead of page reload
                 refreshChartsWithNewData();
                 
             } else {
-                $('#app-status').html(`<small class="text-danger">Analysis failed: ${analysisData.error}</small>`);
+                $('#app-status').removeClass('alert-info alert-warning alert-success').addClass('alert-danger')
+                    .html(`<i class="fas fa-exclamation-triangle me-2"></i><span>Analysis failed: ${analysisData.error}</span>`);
                 // Clear loading spinners on error
                 chartContainers.forEach(containerId => {
                     if (document.getElementById(containerId)) {
@@ -153,7 +159,8 @@ function analyzeApp() {
             if (jqXHR.responseJSON && jqXHR.responseJSON.error) {
                 errorMsg += ': ' + jqXHR.responseJSON.error;
             }
-            $('#app-status').html(`<small class="text-danger">${errorMsg}</small>`);
+            $('#app-status').removeClass('alert-info alert-warning alert-success').addClass('alert-danger')
+                .html(`<i class="fas fa-exclamation-triangle me-2"></i><span>${errorMsg}</span>`);
             
             // Clear loading spinners on error
             chartContainers.forEach(containerId => {
@@ -192,12 +199,14 @@ function refreshChartsWithNewData() {
             loadAllData();
         }
         
-        $('#app-status').html(`
-            <small class="text-success">
-                <strong>Charts updated successfully!</strong><br>
-                Now showing data specific to the selected app.
-            </small>
-        `);
+        $('#app-status').removeClass('alert-info alert-warning alert-danger').addClass('alert-success')
+            .html(`
+                <i class="fas fa-chart-line me-2"></i>
+                <span>
+                    <strong>Charts updated successfully!</strong><br>
+                    <small>Now showing data specific to the selected application.</small>
+                </span>
+            `);
         
     }, 500); // Small delay to ensure backend has finished writing files
 }

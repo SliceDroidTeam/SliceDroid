@@ -133,25 +133,35 @@
                             <div class="card-icon">
                                 <i class="fas fa-mobile-alt"></i>
                             </div>
-                            <h2 class="card-title">Select App for Analysis</h2>
+                            <h2 class="card-title">App Analysis</h2>
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="app-select" class="form-label">Choose an app to analyze:</label>
-                                <select class="form-control form-control-modern" id="app-select">
-                                    <option value="">Loading apps...</option>
-                                </select>
+                    <div class="card-body">
+                        <div class="row align-items-end">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="app-select" class="form-label fw-semibold">Select Application:</label>
+                                    <select class="form-select form-select-lg" id="app-select">
+                                        <option value="">Loading apps...</option>
+                                    </select>
+                                </div>
                             </div>
-                            <button class="btn btn-primary btn-lg" id="analyze-app" disabled>
-                                <i class="fas fa-play-circle"></i> Analyze Selected App
-                            </button>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <button class="btn btn-primary btn-lg w-100" id="analyze-app" disabled>
+                                        <i class="fas fa-chart-line me-2"></i>Start Analysis
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <div id="app-status" class="mt-2 text-muted">
-                                <small>Select an app from the dropdown to begin analysis</small>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <div id="app-status" class="alert alert-info mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <span>Select an application from the dropdown to begin analysis</span>
+                                </div>
                             </div>
                         </div>
                     </div>

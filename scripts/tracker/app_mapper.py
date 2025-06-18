@@ -144,41 +144,17 @@ class AppMapper:
                     pass
 
     def _is_commercial_app(self, package_name: str, commercial_name: str) -> bool:
-        """Check if this is a commercial app worth including"""
+        """Check if this is an app worth including (user apps + Google system apps)"""
         package_lower = package_name.lower()
-        name_lower = commercial_name.lower() if commercial_name else ""
         
         # Always include user apps (non-system)
         if not package_lower.startswith(('com.google.', 'com.android.', 'android.')):
             return True
             
-        # Google commercial apps worth including
-        google_commercial_apps = [
-            'com.google.android.youtube',           # YouTube
-            'com.google.android.apps.maps',         # Google Maps  
-            'com.google.android.gm',                # Gmail
-            'com.android.chrome',                   # Chrome
-            'com.google.android.googlequicksearchbox', # Google App
-            'com.google.android.apps.photos',       # Google Photos
-            'com.google.android.apps.docs',         # Google Docs
-            'com.google.android.apps.drive',        # Google Drive
-            'com.google.android.music',             # YouTube Music
-            'com.google.android.apps.translate',    # Google Translate
-            'com.google.android.calendar',          # Google Calendar
-            'com.google.android.contacts',          # Google Contacts
-            'com.google.android.dialer',            # Phone by Google
-            'com.google.android.apps.messaging',    # Messages by Google
-            'com.google.android.apps.podcasts',     # Google Podcasts
-            'com.google.android.keep',              # Google Keep
-            'com.google.android.play.games',        # Google Play Games
-            'com.android.vending'                   # Google Play Store
-        ]
-        
-        # Include if it's in our commercial apps list
-        if package_lower in google_commercial_apps:
+        # Include ALL Google/Android system apps
+        if package_lower.startswith(('com.google.', 'com.android.', 'android.')):
             return True
             
-        # Skip other Google/Android system apps
         return False
 
     def create_mapping(self, limit: int = 30, include_system: bool = False) -> Dict[str, Dict]:
