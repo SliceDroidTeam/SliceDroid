@@ -1524,7 +1524,11 @@ class ComprehensiveAnalyzer:
         for pid, activity in process_activities.items():
             activity['accessed_files'] = list(activity['accessed_files'])
             activity['communication_partners'] = list(activity['communication_partners'])
-            activity['duration'] = activity['last_seen'] - activity['first_seen']
+            # Safe duration calculation with null checks
+            if activity['last_seen'] is not None and activity['first_seen'] is not None:
+                activity['duration'] = activity['last_seen'] - activity['first_seen']
+            else:
+                activity['duration'] = 0
             activity['files_accessed_count'] = len(activity['accessed_files'])
             activity['partners_count'] = len(activity['communication_partners'])
         

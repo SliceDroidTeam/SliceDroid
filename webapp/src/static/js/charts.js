@@ -44,60 +44,75 @@ function createPieChart(containerId, data, title) {
         return;
     }
     
-    if (container.offsetWidth === 0 || container.offsetHeight === 0) {
-        console.warn(`Chart container '${containerId}' is not visible, delaying render`);
-        setTimeout(() => createPieChart(containerId, data, title), 100);
-        return;
+    // Wait for container to be visible (with timeout)
+    let retryCount = 0;
+    const maxRetries = 10;
+    
+    function tryRender() {
+        if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+            retryCount++;
+            if (retryCount < maxRetries) {
+                console.warn(`Chart container '${containerId}' is not visible, retrying... (${retryCount}/${maxRetries})`);
+                setTimeout(tryRender, 200);
+                return;
+            } else {
+                console.error(`Chart container '${containerId}' never became visible, using default dimensions`);
+                // Force render with default dimensions
+            }
+        }
+        renderChart();
     }
-    const width = container.clientWidth;
-    const height = Math.min(container.clientHeight, 350);
-    const radius = Math.min(width, height) / 2 - 20;
+    
+    function renderChart() {
+        const width = container.clientWidth || 300;
+        const height = Math.min(container.clientHeight || 300, 350);
+        const radius = Math.min(width, height) / 2 - 20;
 
-    const svg = d3.select(`#${containerId}`)
-        .append("svg")
-        .attr("width", width)
-        .attr("height", height)
-        .append("g")
-        .attr("transform", `translate(${width / 2}, ${height / 2})`);
+        const svg = d3.select(`#${containerId}`)
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .append("g")
+            .attr("transform", `translate(${width / 2}, ${height / 2})`);
 
-    const color = d3.scaleOrdinal(d3.schemeCategory10);
+        const color = d3.scaleOrdinal(d3.schemeCategory10);
 
-    const pie = d3.pie()
-        .value(d => d.value)
-        .sort(null);
+        const pie = d3.pie()
+            .value(d => d.value)
+            .sort(null);
 
-    const arc = d3.arc()
-        .innerRadius(0)
-        .outerRadius(radius);
+        const arc = d3.arc()
+            .innerRadius(0)
+            .outerRadius(radius);
 
-    const labelArc = d3.arc()
-        .innerRadius(radius * 0.6)
-        .outerRadius(radius * 0.6);
+        const labelArc = d3.arc()
+            .innerRadius(radius * 0.6)
+            .outerRadius(radius * 0.6);
 
-    // Add title
-    svg.append("text")
-        .attr("text-anchor", "middle")
-        .attr("y", -height/2 + 20)
-        .attr("font-size", "16px")
-        .attr("font-weight", "bold")
-        .text(title);
+        // Add title
+        svg.append("text")
+            .attr("text-anchor", "middle")
+            .attr("y", -height/2 + 20)
+            .attr("font-size", "16px")
+            .attr("font-weight", "bold")
+            .text(title);
 
-    const arcs = svg.selectAll(".arc")
-        .data(pie(data))
-        .enter()
-        .append("g")
-        .attr("class", "arc");
+        const arcs = svg.selectAll(".arc")
+            .data(pie(data))
+            .enter()
+            .append("g")
+            .attr("class", "arc");
 
-    arcs.append("path")
-        .attr("d", arc)
-        .attr("fill", (d, i) => color(i))
-        .attr("stroke", "white")
-        .style("stroke-width", "2px")
-        .style("cursor", "pointer")
-        .on("mouseover", function(event, d) {
-            // Create tooltip
-            const tooltip = d3.select("body").append("div")
-                .attr("class", "chart-tooltip")
+        arcs.append("path")
+            .attr("d", arc)
+            .attr("fill", (d, i) => color(i))
+            .attr("stroke", "white")
+            .style("stroke-width", "2px")
+            .style("cursor", "pointer")
+            .on("mouseover", function(event, d) {
+                // Create tooltip
+                const tooltip = d3.select("body").append("div")
+                    .attr("class", "chart-tooltip")
                 .style("position", "absolute")
                 .style("background", "rgba(0,0,0,0.8)")
                 .style("color", "white")
@@ -130,6 +145,10 @@ function createPieChart(containerId, data, title) {
 
     // Skip legend for device/event charts to avoid overlap - rely on hover tooltips instead
     // Legend causes overlap issues in the constrained space of the statistics cards
+    }
+    
+    // Start the rendering process
+    tryRender();
 }
 
 function createBarChart(containerId, data, title, xLabel, yLabel) {

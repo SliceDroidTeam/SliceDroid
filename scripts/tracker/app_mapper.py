@@ -101,7 +101,7 @@ class AppMapper:
             return []
 
     def get_app_label(self, package_name: str) -> Optional[str]:
-        """Extract commercial name from APK using androguard"""
+        """Extract commercial name from APK using androguard (optimized & silent)"""
         if not ANDROGUARD_AVAILABLE:
             return None
 
@@ -110,7 +110,7 @@ class AppMapper:
             # Get APK path from device
             result = subprocess.run(
                 ["adb", "shell", "pm", "path", package_name],
-                capture_output=True, text=True, timeout=10
+                capture_output=True, text=True, timeout=10, stderr=subprocess.DEVNULL
             )
 
             if result.returncode != 0:
@@ -126,23 +126,34 @@ class AppMapper:
             if not device_apk_path:
                 return None
 
-            # Pull APK to temporary file
+            # Pull APK to temporary file (silently)
             temp_apk = tempfile.NamedTemporaryFile(suffix=".apk", delete=False)
             temp_apk.close()
 
             pull_result = subprocess.run(
                 ["adb", "pull", device_apk_path, temp_apk.name],
-                capture_output=True, timeout=30
+                capture_output=True, timeout=15, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL
             )
 
             if pull_result.returncode != 0:
                 return None
 
-            # Analyze APK with androguard
-            apk = APK(temp_apk.name)
-            app_label = apk.get_app_name()
-
-            return app_label if app_label else None
+            # Analyze APK with androguard (suppress all logging)
+            import logging
+            import warnings
+            
+            # Temporarily disable all logging
+            logging.disable(logging.CRITICAL)
+            warnings.filterwarnings('ignore')
+            
+            try:
+                apk = APK(temp_apk.name)
+                app_label = apk.get_app_name()
+                return app_label if app_label else None
+            finally:
+                # Re-enable logging
+                logging.disable(logging.NOTSET)
+                warnings.resetwarnings()
 
         except Exception as e:
             return None

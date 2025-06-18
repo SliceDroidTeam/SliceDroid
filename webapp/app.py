@@ -883,6 +883,34 @@ def generate_process_targets():
         print(f"Error in generate_process_targets: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+def load_original_data():
+    """Load the original unfiltered trace data"""
+    # Try to load from backup first
+    backup_file = app.config_class.EXPORTS_DIR / 'original_processed_events.json'
+    if backup_file.exists():
+        try:
+            with open(backup_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    
+    # Fall back to main file if backup doesn't exist
+    return load_data()
+
+def ensure_original_backup():
+    """Ensure we have a backup of the original trace data"""
+    main_file = app.config_class.PROCESSED_EVENTS_JSON
+    backup_file = app.config_class.EXPORTS_DIR / 'original_processed_events.json'
+    
+    # If backup doesn't exist but main file does, create backup
+    if main_file.exists() and not backup_file.exists():
+        try:
+            import shutil
+            shutil.copy2(main_file, backup_file)
+            print(f"[DEBUG] Created backup of original trace data: {backup_file}")
+        except Exception as e:
+            print(f"[WARNING] Failed to create backup: {e}")
+
 @app.route('/api/apps/analyze', methods=['POST'])
 def analyze_app():
     """API endpoint for re-slicing events for a specific app"""
@@ -894,8 +922,11 @@ def analyze_app():
             print(f"[ERROR] No app_id provided. Request data: {data}")
             return jsonify({'error': 'No app specified'}), 400
 
+        # Ensure we have a backup of original data
+        ensure_original_backup()
+
         # Load all events (original unfiltered data)
-        events = load_data()
+        events = load_original_data()
         print(f"[DEBUG] Loaded {len(events)} events from trace data")
         if not events:
             print("[ERROR] No trace data available")
