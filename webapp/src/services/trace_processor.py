@@ -128,7 +128,7 @@ class TraceProcessor:
             }
 
     def _find_process(self, events, filepath):
-        """Find the target process from the trace events"""
+        """Find the target process from the trace events using shortened name matching"""
         from collections import Counter
 
         # Determine application name from trace filename
@@ -136,7 +136,7 @@ class TraceProcessor:
         app_name = basename.split('.')[0]  # part before first dot
         self.logger.info(f"Looking for process matching '{app_name}'")
 
-        # Exact match on process names (case-insensitive)
+        # Try exact match first (case-insensitive)
         t_pid = None
         for e in events:
             if e.get('process', '').lower() == app_name.lower():
@@ -144,15 +144,45 @@ class TraceProcessor:
                 self.logger.info(f"Exact match: process '{e['process']}' with PID {t_pid}")
                 break
 
-        # Fallback to most frequent process if no exact match
+        # Try shortened name matching if no exact match
+        if t_pid is None:
+            self.logger.info(f"No exact match found, trying shortened name matching...")
+            shortened_name = self._create_shortened_name(app_name)
+            self.logger.info(f"Shortened name: '{shortened_name}'")
+            
+            for e in events:
+                event_process = e.get('process', '')
+                if shortened_name in event_process:
+                    t_pid = e['tgid']
+                    self.logger.info(f"Shortened match: found '{shortened_name}' in process '{event_process}' with PID {t_pid}")
+                    break
+
+        # Fallback to most frequent process if still no match
         if t_pid is None:
             procs = Counter(e.get('process', '') for e in events)
             if procs:
                 proc, count = procs.most_common(1)[0]
                 t_pid = next((e['tgid'] for e in events if e.get('process', '') == proc), 0)
                 self.logger.info(f"Fallback: selected most frequent process '{proc}' ({count} events) with PID {t_pid}")
-
+        
         return t_pid or 0
+    
+    def _create_shortened_name(self, full_name):
+        """Create shortened process name for matching"""
+        if '.' in full_name:
+            parts = full_name.split('.')
+            if len(parts) >= 3:
+                # For com.google.android.apps.nbu.files -> .apps.nbu.files
+                if parts[0] in ['com', 'org'] and parts[1] in ['google', 'android', 'samsung', 'nothing']:
+                    if len(parts) > 4:
+                        return '.' + '.'.join(parts[3:])
+                    else:
+                        # For com.google.android.contacts -> .contacts
+                        return '.' + parts[-1]
+                elif parts[0] in ['com', 'org']:
+                    # For com.spotify.music -> .spotify.music
+                    return '.' + '.'.join(parts[1:])
+        return full_name
 
     def _remove_apis(self, events):
         """Remove excess API logging"""

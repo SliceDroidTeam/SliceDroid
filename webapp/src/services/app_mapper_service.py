@@ -115,18 +115,54 @@ class AppMapperService:
         return None
 
     def get_processes_for_app(self, app_identifier: str) -> List[str]:
-        """Get process names for app"""
+        """Get process names for app with shortened names"""
         # Try as package name first
         app = self.get_app_by_package(app_identifier)
         if app:
-            return app.processes
+            return self._get_shortened_process_names(app.processes)
             
         # Then try as commercial name
         app = self.get_app_by_commercial_name(app_identifier)
         if app:
-            return app.processes
+            return self._get_shortened_process_names(app.processes)
             
         return []
+    
+    def _get_shortened_process_names(self, process_names: List[str]) -> List[str]:
+        """Convert full package names to shortened process names for trace matching"""
+        shortened = []
+        for process_name in process_names:
+            # Convert com.google.android.apps.nbu.files -> .apps.nbu.files
+            # Convert com.android.systemui -> .systemui
+            # Convert org.telegram.messenger -> .telegram.messenger
+            if '.' in process_name:
+                parts = process_name.split('.')
+                if len(parts) >= 3:
+                    # Take the last 2-3 meaningful parts, skip common prefixes
+                    if parts[0] in ['com', 'org'] and parts[1] in ['google', 'android', 'samsung', 'nothing']:
+                        if len(parts) > 4:
+                            # For long names like com.google.android.apps.nbu.files -> .apps.nbu.files
+                            shortened_name = '.' + '.'.join(parts[3:])
+                        else:
+                            # For com.google.android.contacts -> .contacts
+                            shortened_name = '.' + parts[-1]
+                    elif parts[0] in ['com', 'org']:
+                        # For com.spotify.music -> .spotify.music or org.telegram.messenger -> .telegram.messenger
+                        shortened_name = '.' + '.'.join(parts[1:])
+                    else:
+                        # Keep original if doesn't match patterns
+                        shortened_name = process_name
+                else:
+                    shortened_name = process_name
+            else:
+                shortened_name = process_name
+            
+            shortened.append(shortened_name)
+            # Also keep the original for fallback matching
+            if shortened_name != process_name:
+                shortened.append(process_name)
+                
+        return shortened
 
     def get_categories(self) -> List[str]:
         """Get all app categories"""
@@ -246,7 +282,7 @@ class AppMapperService:
             return None
 
     def get_pids_for_app(self, app_identifier: str, events: List[Dict]) -> List[int]:
-        """Get PIDs for app from trace events"""
+        """Get PIDs for app from trace events using shortened process name matching"""
         process_names = self.get_processes_for_app(app_identifier)
         if not process_names:
             return []
@@ -254,9 +290,20 @@ class AppMapperService:
         pids = set()
         for event in events:
             event_process = event.get('process', '')
+            if not event_process:
+                continue
+                
+            # Check for exact match first
             if event_process in process_names:
                 if 'tgid' in event:
                     pids.add(event['tgid'])
+            else:
+                # Check for substring matching with shortened names
+                for process_name in process_names:
+                    if process_name.startswith('.') and process_name in event_process:
+                        if 'tgid' in event:
+                            pids.add(event['tgid'])
+                        break
         
         return sorted(list(pids))
 
