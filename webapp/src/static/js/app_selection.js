@@ -114,8 +114,8 @@ function analyzeApp() {
     });
     
     // Get process targets from existing app data  
-    const app = allApps.find(a => a.package_name === selectedApp);
-    const processTargets = app ? app.processes : [selectedApp];
+    const selectedAppData = allApps.find(a => a.package_name === selectedApp);
+    const processTargets = selectedAppData ? selectedAppData.processes : [selectedApp];
     
     // Perform slicing analysis directly
     $('#app-status').removeClass('alert-info alert-success alert-danger').addClass('alert-warning')
