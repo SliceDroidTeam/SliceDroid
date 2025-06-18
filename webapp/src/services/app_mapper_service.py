@@ -262,11 +262,19 @@ class AppMapperService:
 
     def to_dict(self, app: AppInfo) -> Dict:
         """Convert AppInfo to dictionary for JSON serialization"""
-        return {
+        result = {
             "package_name": app.package_name,
             "commercial_name": app.commercial_name,
-            "category": app.category,
             "processes": app.processes,
-            "is_running": app.is_running,
-            "icon_url": app.icon_url
+            "is_running": app.is_running
         }
+        
+        # Only include category if it exists
+        if hasattr(app, 'category') and app.category:
+            result["category"] = app.category
+            
+        # Only include icon_url if it exists and is not None
+        if hasattr(app, 'icon_url') and app.icon_url:
+            result["icon_url"] = app.icon_url
+            
+        return result
