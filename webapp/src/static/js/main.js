@@ -43,12 +43,22 @@ $(document).ready(function() {
 
 // Load app configuration from server
 function loadConfiguration() {
-    return $.getJSON('/api/config')
-        .done(function(config) {
-            appConfig = config;
-            eventColors = config.event_categories || {};
-            zoomLevel = config.default_zoom || 1;
-        });
+    console.log('Loading configuration...');
+    return $.ajax({
+        url: '/api/config',
+        method: 'GET',
+        timeout: 10000,
+        dataType: 'json'
+    })
+    .done(function(config) {
+        console.log('Configuration loaded successfully:', config);
+        appConfig = config;
+        eventColors = config.event_categories || {};
+        zoomLevel = config.default_zoom || 1;
+    })
+    .fail(function(jqXHR, textStatus, errorThrown) {
+        console.error('Failed to load configuration:', textStatus, errorThrown, jqXHR);
+    });
 }
 
 // Fallback configuration if server config fails

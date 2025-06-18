@@ -61,9 +61,19 @@ class TraceProcessor:
             if progress_callback:
                 progress_callback(20, "Parsing trace events...")
 
-            # Parse the trace file
-            raw_events = self._parse_ftrace_log(trace_file_path)
-            self.logger.info(f"Parsed {len(raw_events)} raw events")
+            # Parse the trace file with smart size limiting for performance
+            file_size = Path(trace_file_path).stat().st_size / (1024 * 1024)  # Size in MB
+            
+            if file_size > 50:  # Large file (>50MB)
+                max_events = 50000
+                self.logger.warning(f"Large trace file ({file_size:.1f}MB). Limiting to {max_events} events for performance.")
+            elif file_size > 20:  # Medium file (>20MB) 
+                max_events = 100000
+            else:
+                max_events = None  # No limit for small files
+            
+            raw_events = self._parse_ftrace_log(trace_file_path, max_events=max_events, progress_callback=progress_callback)
+            self.logger.info(f"Parsed {len(raw_events)} raw events from {file_size:.1f}MB file")
 
             if not raw_events:
                 return {
@@ -128,7 +138,7 @@ class TraceProcessor:
             }
 
     def _find_process(self, events, filepath):
-        """Find the target process from the trace events"""
+        """Find the target process from the trace events using shortened name matching"""
         from collections import Counter
 
         # Determine application name from trace filename
@@ -136,7 +146,7 @@ class TraceProcessor:
         app_name = basename.split('.')[0]  # part before first dot
         self.logger.info(f"Looking for process matching '{app_name}'")
 
-        # Exact match on process names (case-insensitive)
+        # Try exact match first (case-insensitive)
         t_pid = None
         for e in events:
             if e.get('process', '').lower() == app_name.lower():
@@ -144,15 +154,45 @@ class TraceProcessor:
                 self.logger.info(f"Exact match: process '{e['process']}' with PID {t_pid}")
                 break
 
-        # Fallback to most frequent process if no exact match
+        # Try shortened name matching if no exact match
+        if t_pid is None:
+            self.logger.info(f"No exact match found, trying shortened name matching...")
+            shortened_name = self._create_shortened_name(app_name)
+            self.logger.info(f"Shortened name: '{shortened_name}'")
+            
+            for e in events:
+                event_process = e.get('process', '')
+                if shortened_name in event_process:
+                    t_pid = e['tgid']
+                    self.logger.info(f"Shortened match: found '{shortened_name}' in process '{event_process}' with PID {t_pid}")
+                    break
+
+        # Fallback to most frequent process if still no match
         if t_pid is None:
             procs = Counter(e.get('process', '') for e in events)
             if procs:
                 proc, count = procs.most_common(1)[0]
                 t_pid = next((e['tgid'] for e in events if e.get('process', '') == proc), 0)
                 self.logger.info(f"Fallback: selected most frequent process '{proc}' ({count} events) with PID {t_pid}")
-
+        
         return t_pid or 0
+    
+    def _create_shortened_name(self, full_name):
+        """Create shortened process name for matching"""
+        if '.' in full_name:
+            parts = full_name.split('.')
+            if len(parts) >= 3:
+                # For com.google.android.apps.nbu.files -> .apps.nbu.files
+                if parts[0] in ['com', 'org'] and parts[1] in ['google', 'android', 'samsung', 'nothing']:
+                    if len(parts) > 4:
+                        return '.' + '.'.join(parts[3:])
+                    else:
+                        # For com.google.android.contacts -> .contacts
+                        return '.' + parts[-1]
+                elif parts[0] in ['com', 'org']:
+                    # For com.spotify.music -> .spotify.music
+                    return '.' + '.'.join(parts[1:])
+        return full_name
 
     def _remove_apis(self, events):
         """Remove excess API logging"""
@@ -279,9 +319,9 @@ class TraceProcessor:
         
         return False
 
-    def _parse_ftrace_log(self, filepath):
+    def _parse_ftrace_log(self, filepath, max_events=None, progress_callback=None):
         """
-        Parse ftrace log file and extract events
+        Parse ftrace log file and extract events with optional size limiting
         Full implementation from original myutils.parse_ftrace_log
         """
         # Regular expression to match Ftrace event log lines with TGID inside parentheses
@@ -292,9 +332,25 @@ class TraceProcessor:
         parsed_events = []  # List to store parsed events (sequence of events)
 
         with open(filepath, 'r') as f:
+            line_count = 0
             for line in f:
+                # Skip very long lines to avoid processing issues
                 if len(line) > 1000:
                     continue
+                
+                # Apply size limit if specified
+                if max_events and len(parsed_events) >= max_events:
+                    self.logger.warning(f"Reached max_events limit ({max_events}). Stopping parsing.")
+                    break
+                
+                # Progress reporting for large files
+                line_count += 1
+                if line_count % 50000 == 0:
+                    self.logger.info(f"Processed {line_count} lines, parsed {len(parsed_events)} events")
+                    if progress_callback and max_events:
+                        progress = 20 + int((len(parsed_events) / max_events) * 20)  # 20-40% range
+                        progress_callback(min(progress, 40), f"Parsing... {len(parsed_events)}/{max_events} events")
+                
                 # Match the main trace line format
                 match = trace_pattern.match(line)
                 if match:
@@ -337,8 +393,15 @@ class TraceProcessor:
 
                     # Append the event to the list
                     parsed_events.append(parsed_event)
+                    
+                    # Memory management for very large files
+                    if len(parsed_events) % 10000 == 0 and len(parsed_events) > 0:
+                        # Force garbage collection every 10k events to prevent memory bloat
+                        import gc
+                        gc.collect()
                 else:
-                    print(line)
+                    # Skip printing invalid lines to reduce noise
+                    pass
 
         return parsed_events
 

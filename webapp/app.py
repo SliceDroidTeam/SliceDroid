@@ -22,6 +22,7 @@ from src.services.advanced_analytics import AdvancedAnalytics
 from src.services.comprehensive_analyzer import ComprehensiveAnalyzer
 from src.services.app_mapper_service import AppMapperService
 import shutil
+import time
 
 def create_app(config_name='default'):
     """Application factory pattern"""
@@ -47,61 +48,166 @@ advanced_analytics = AdvancedAnalytics(app.config_class)
 comprehensive_analyzer = ComprehensiveAnalyzer(app.config_class)
 app_mapper = AppMapperService(app.config_class.PROJECT_ROOT)
 
-# Load device name mapping from rdevs.txt
+# Initialize device name mapping (load lazily)
 device_name_mapping = {}
-try:
-    rdevs_path = app.config_class.PROJECT_ROOT / 'data' / 'nodes_and_files_data' / 'rdevs.txt'
-    if rdevs_path.exists():
-        with open(rdevs_path, 'r') as f:
-            for line in f:
-                parts = line.strip().split()
-                if len(parts) >= 2:
-                    device_name = parts[0]
-                    device_id = int(parts[1])
-                    device_name_mapping[device_id] = device_name
-        print(f"Loaded {len(device_name_mapping)} device name mappings from {rdevs_path}")
-    else:
-        print(f"Device mapping file not found: {rdevs_path}")
-except Exception as e:
-    print(f"Error loading device name mapping: {e}")
+
+def load_device_mapping():
+    """Load device name mapping lazily"""
+    global device_name_mapping
+    if device_name_mapping:  # Already loaded
+        return device_name_mapping
+
+    try:
+        rdevs_path = app.config_class.PROJECT_ROOT / 'data' / 'nodes_and_files_data' / 'rdevs.txt'
+        if rdevs_path.exists():
+            with open(rdevs_path, 'r') as f:
+                for line in f:
+                    parts = line.strip().split()
+                    if len(parts) >= 2:
+                        device_name = parts[0]
+                        device_id = int(parts[1])
+                        device_name_mapping[device_id] = device_name
+            print(f"Loaded {len(device_name_mapping)} device name mappings")
+        else:
+            print(f"Device mapping file not found: {rdevs_path}")
+    except Exception as e:
+        print(f"Error loading device name mapping: {e}")
+
+    return device_name_mapping
+
+# Cache for loaded data to avoid repeated file reads
+_data_cache = {}
+_cache_timestamp = None
+_metadata_cache = {}
 
 def load_data():
-    """Load the processed events from JSON file"""
+    """Load the processed events from JSON file with caching"""
+    global _data_cache, _cache_timestamp
+
     events_file = app.config_class.PROCESSED_EVENTS_JSON
+
     try:
-        if Path(events_file).exists():
-            with open(events_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if not isinstance(data, list):
-                    return []
-                return data
+        if not Path(events_file).exists():
+            return []
+
+        file_mtime = Path(events_file).stat().st_mtime
+
+        # Use cache if file hasn't changed
+        if _cache_timestamp == file_mtime and 'events' in _data_cache:
+            return _data_cache['events']
+
+        # Load fresh data
+        with open(events_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            if not isinstance(data, list):
+                return []
+
+        # Update cache and clear metadata cache when file changes
+        _data_cache['events'] = data
+        _cache_timestamp = file_mtime
+        _metadata_cache.clear()  # Clear PIDs/devices cache when data changes
+
+        return data
     except (json.JSONDecodeError, IOError) as e:
         print(f"Error loading data from {events_file}: {e}")
     return []
 
 def get_unique_pids(events):
-    """Extract unique PIDs from events"""
+    """Extract unique PIDs from events with caching"""
+    global _metadata_cache, _cache_timestamp
+
+    # Use cached PIDs if available and data hasn't changed
+    if _cache_timestamp and 'pids' in _metadata_cache:
+        return _metadata_cache['pids']
+
     pids = set()
     for event in events:
         if 'tgid' in event:
             pids.add(event['tgid'])
-    return sorted(list(pids))
+
+    sorted_pids = sorted(list(pids))
+    _metadata_cache['pids'] = sorted_pids
+    return sorted_pids
 
 def get_unique_devices(events):
-    """Extract unique devices from events"""
+    """Extract unique devices from events with caching"""
+    global _metadata_cache, _cache_timestamp
+
+    # Use cached devices if available and data hasn't changed
+    if _cache_timestamp and 'devices' in _metadata_cache:
+        return _metadata_cache['devices']
+
     devices = set()
     for event in events:
-        if 'details' in event:
-            # Check for both k_dev and k__dev (double underscore)
-            device_key = None
-            if 'k_dev' in event['details']:
-                device_key = 'k_dev'
-            elif 'k__dev' in event['details']:
-                device_key = 'k__dev'
+        details = event.get('details')
+        if details:
+            device_id = details.get('k_dev') or details.get('k__dev')
+            if device_id and device_id != 0:
+                devices.add(device_id)
 
-            if device_key and event['details'][device_key] != 0:
-                devices.add(event['details'][device_key])
-    return sorted(list(devices))
+    sorted_devices = sorted(list(devices))
+    _metadata_cache['devices'] = sorted_devices
+    return sorted_devices
+
+def get_unique_pids_fast(sample_events, full_events):
+    """Fast PID extraction for large datasets using sampling"""
+    global _metadata_cache, _cache_timestamp
+
+    # Use cached PIDs if available
+    if _cache_timestamp and 'pids' in _metadata_cache:
+        return _metadata_cache['pids']
+
+    # Quick sampling approach for large datasets
+    pids = set()
+    # Get PIDs from sample first
+    for event in sample_events:
+        if 'tgid' in event:
+            pids.add(event['tgid'])
+
+    # If sample seems incomplete, do a sparse scan of full dataset
+    if len(pids) < 10:  # Very few PIDs found, might need more scanning
+        step = max(1, len(full_events) // 50000)  # Scan every nth event
+        for i in range(0, len(full_events), step):
+            event = full_events[i]
+            if 'tgid' in event:
+                pids.add(event['tgid'])
+
+    sorted_pids = sorted(list(pids))
+    _metadata_cache['pids'] = sorted_pids
+    return sorted_pids
+
+def get_unique_devices_fast(sample_events, full_events):
+    """Fast device extraction for large datasets using sampling"""
+    global _metadata_cache, _cache_timestamp
+
+    # Use cached devices if available
+    if _cache_timestamp and 'devices' in _metadata_cache:
+        return _metadata_cache['devices']
+
+    # Quick sampling approach for large datasets
+    devices = set()
+    # Get devices from sample first
+    for event in sample_events:
+        details = event.get('details')
+        if details:
+            device_id = details.get('k_dev') or details.get('k__dev')
+            if device_id and device_id != 0:
+                devices.add(device_id)
+
+    # If sample seems incomplete, do a sparse scan of full dataset
+    if len(devices) < 5:  # Very few devices found, might need more scanning
+        step = max(1, len(full_events) // 50000)  # Scan every nth event
+        for i in range(0, len(full_events), step):
+            event = full_events[i]
+            details = event.get('details')
+            if details:
+                device_id = details.get('k_dev') or details.get('k__dev')
+                if device_id and device_id != 0:
+                    devices.add(device_id)
+
+    sorted_devices = sorted(list(devices))
+    _metadata_cache['devices'] = sorted_devices
+    return sorted_devices
 
 def filter_events(events, pid=None, device=None):
     """Filter events by PID and/or device"""
@@ -264,11 +370,25 @@ def process_tcp_events(events):
 # Routes
 @app.route('/')
 def index():
-    """Main application page"""
-    events = load_data()
-    pids = get_unique_pids(events)
-    devices = get_unique_devices(events)
-    return render_template('index.html', pids=pids, devices=devices)
+    """Main application page with optimized loading"""
+    try:
+        events = load_data()
+
+        # For very large datasets, limit initial processing
+        if len(events) > 100000:  # More than 100k events
+            # Sample for quick PID/device extraction
+            sample_events = events[::max(1, len(events) // 10000)]  # Sample ~10k events
+            pids = get_unique_pids_fast(sample_events, events)
+            devices = get_unique_devices_fast(sample_events, events)
+        else:
+            pids = get_unique_pids(events)
+            devices = get_unique_devices(events)
+
+        return render_template('index.html', pids=pids, devices=devices,
+                             events_count=len(events))
+    except Exception as e:
+        print(f"Error in index route: {e}")
+        return render_template('index.html', pids=[], devices=[], events_count=0)
 
 @app.route('/api/timeline')
 def timeline_data():
@@ -441,9 +561,8 @@ def health_check():
 def preloaded_file_info():
     """Return information about the preloaded file if one exists"""
     default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
-    processed_file_exists = Path(app.config_class.PROCESSED_EVENTS_JSON).exists()
 
-    if default_trace_path.exists() and processed_file_exists:
+    if default_trace_path.exists():
         return jsonify({
             'preloaded': True,
             'filename': default_trace_path.name
@@ -485,14 +604,20 @@ def upload_trace():
             'result': None
         }
 
-        # Start processing in background thread
+        # Start processing in background thread with optimizations
         def process_file():
             def progress_callback(progress, status):
                 upload_progress[upload_id]['progress'] = progress
                 upload_progress[upload_id]['status'] = status
+                print(f"[Upload {upload_id[:8]}] {progress}% - {status}")
 
             try:
-                result = trace_processor.process_trace_file(temp_file_path, progress_callback)
+                # Move file to final destination first for faster processing
+                final_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'uploaded_trace.trace'
+                shutil.move(temp_file_path, final_path)
+
+                # Process with optimizations
+                result = trace_processor.process_trace_file(str(final_path), progress_callback)
                 upload_progress[upload_id]['result'] = result
                 upload_progress[upload_id]['completed'] = True
 
@@ -502,8 +627,9 @@ def upload_trace():
             except Exception as e:
                 upload_progress[upload_id]['error'] = str(e)
                 upload_progress[upload_id]['completed'] = True
+                print(f"[Upload Error] {e}")
             finally:
-                # Clean up temporary file
+                # Clean up temporary directory
                 try:
                     shutil.rmtree(temp_dir)
                 except:
@@ -591,7 +717,7 @@ def export_events():
 
         # Filter events
         filtered_events = filter_events(events, pid, device)
-        
+
         # Apply limit if specified
         if limit:
             try:
@@ -608,14 +734,14 @@ def export_events():
         if device:
             filename_parts.append(f'dev{device}')
         filename_parts.append(timestamp)
-        
+
         if format_type.lower() == 'csv':
             # Create CSV response
             df = pd.DataFrame(filtered_events)
             output = StringIO()
             df.to_csv(output, index=False)
             output.seek(0)
-            
+
             filename = '_'.join(filename_parts) + '.csv'
             response = make_response(output.getvalue())
             response.headers['Content-Type'] = 'text/csv'
@@ -640,21 +766,21 @@ def get_network_analysis():
     try:
         events = load_data()
         pid = request.args.get('pid')
-        
+
         # Validate PID parameter
         target_pid = None
         if pid:
             if not pid.isdigit():
                 return jsonify({'error': 'Invalid PID parameter'}), 400
             target_pid = int(pid)
-        
+
         # Perform network analysis
         network_analysis = comprehensive_analyzer.analyze_network_flows(events, target_pid)
-        
+
         return jsonify({
             'network_analysis': network_analysis
         })
-        
+
     except Exception as e:
         print(f"Error in network analysis: {e}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -665,21 +791,21 @@ def get_process_analysis():
     try:
         events = load_data()
         pid = request.args.get('pid')
-        
+
         # Validate PID parameter
         target_pid = None
         if pid:
             if not pid.isdigit():
                 return jsonify({'error': 'Invalid PID parameter'}), 400
             target_pid = int(pid)
-        
+
         # Perform process genealogy analysis
         process_analysis = comprehensive_analyzer.analyze_process_genealogy(events, target_pid)
-        
+
         return jsonify({
             'process_analysis': process_analysis
         })
-        
+
     except Exception as e:
         print(f"Error in process analysis: {e}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -690,22 +816,22 @@ def get_apps():
     try:
         category = request.args.get('category')
         search = request.args.get('search')
-        
+
         if search:
             apps = app_mapper.search_apps(search)
         else:
             apps = app_mapper.get_all_apps(category)
-            
+
         # Convert to dictionaries for JSON serialization
         apps_data = [app_mapper.to_dict(app) for app in apps]
-        
+
         return jsonify({
             'apps': apps_data,
             'categories': app_mapper.get_categories(),
             'stats': app_mapper.get_app_stats(),
             'device_status': app_mapper.get_device_status()
         })
-        
+
     except Exception as e:
         print(f"Error in get_apps: {e}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -715,12 +841,12 @@ def refresh_apps():
     """API endpoint for refreshing app mapping from device"""
     try:
         result = app_mapper.refresh_mapping_from_device()
-        
+
         if 'error' in result:
             return jsonify(result), 400
         else:
             return jsonify(result)
-            
+
     except Exception as e:
         print(f"Error in refresh_apps: {e}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -731,46 +857,113 @@ def generate_process_targets():
     try:
         data = request.get_json()
         selected_apps = data.get('selected_apps', [])
-        
+
         if not selected_apps:
             return jsonify({'error': 'No apps selected'}), 400
-            
+
         # Export process targets
         targets_file = app_mapper.export_process_targets(selected_apps)
-        
+
         # Get process names for confirmation
         process_names = []
         for app_id in selected_apps:
             processes = app_mapper.get_processes_for_app(app_id)
             process_names.extend(processes)
-            
+
         unique_processes = sorted(list(set(process_names)))
-        
+
         return jsonify({
             'success': True,
             'targets_file': targets_file,
             'processes': unique_processes,
             'message': f'Generated {len(unique_processes)} process targets'
         })
-        
+
     except Exception as e:
         print(f"Error in generate_process_targets: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/apps/analyze', methods=['POST'])
+def analyze_app():
+    """API endpoint for re-slicing events for a specific app"""
+    try:
+        data = request.get_json()
+        app_id = data.get('app_id')
+
+        if not app_id:
+            print(f"[ERROR] No app_id provided. Request data: {data}")
+            return jsonify({'error': 'No app specified'}), 400
+
+        # Load all events (original unfiltered data)
+        events = load_data()
+        print(f"[DEBUG] Loaded {len(events)} events from trace data")
+        if not events:
+            print("[ERROR] No trace data available")
+            return jsonify({'error': 'No trace data available'}), 400
+
+        # Get PIDs for the selected app
+        print(f"[DEBUG] Getting PIDs for app: {app_id}")
+        app_pids = app_mapper.get_pids_for_app(app_id, events)
+        print(f"[DEBUG] Found PIDs: {app_pids} for app {app_id}")
+        if not app_pids:
+            print(f"[ERROR] No PIDs found for app {app_id} in trace data")
+            return jsonify({'error': f'No PIDs found for app {app_id} in trace data'}), 400
+
+        print(f"Found PIDs {app_pids} for app {app_id}")
+
+        # Use the main PID (first one found) for slicing
+        target_pid = app_pids[0]
+
+        # Generate process targets file automatically
+        app_mapper.export_process_targets([app_id])
+
+        # Perform slicing analysis for this specific app
+        sliced_events = comprehensive_analyzer.slice_events(events, target_pid, asynchronous=True)
+
+        # Create app-specific processed events file
+        app_name = app_mapper.get_app_by_package(app_id)
+        app_display_name = app_name.commercial_name if app_name else app_id
+
+        # Save sliced events to a new file for the dashboard to use
+        app_events_file = app.config_class.EXPORTS_DIR / f'app_{app_id.replace(".", "_")}_events.json'
+        app_events_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(app_events_file, 'w', encoding='utf-8') as f:
+            json.dump(sliced_events, f, indent=2, ensure_ascii=False)
+
+        # Update the main processed events file to show app-specific data
+        main_events_file = app.config_class.PROCESSED_EVENTS_JSON
+        with open(main_events_file, 'w', encoding='utf-8') as f:
+            json.dump(sliced_events, f, indent=2, ensure_ascii=False)
+
+        return jsonify({
+            'success': True,
+            'app_name': app_display_name,
+            'target_pid': target_pid,
+            'pids': app_pids,
+            'events_count': len(sliced_events),
+            'message': f'Analysis complete for {app_display_name}. Found {len(sliced_events)} relevant events.',
+            'events_file': str(app_events_file)
+        })
+
+    except Exception as e:
+        print(f"Error in analyze_app: {e}")
+        return jsonify({'error': f'Analysis failed: {str(e)}'}), 500
 
 @app.route('/api/apps/search')
 def search_apps():
     """API endpoint for searching apps"""
     try:
         query = request.args.get('q', '')
-        
+
         if not query:
             return jsonify({'apps': []})
-            
+
         apps = app_mapper.search_apps(query)
         apps_data = [app_mapper.to_dict(app) for app in apps]
-        
+
         return jsonify({'apps': apps_data})
-        
+
     except Exception as e:
         print(f"Error in search_apps: {e}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -794,14 +987,14 @@ def export_analysis():
 
         # Perform analysis
         analysis = advanced_analytics.analyze_trace_data(events, target_pid, window_size, overlap)
-        
+
         # Generate filename
         timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
         filename_parts = ['analysis']
         if pid:
             filename_parts.append(f'pid{pid}')
         filename_parts.append(timestamp)
-        
+
         if format_type.lower() == 'csv':
             # Convert analysis to CSV format
             analysis_data = []
@@ -819,12 +1012,12 @@ def export_analysis():
                         'metric': key,
                         'value': str(value)
                     })
-            
+
             df = pd.DataFrame(analysis_data)
             output = StringIO()
             df.to_csv(output, index=False)
             output.seek(0)
-            
+
             filename = '_'.join(filename_parts) + '.csv'
             response = make_response(output.getvalue())
             response.headers['Content-Type'] = 'text/csv'
@@ -843,21 +1036,81 @@ def export_analysis():
         return jsonify({'error': 'Internal server error'}), 500
 
 def preload_trace_file():
-    """Pre-load the default trace file if it exists"""
+    """Pre-load and process the default trace file if it exists"""
     try:
         default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
         if default_trace_path.exists():
             print(f"Found default trace file: {default_trace_path}")
-            # Check if processed file already exists to avoid reprocessing
-            if not Path(app.config_class.PROCESSED_EVENTS_JSON).exists():
-                print("Processing default trace file...")
-                result = trace_processor.process_trace_file(str(default_trace_path))
-                if result['success']:
-                    print(f"Default trace processed successfully: {result['events_count']} events")
-                else:
-                    print(f"Failed to process default trace: {result.get('error', 'Unknown error')}")
+
+            # Check if already processed by comparing trace file info with cache
+            events_json = app.config_class.PROCESSED_EVENTS_JSON
+            cache_info_file = app.config_class.PROJECT_ROOT / 'data' / 'traces' / '.trace_cache_info.json'
+
+            if Path(events_json).exists() and cache_info_file.exists():
+                try:
+                    # Get current trace file info
+                    trace_stat = default_trace_path.stat()
+                    current_info = {
+                        'filename': default_trace_path.name,
+                        'size': trace_stat.st_size,
+                        'mtime': trace_stat.st_mtime
+                    }
+
+                    # Load cached trace info
+                    with open(cache_info_file, 'r') as f:
+                        cached_info = json.load(f)
+
+                    # Compare trace file info
+                    if (current_info['filename'] == cached_info.get('filename') and
+                        current_info['size'] == cached_info.get('size') and
+                        current_info['mtime'] == cached_info.get('mtime')):
+                        print(f"[*] Trace file '{current_info['filename']}' already processed - skipping preprocessing")
+                        return
+                    else:
+                        print(f"[*] Trace file changed (name/size/time) - will reprocess")
+                except (json.JSONDecodeError, KeyError, OSError):
+                    print("[*] Cache info invalid - will reprocess")
             else:
-                print("Processed events file already exists, skipping processing")
+                print("[*] No cache found - will process")
+
+            print("[*] Pre-processing trace file in background...")
+
+            # Process the trace file in background thread for faster startup
+            def background_process():
+                try:
+                    processor = TraceProcessor(app.config_class)
+                    result = processor.process_trace_file(str(default_trace_path))
+
+                    if result.get('success', False):
+                        print("[*] Background trace processing completed!")
+
+                        # Save cache info after successful processing
+                        try:
+                            trace_stat = default_trace_path.stat()
+                            cache_info = {
+                                'filename': default_trace_path.name,
+                                'size': trace_stat.st_size,
+                                'mtime': trace_stat.st_mtime,
+                                'processed_at': time.time()
+                            }
+
+                            cache_info_file = app.config_class.PROJECT_ROOT / 'data' / 'traces' / '.trace_cache_info.json'
+                            cache_info_file.parent.mkdir(parents=True, exist_ok=True)
+
+                            with open(cache_info_file, 'w') as f:
+                                json.dump(cache_info, f, indent=2)
+                            print(f"[*] Cache info saved for '{cache_info['filename']}'")
+                        except Exception as cache_error:
+                            print(f"[!] Failed to save cache info: {cache_error}")
+                    else:
+                        print("[!] Background trace processing failed")
+                except Exception as e:
+                    print(f"Background processing error: {e}")
+
+            import threading
+            thread = threading.Thread(target=background_process)
+            thread.daemon = True
+            thread.start()
         else:
             print(f"No default trace file found at: {default_trace_path}")
     except Exception as e:
