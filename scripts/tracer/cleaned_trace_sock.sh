@@ -84,13 +84,13 @@ if [ -f "$CONFIG_DIR/events_to_enable_conditional.txt" ]; then
     done < "$CONFIG_DIR/events_to_enable_conditional.txt"
 fi
 
-# IMPORTANT: Enable tracing AFTER all configuration is done
-echo 1 > $TRACE_DIR/tracing_on
-echo "Tracing enabled. Starting data collection..."
-
-# Start trace_pipe background read
+# Start trace_pipe background read BEFORE enabling tracing
 cat $TRACE_DIR/trace_pipe > $TMP_DIR/trace.trace &
 waitpid=$!
+
+# IMPORTANT: Enable tracing AFTER trace_pipe is ready
+echo 1 > $TRACE_DIR/tracing_on
+echo "Tracing enabled. Data collection active..."
 
 echo "Trace collection active. Press ENTER to stop..."
 
