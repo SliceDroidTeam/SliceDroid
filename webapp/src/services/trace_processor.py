@@ -64,13 +64,8 @@ class TraceProcessor:
             # Parse the trace file with smart size limiting for performance
             file_size = Path(trace_file_path).stat().st_size / (1024 * 1024)  # Size in MB
             
-            if file_size > 50:  # Large file (>50MB)
-                max_events = 50000
-                self.logger.warning(f"Large trace file ({file_size:.1f}MB). Limiting to {max_events} events for performance.")
-            elif file_size > 20:  # Medium file (>20MB) 
-                max_events = 100000
-            else:
-                max_events = None  # No limit for small files
+            # Process all events without any limits
+            max_events = None
             
             raw_events = self._parse_ftrace_log(trace_file_path, max_events=max_events, progress_callback=progress_callback)
             self.logger.info(f"Parsed {len(raw_events)} raw events from {file_size:.1f}MB file")
@@ -338,18 +333,12 @@ class TraceProcessor:
                 if len(line) > 1000:
                     continue
                 
-                # Apply size limit if specified
-                if max_events and len(parsed_events) >= max_events:
-                    self.logger.warning(f"Reached max_events limit ({max_events}). Stopping parsing.")
-                    break
-                
                 # Progress reporting for large files
                 line_count += 1
                 if line_count % 50000 == 0:
                     self.logger.info(f"Processed {line_count} lines, parsed {len(parsed_events)} events")
-                    if progress_callback and max_events:
-                        progress = 20 + int((len(parsed_events) / max_events) * 20)  # 20-40% range
-                        progress_callback(min(progress, 40), f"Parsing... {len(parsed_events)}/{max_events} events")
+                    if progress_callback:
+                        progress_callback(30, f"Parsing... {len(parsed_events)} events processed")
                 
                 # Match the main trace line format
                 match = trace_pattern.match(line)

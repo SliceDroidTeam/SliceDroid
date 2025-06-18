@@ -903,8 +903,17 @@ def ensure_original_backup():
     if main_file.exists() and not backup_file.exists():
         try:
             import shutil
-            shutil.copy2(main_file, backup_file)
-            print(f"[DEBUG] Created backup of original trace data: {backup_file}")
+            # Check if main file contains process information (indicates it's the original)
+            with open(main_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if data and isinstance(data, list) and len(data) > 0:
+                    first_event = data[0]
+                    if 'process' in first_event:
+                        # This looks like original data, create backup
+                        shutil.copy2(main_file, backup_file)
+                        print(f"[DEBUG] Created backup of original trace data: {backup_file}")
+                    else:
+                        print(f"[DEBUG] Main file appears to be sliced data, not creating backup")
         except Exception as e:
             print(f"[WARNING] Failed to create backup: {e}")
 
