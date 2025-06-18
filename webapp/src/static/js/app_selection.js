@@ -3,6 +3,7 @@
 
 let allApps = [];
 let selectedApp = null;
+let lastAnalyzedApp = null;
 
 // Initialize app selection functionality
 function initializeAppSelection() {
@@ -18,11 +19,19 @@ function setupAppEventListeners() {
         
         // Enable/disable the analyze button
         if (selectedPackage) {
-            $('#analyze-app').prop('disabled', false);
+            // Enable button only if app changed or hasn't been analyzed yet
+            const hasAppChanged = selectedPackage !== lastAnalyzedApp;
+            $('#analyze-app').prop('disabled', !hasAppChanged);
+            
             const app = allApps.find(a => a.package_name === selectedPackage);
             if (app) {
-                $('#app-status').removeClass('alert-info alert-warning alert-danger').addClass('alert-success')
-                    .html(`<i class="fas fa-check-circle me-2"></i><span><strong>${app.commercial_name}</strong> selected and ready for analysis</span>`);
+                if (hasAppChanged) {
+                    $('#app-status').removeClass('alert-info alert-warning alert-danger').addClass('alert-success')
+                        .html(`<i class="fas fa-check-circle me-2"></i><span><strong>${app.commercial_name}</strong> selected and ready for analysis</span>`);
+                } else {
+                    $('#app-status').removeClass('alert-info alert-warning alert-danger').addClass('alert-warning')
+                        .html(`<i class="fas fa-info-circle me-2"></i><span><strong>${app.commercial_name}</strong> already analyzed. Select a different app to enable analysis.</span>`);
+                }
             }
         } else {
             $('#analyze-app').prop('disabled', true);
@@ -38,8 +47,6 @@ function setupAppEventListeners() {
 function loadApps() {
     $.getJSON('/api/apps', function(data) {
         allApps = data.apps || [];
-        
-        console.log(`Loaded ${allApps.length} apps`);
         
         // Update dropdown
         updateAppDropdown();
@@ -130,6 +137,9 @@ function analyzeApp() {
         }),
         success: function(analysisData) {
             if (analysisData.success) {
+                // Mark this app as analyzed
+                lastAnalyzedApp = selectedApp;
+                
                 $('#app-status').removeClass('alert-info alert-warning alert-danger').addClass('alert-success')
                     .html(`
                         <i class="fas fa-check-circle me-2"></i>
@@ -170,8 +180,8 @@ function analyzeApp() {
             });
         },
         complete: function() {
-            // Restore button
-            analyzeBtn.html(originalText).prop('disabled', false);
+            // Restore button text but keep it disabled
+            analyzeBtn.html(originalText);
         }
     });
 }

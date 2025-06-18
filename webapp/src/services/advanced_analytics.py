@@ -60,6 +60,14 @@ class AdvancedAnalytics:
         self.config = config_class
         self.logger = self._setup_logger()
         
+        # Import comprehensive analyzer for behavior timeline
+        try:
+            from .comprehensive_analyzer import ComprehensiveAnalyzer
+            self.comprehensive_analyzer = ComprehensiveAnalyzer(config_class)
+        except ImportError:
+            self.logger.warning("ComprehensiveAnalyzer not available")
+            self.comprehensive_analyzer = None
+        
     def _setup_logger(self):
         """Setup logging"""
         logger = logging.getLogger("AdvancedAnalytics")
@@ -104,6 +112,16 @@ class AdvancedAnalytics:
             temporal_patterns = self._analyze_temporal_patterns(events, target_pid)
             charts = self._generate_charts(events, target_pid, window_size, overlap)
             
+            # Add comprehensive analysis for behavior timeline
+            comprehensive_analytics = None
+            if self.comprehensive_analyzer and target_pid:
+                try:
+                    comprehensive_analytics = self.comprehensive_analyzer.slice_file_analysis(
+                        events, target_pid, window_size=window_size, overlap=overlap
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Comprehensive analysis failed: {str(e)}")
+            
             analysis = {
                 'target_pid': target_pid,
                 'total_events': len(events),
@@ -115,6 +133,7 @@ class AdvancedAnalytics:
                 'sensitive_data_analysis': sensitive_data_analysis,
                 'temporal_patterns': temporal_patterns,
                 'charts': charts,
+                'comprehensive_analytics': comprehensive_analytics,
                 'detailed_insights': self._generate_detailed_insights({
                     'device_analysis': device_analysis,
                     'category_analysis': category_analysis,

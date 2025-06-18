@@ -305,10 +305,8 @@ class ComprehensiveAnalyzer:
                  e['details']['pathname'] != 'binder' and 
                  e['details']['pathname'] != 'hwbinder') or 
                 (e['event'] != 'write_probe' and e['event'] != 'ioctl_probe' and 'binder' not in e['event'])):
-                light_e = dict()
-                light_e['event'] = e['event']
-                light_e['details'] = e['details']
-                filtered_events.append(light_e.copy())
+                # Keep all event information, not just event and details
+                filtered_events.append(e.copy())
         
         new_events = myutils.clean_event_list_withpath(filtered_events)
         return new_events
@@ -454,7 +452,7 @@ class ComprehensiveAnalyzer:
         
         self.logger.info(f"Processed {window_count} windows successfully")
         
-        return {
+        result = {
             'dev2pathnames': kdev2pathnames,
             'kdevs_trace': kdevs_trace,
             'apis_trace': apis_trace,
@@ -464,6 +462,20 @@ class ComprehensiveAnalyzer:
             'window_count': window_count,
             'events_processed': len(events_pruned)
         }
+        
+        # Make sure all data is JSON serializable (convert sets to lists)
+        return self._make_json_serializable(result)
+    
+    def _make_json_serializable(self, obj):
+        """Convert sets and other non-serializable objects to JSON-serializable format"""
+        if isinstance(obj, set):
+            return list(obj)
+        elif isinstance(obj, dict):
+            return {key: self._make_json_serializable(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._make_json_serializable(item) for item in obj]
+        else:
+            return obj
     
     def _is_filtered_sensitive(self, e, sensitive_resources=None, track_sensitive=False):
         """Check if event is filtered and detect sensitive type"""
@@ -1264,6 +1276,40 @@ class ComprehensiveAnalyzer:
                     'details': details
                 }
                 network_analysis['connection_timeline'].append(state_change)
+                
+                # Also count as TCP connection for summary
+                tcp_connection = {
+                    'timestamp': timestamp,
+                    'pid': pid,
+                    'process': process,
+                    'protocol': details.get('protocol', 'TCP'),
+                    'state': details.get('newstate', 'UNKNOWN'),
+                    'src_addr': details.get('saddr') or details.get('saddrv6'),
+                    'dst_addr': details.get('daddr') or details.get('daddrv6'),
+                    'src_port': details.get('sport'),
+                    'dst_port': details.get('dport'),
+                    'direction': 'state_change',
+                    'details': details
+                }
+                network_analysis['tcp_connections'].append(tcp_connection)
+                
+                # Create communication flow for TCP connections
+                tcp_state = details.get('newstate', 'UNKNOWN')
+                dest_addr = details.get('daddr') or details.get('daddrv6', 'unknown')
+                
+                # Only create flows for outbound connections (SYN_SENT, ESTABLISHED, etc.)
+                if tcp_state in ['TCP_SYN_SENT', 'TCP_ESTABLISHED', 'TCP_FIN_WAIT1', 'TCP_CLOSE_WAIT']:
+                    communication_flow = {
+                        'timestamp': timestamp,
+                        'from_pid': pid,
+                        'to_pid': 'external',  # External destination
+                        'type': 'tcp_connection',
+                        'direction': 'outbound',
+                        'destination': dest_addr,
+                        'state': tcp_state,
+                        'process': process
+                    }
+                    communication_flows.append(communication_flow)
             
             # General socket operations
             elif 'socket' in event_name or 'sock' in event_name:
@@ -1293,8 +1339,12 @@ class ComprehensiveAnalyzer:
             to_pid = flow['to_pid']
             flow_type = flow['type']
             
-            # Create unique flow identifier
-            flow_id = f"{from_pid}->{to_pid}"
+            # Handle external destinations (TCP connections to internet)
+            if to_pid == 'external':
+                destination = flow.get('destination', 'unknown')
+                flow_id = f"{from_pid}->external({destination})"
+            else:
+                flow_id = f"{from_pid}->{to_pid}"
             
             if flow_id not in flow_summary:
                 flow_summary[flow_id] = {
@@ -1305,6 +1355,11 @@ class ComprehensiveAnalyzer:
                     'first_seen': flow['timestamp'],
                     'last_seen': flow['timestamp']
                 }
+                
+                # Add destination for external flows
+                if to_pid == 'external':
+                    flow_summary[flow_id]['destination'] = flow.get('destination', 'unknown')
+                    flow_summary[flow_id]['direction'] = flow.get('direction', 'outbound')
             
             flow_summary[flow_id]['types'].add(flow_type)
             flow_summary[flow_id]['count'] += 1
@@ -1325,6 +1380,7 @@ class ComprehensiveAnalyzer:
             'total_unix_dgram_events': len(network_analysis['unix_dgram_communications']),
             'total_socket_operations': len(network_analysis['socket_operations']),
             'total_bluetooth_events': len(network_analysis['bluetooth_activity']),
+            'total_connection_timeline_events': len(network_analysis['connection_timeline']),
             'tcp_send_count': 0,
             'tcp_recv_count': 0,
             'udp_send_count': 0,
@@ -1367,7 +1423,7 @@ class ComprehensiveAnalyzer:
                 summary['unix_dgram_recv_count'] += 1
         
         # Identify active protocols
-        if summary['total_tcp_events'] > 0:
+        if summary['total_tcp_events'] > 0 or summary['total_connection_timeline_events'] > 0:
             summary['active_protocols'].add('TCP')
         if summary['total_udp_events'] > 0:
             summary['active_protocols'].add('UDP')
@@ -1383,7 +1439,8 @@ class ComprehensiveAnalyzer:
                        summary['total_udp_events'] + 
                        summary['total_unix_stream_events'] +
                        summary['total_unix_dgram_events'] +
-                       summary['total_bluetooth_events'])
+                       summary['total_bluetooth_events'] +
+                       summary['total_connection_timeline_events'])
         
         if total_events > 100:
             summary['communication_intensity'] = 'HIGH'

@@ -422,9 +422,30 @@
                         <!-- Behavior Timeline - Full Width -->
                         <div class="row mb-4">
                             <div class="col-12">
-                                <div class="professional-card p-3">
-                                    <h6><i class="fas fa-chart-line"></i> Behavior Timeline</h6>
-                                    <div id="behavior-timeline-chart"></div>
+                                <div class="feature-card">
+                                    <div class="card-header-custom">
+                                        <div class="card-title-section">
+                                            <div class="card-icon">
+                                                <i class="fas fa-chart-line"></i>
+                                            </div>
+                                            <h2 class="card-title">Behavior Timeline</h2>
+                                        </div>
+                                        <div class="btn-group" role="group">
+                                            <button id="behavior-zoom-in" class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-search-plus"></i> Zoom In
+                                            </button>
+                                            <button id="behavior-zoom-out" class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-search-minus"></i> Zoom Out
+                                            </button>
+                                            <button id="behavior-reset-zoom" class="btn btn-outline-secondary btn-sm">
+                                                <i class="fas fa-expand-arrows-alt"></i> Reset
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="timeline-container">
+                                        <div id="behavior-timeline-chart" style="height: 300px;"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

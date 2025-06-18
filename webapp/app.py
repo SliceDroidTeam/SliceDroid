@@ -694,7 +694,9 @@ def get_advanced_analytics():
 
     except Exception as e:
         print(f"Error in advanced analytics: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
 @app.route('/api/export/events')
 def export_events():

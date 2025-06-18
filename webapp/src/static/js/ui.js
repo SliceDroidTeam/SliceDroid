@@ -63,6 +63,50 @@ function initializeSidebarToggle() {
     }
 }
 
+function initializeTimelineControls() {
+    // Event Timeline zoom controls
+    const zoomInBtn = document.getElementById('zoom-in');
+    const zoomOutBtn = document.getElementById('zoom-out');
+    const resetZoomBtn = document.getElementById('reset-zoom');
+    
+    if (zoomInBtn) {
+        zoomInBtn.addEventListener('click', () => {
+            if (typeof zoomIn === 'function') zoomIn();
+        });
+    }
+    if (zoomOutBtn) {
+        zoomOutBtn.addEventListener('click', () => {
+            if (typeof zoomOut === 'function') zoomOut();
+        });
+    }
+    if (resetZoomBtn) {
+        resetZoomBtn.addEventListener('click', () => {
+            if (typeof resetZoom === 'function') resetZoom();
+        });
+    }
+
+    // Behavior Timeline zoom controls
+    const behaviorZoomInBtn = document.getElementById('behavior-zoom-in');
+    const behaviorZoomOutBtn = document.getElementById('behavior-zoom-out');
+    const behaviorResetZoomBtn = document.getElementById('behavior-reset-zoom');
+    
+    if (behaviorZoomInBtn) {
+        behaviorZoomInBtn.addEventListener('click', () => {
+            if (typeof behaviorZoomIn === 'function') behaviorZoomIn();
+        });
+    }
+    if (behaviorZoomOutBtn) {
+        behaviorZoomOutBtn.addEventListener('click', () => {
+            if (typeof behaviorZoomOut === 'function') behaviorZoomOut();
+        });
+    }
+    if (behaviorResetZoomBtn) {
+        behaviorResetZoomBtn.addEventListener('click', () => {
+            if (typeof behaviorResetZoom === 'function') behaviorResetZoom();
+        });
+    }
+}
+
 // Toast notification system
 function showToast(title, message, type = 'info') {
     // Create toast HTML
@@ -296,6 +340,7 @@ function updateAppStatus(type, message) {
 function initializeUI() {
     initializeFilterToggle();
     initializeSidebarToggle();
+    initializeTimelineControls();
     initializeTooltips();
 }
 
