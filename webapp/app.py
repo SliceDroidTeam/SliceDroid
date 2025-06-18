@@ -245,12 +245,9 @@ def filter_events(events, pid=None, device=None):
 def create_timeline_data(events):
     """Create timeline data for visualization"""
     timeline_data = []
-    max_events = app.config_class.TIMELINE_MAX_EVENTS
 
-    # Limit events for performance
-    events_to_process = events[:max_events] if len(events) > max_events else events
-
-    for idx, event in enumerate(events_to_process):
+    # Process all events without limit
+    for idx, event in enumerate(events):
         if not isinstance(event, dict):
             continue
 

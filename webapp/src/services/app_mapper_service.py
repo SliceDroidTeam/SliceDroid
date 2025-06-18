@@ -192,6 +192,14 @@ class AppMapperService:
         try:
             import subprocess
 
+            # Check if mapping file already exists
+            if self.mapping_file.exists():
+                return {
+                    "success": True,
+                    "message": f"App mapping file already exists with {len(self.apps_cache)} apps. Skipping script execution.",
+                    "skipped": True
+                }
+
             # Check if script exists
             if not self.mapper_script.exists():
                 return {"error": "App mapper script not found"}
