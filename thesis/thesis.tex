@@ -577,15 +577,11 @@ Taken together, these observations indicate that there remains a need for techni
 
 \chapter{Technical Background}
 
-This chapter provides a detailed overview of technical background necessary for understanding the methodology and objectives of this thesis. First, it presents the architecture of the Android operating system, focusing particularly on the Linux-based kernel and how applications interact with it. Next, it discusses the behavior and privacy concerns related to messaging applications, highlighting known issues and relevant technical aspects. Furthermore, it outlines the advantages and limitations of static and dynamic analysis techniques and explores the role of system calls in behavior profiling. Finally, it reviews kernel-level tracing tools and techniques.
-\section{Android Architecture}
+This chapter provides a detailed overview of technical background necessary for understanding the methodology and objectives of this thesis. First, it presents the architecture of the Android operating system, focusing particularly on the Linux-based kernel and how applications interact with it. Next, it discusses the behavior and privacy concerns related to messaging applications, highlighting known issues and relevant technical aspects. \section{Android Architecture}
 
 \subsection{Android Software Stack Overview}
-Android is a layered, open-source mobile operating system built on top of a customized version of the
-Linux kernel. Its architecture is designed to be modular and extensible, supporting a wide range of
-hardware while enforcing clear boundaries between components. The Android software stack consists
-of four major layers: the Application Layer, the Java API Framework (commonly referred to as the
-Application Framework), the Hardware Abstraction Layer (HAL), and the Linux Kernel.
+Android is a layered, open-source mobile operating system built on top of a customized version of the Linux kernel. Its architecture is designed to be modular and extensible, supporting a wide range of hardware while enforcing clear boundaries between components. The Android software stack is composed of several interconnected layers, typically including the Application Layer, the Java API Framework (or Application Framework), the Android Runtime (ART) and Native Libraries, the Hardware Abstraction Layer (HAL), and the Linux Kernel itself.
+
 
 The Application Layer hosts both system and user-installed applications.
 These applications interact with the system via APIs exposed by the Android Framework.
@@ -615,8 +611,6 @@ The lifecycle of applications is centrally managed by the \texttt{ActivityManage
 Apps follow a component-based model: Activities, Services, Broadcast Receivers, and Content Providers. These components interact with the system and one another via well-defined lifecycles and IPC through the Binder driver. Operations like binding to a service or launching an activity initiate system-level behavior—such as context switches or memory allocations—which are visible in syscall traces.
 
 Binder IPC enables structured communication between app components and system services. Messages are serialized as Parcel objects, routed through the Binder driver, and trigger observable kernel events. These include context switches and transaction dispatches, which are measurable using tools like ftrace or kprobes.
-
-Understanding transitions between app states (e.g., from idle to foreground) is vital in syscall-level profiling. For instance, foreground activation often leads to bursts of system calls such as \texttt{open()}, \texttt{stat()}, and \texttt{mmap()}—associated with UI initialization and resource loading. Such behaviors form recognizable patterns in kernel trace logs.
 
 \subsection{Android Runtime, Native Layer, and JNI}
 The Android Runtime (ART) executes application bytecode using a combination of ahead-of-time (AOT), just-in-time (JIT), and interpretation mechanisms. From a kernel-level tracing perspective, JIT-related memory operations may trigger system calls such as \texttt{mmap()}, \texttt{write()}, and \texttt{mprotect()}, as ART dynamically allocates memory for optimized code.
@@ -658,10 +652,9 @@ Filesystem isolation further ensures that apps can only access their designated 
 
 System call filtering through seccomp restricts the range of calls an app can make, reducing the kernel's attack surface. From a profiling standpoint, observing unauthorized system calls or failed access attempts provides insight into potentially malicious or privacy-invasive behavior.
 
-Relevant sources and additional references include official Android documentation, Linux kernel manuals, and peer-reviewed papers on Android system architecture and security.
 \section{Messaging Apps: Characteristics  Privacy Implications}
 
-\subsection{Functional and Architectural Overview}
+\subsection{Functional Overview}
 Messaging applications are among the most widely used mobile software categories, providing real-time communication, media sharing, group messaging, and voice/video calling capabilities. Popular platforms such as Signal, Telegram, and Facebook Messenger serve billions of users globally, integrating deeply into daily communication routines.
 
 Android, as the dominant mobile operating system, provides the primary distribution platform for these apps through the Google Play Store. According to public data \cite{statista2024messaging, googleplaydata2024}, Facebook Messenger has surpassed 5 billion downloads, Telegram exceeds 1.2 billion downloads, and Signal has more than 100 million installs. While usage varies by region, these numbers highlight the ubiquity and market penetration of messaging applications on Android devices.
@@ -677,7 +670,7 @@ Messaging applications often initiate background services using components like 
 
 Resource access is another key concern. Most messaging apps request access to sensitive resources such as contacts (\texttt{READ\_CONTACTS}), device location (\texttt{ACCESS\_FINE\_LOCATION}), microphone (\texttt{RECORD\_AUDIO}), and camera (\texttt{CAMERA}). While many of these are used legitimately during active user sessions (e.g., voice/video calls, media sharing), kernel-level traces often reveal such accesses occurring in the background without any visible UI activity—raising potential privacy concerns \cite{reardon2019leakage}.
 
-Additionally, messaging apps rely on push notification services such as Firebase Cloud Messaging (FCM) or Google Cloud Messaging (GCM) to deliver messages. These services necessitate persistent TCP connections and background listeners that, when profiled, result in recurring system calls like \texttt{recvmsg()}, \texttt{poll()}, or \texttt{select()}. Furthermore, apps such as Facebook Messenger are known to incorporate third-party SDKs (e.g., for analytics or ads) that initiate background network connections and file I/O unrelated to core messaging functionality \cite{pi2018metadata}.
+Additionally, messaging apps rely on push notification services such as Firebase Cloud Messaging (FCM), which has superseded Google Cloud Messaging (GCM), to deliver messages. These services necessitate persistent TCP connections and background listeners that, when profiled, result in recurring system calls like recvmsg(), poll(), or select(). Furthermore, apps such as Facebook Messenger are known to incorporate third-party SDKs (e.g., for analytics or ads) that initiate background network connections and file I/O unrelated to core messaging functionality \cite{pi2018metadata}.
 
 Metadata collection—such as timestamps, contact hashes, or device identifiers—is another privacy-relevant behavior. Even apps that implement strong encryption at the message content level (like Signal) may still generate system call activity that reflects metadata-related operations (e.g., \texttt{stat()}, \texttt{write()}, \texttt{getuid()}). In privacy-unfriendly apps, this is more pronounced and persistent \cite{signalprivacy2016}.
 
