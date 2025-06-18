@@ -157,10 +157,48 @@ class AppMapper:
             
         return False
 
+    def _mapping_matches_device(self, existing_mapping: Dict, device_packages: List[str]) -> bool:
+        """Check if existing mapping matches the current device packages"""
+        try:
+            # Get package names from existing mapping
+            mapped_packages = set(existing_mapping.keys())
+            
+            # Filter device packages the same way we would for new mapping
+            filtered_device_packages = []
+            for package in device_packages:
+                if self._is_commercial_app(package, "dummy_name"):
+                    filtered_device_packages.append(package)
+            
+            device_packages_set = set(filtered_device_packages)
+            
+            # Check if sets match exactly
+            if mapped_packages == device_packages_set:
+                print(f"Mapping matches: {len(mapped_packages)} apps in both existing mapping and device")
+                return True
+            else:
+                print(f"Mapping differs: {len(mapped_packages)} in existing, {len(device_packages_set)} on device")
+                # Show differences for debugging
+                only_in_mapping = mapped_packages - device_packages_set
+                only_on_device = device_packages_set - mapped_packages
+                if only_in_mapping:
+                    print(f"  Only in mapping: {list(only_in_mapping)[:5]}...")
+                if only_on_device:
+                    print(f"  Only on device: {list(only_on_device)[:5]}...")
+                return False
+                
+        except Exception as e:
+            print(f"Error checking mapping match: {e}")
+            return False
+
     def create_mapping(self, limit: int = 30, include_system: bool = False) -> Dict[str, Dict]:
         """Create mapping from package names to commercial names and processes"""
         mapping = {}
         
+        # Check if existing mapping has the same apps first
+        existing_mapping = self.load_mapping("app_mapping.json")
+        if existing_mapping:
+            print("Checking if existing mapping is still valid...")
+            
         # Check requirements
         if not self.check_adb_available():
             print("ADB not available. Install Android SDK tools.")
@@ -185,6 +223,11 @@ class AppMapper:
         if not installed_packages:
             print("No packages found on device.")
             return mapping
+            
+        # Check if existing mapping contains exactly the same apps
+        if existing_mapping and self._mapping_matches_device(existing_mapping, installed_packages):
+            print("Existing mapping matches current device apps. Skipping app mapping generation.")
+            return existing_mapping
         
         # Limit for performance
         packages_to_process = installed_packages[:limit]

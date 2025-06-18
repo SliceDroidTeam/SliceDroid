@@ -441,9 +441,8 @@ def health_check():
 def preloaded_file_info():
     """Return information about the preloaded file if one exists"""
     default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
-    processed_file_exists = Path(app.config_class.PROCESSED_EVENTS_JSON).exists()
 
-    if default_trace_path.exists() and processed_file_exists:
+    if default_trace_path.exists():
         return jsonify({
             'preloaded': True,
             'filename': default_trace_path.name
@@ -909,16 +908,8 @@ def preload_trace_file():
         default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
         if default_trace_path.exists():
             print(f"Found default trace file: {default_trace_path}")
-            # Check if processed file already exists to avoid reprocessing
-            if not Path(app.config_class.PROCESSED_EVENTS_JSON).exists():
-                print("Processing default trace file...")
-                result = trace_processor.process_trace_file(str(default_trace_path))
-                if result['success']:
-                    print(f"Default trace processed successfully: {result['events_count']} events")
-                else:
-                    print(f"Failed to process default trace: {result.get('error', 'Unknown error')}")
-            else:
-                print("Processed events file already exists, skipping processing")
+            # Only load app mappings and device info, don't process events automatically
+            print("Default trace file available for processing when needed")
         else:
             print(f"No default trace file found at: {default_trace_path}")
     except Exception as e:
