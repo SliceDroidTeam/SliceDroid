@@ -22,6 +22,7 @@ from src.services.advanced_analytics import AdvancedAnalytics
 from src.services.comprehensive_analyzer import ComprehensiveAnalyzer
 from src.services.app_mapper_service import AppMapperService
 import shutil
+import time
 
 def create_app(config_name='default'):
     """Application factory pattern"""
@@ -1035,22 +1036,66 @@ def preload_trace_file():
         if default_trace_path.exists():
             print(f"Found default trace file: {default_trace_path}")
             
-            # Check if already processed by looking for events JSON
+            # Check if already processed by comparing trace file info with cache
             events_json = app.config_class.PROCESSED_EVENTS_JSON
-            if Path(events_json).exists():
-                print("[*] Trace file already processed - skipping preprocessing")
-                return
+            cache_info_file = app.config_class.PROJECT_ROOT / 'data' / 'traces' / '.trace_cache_info.json'
+            
+            if Path(events_json).exists() and cache_info_file.exists():
+                try:
+                    # Get current trace file info
+                    trace_stat = default_trace_path.stat()
+                    current_info = {
+                        'filename': default_trace_path.name,
+                        'size': trace_stat.st_size,
+                        'mtime': trace_stat.st_mtime
+                    }
+                    
+                    # Load cached trace info
+                    with open(cache_info_file, 'r') as f:
+                        cached_info = json.load(f)
+                    
+                    # Compare trace file info
+                    if (current_info['filename'] == cached_info.get('filename') and
+                        current_info['size'] == cached_info.get('size') and
+                        current_info['mtime'] == cached_info.get('mtime')):
+                        print(f"[*] Trace file '{current_info['filename']}' already processed - skipping preprocessing")
+                        return
+                    else:
+                        print(f"[*] Trace file changed (name/size/time) - will reprocess")
+                except (json.JSONDecodeError, KeyError, OSError):
+                    print("[*] Cache info invalid - will reprocess")
+            else:
+                print("[*] No cache found - will process")
                 
             print("[*] Pre-processing trace file in background...")
             
             # Process the trace file in background thread for faster startup
             def background_process():
                 try:
-                    processor = TraceProcessor(app.config_class.PROJECT_ROOT)
-                    success = processor.process_trace_file(str(default_trace_path))
+                    processor = TraceProcessor(app.config_class)
+                    result = processor.process_trace_file(str(default_trace_path))
                     
-                    if success:
+                    if result.get('success', False):
                         print("[*] Background trace processing completed!")
+                        
+                        # Save cache info after successful processing
+                        try:
+                            trace_stat = default_trace_path.stat()
+                            cache_info = {
+                                'filename': default_trace_path.name,
+                                'size': trace_stat.st_size,
+                                'mtime': trace_stat.st_mtime,
+                                'processed_at': time.time()
+                            }
+                            
+                            cache_info_file = app.config_class.PROJECT_ROOT / 'data' / 'traces' / '.trace_cache_info.json'
+                            cache_info_file.parent.mkdir(parents=True, exist_ok=True)
+                            
+                            with open(cache_info_file, 'w') as f:
+                                json.dump(cache_info, f, indent=2)
+                            print(f"[*] Cache info saved for '{cache_info['filename']}'")
+                        except Exception as cache_error:
+                            print(f"[!] Failed to save cache info: {cache_error}")
                     else:
                         print("[!] Background trace processing failed")
                 except Exception as e:
