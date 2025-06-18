@@ -18,6 +18,10 @@ echo > $TRACE_DIR/trace
 echo > $TRACE_DIR/kprobe_events
 echo > $TRACE_DIR/events/binder/filter
 
+# Disable raw_syscalls that cause excessive events
+echo 0 > $TRACE_DIR/events/raw_syscalls/sys_enter/enable 2>/dev/null || true
+echo 0 > $TRACE_DIR/events/raw_syscalls/sys_exit/enable 2>/dev/null || true
+
 # Load basic kprobes
 if [ -f "$CONFIG_DIR/kprobes.txt" ]; then
     while read -r probe; do
