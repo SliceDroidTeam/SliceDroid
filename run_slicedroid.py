@@ -276,6 +276,9 @@ with gzip.open("data/traces/trace.trace.gz", "rb") as f_in, \
      open("data/traces/trace.trace", "wb") as f_out:
     f_out.write(f_in.read())
 
+#make sure exports directory exists
+exports_dir = os.path.join("data", "Exports")
+os.makedirs(exports_dir, exist_ok=True)
 
 dashboard = os.path.join("webapp", "app.py")
 

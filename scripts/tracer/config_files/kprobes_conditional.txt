@@ -1,1 +1,0 @@
-pixel->p:kprobes/aoc_service_write_message aoc_service_write_message service=$arg1 base=$arg2 dir=$arg3 size=$arg5 channel=+0($arg4):x32 sensor=+0($arg4):x32[36]' >> /sys/kernel/tracing/kprobe_events

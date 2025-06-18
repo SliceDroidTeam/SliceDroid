@@ -25,30 +25,35 @@ if [ -f "$CONFIG_DIR/kprobes.txt" ]; then
     done < "$CONFIG_DIR/kprobes.txt"
 fi
 
-# Load conditional kprobes by device tag
-device_tag="generic"
-if [ "$(getprop ro.product.brand)" = "google" ]; then
-    device_tag="pixel"
-fi
+# Start trace_pipe background read
+cat $TRACE_DIR/trace_pipe > $TMP_DIR/trace.trace &
+waitpid=$!
 
-if [ -f "$CONFIG_DIR/kprobes_conditional.txt" ]; then
-    while IFS='->' read -r tag probe; do
-        [ "$tag" = "$device_tag" ] && echo "$probe" >> $TRACE_DIR/kprobe_events
-    done < "$CONFIG_DIR/kprobes_conditional.txt"
-fi
+# Get PIDs for processes that contain "cat"
+cat_pids=$(pgrep cat)
 
-# Collect PIDs
-all_pids=""
-if [ -f "$CONFIG_DIR/pid_targets.txt" ]; then
-    while IFS=',' read -r mode name; do
-        if [ "$mode" = "-x" ]; then
-            pids=$(pgrep -x "$name")
-        else
-            pids=$(pgrep "$mode")
-        fi
-        all_pids="$all_pids $pids"
-    done < "$CONFIG_DIR/pid_targets.txt"
-fi
+# Get PIDs for processes that exactly match "sh"
+sh_pids=$(pgrep -x sh)
+
+# Get PIDs for processes that contain "monkey"
+monkey_pids=$(pgrep monkey)
+
+# Get PIDs for processes that exactly match "adbd"
+adbd_pids=$(pgrep -x adbd)
+# Combine both sets of PIDs
+all_pids="$cat_pids $sh_pids $adbd_pids $monkey_pids"
+
+# Initialize an empty string to hold the PIDs
+pid_string=""
+
+# Loop through the PIDs and append them to the string
+for pid in $all_pids; do
+    # If pid_string is not empty, append ' && ' first
+    if [ -n "$pid_string" ]; then
+        pid_string+=" && "
+    fi
+    pid_string+="common_pid != $pid"
+done
 
 # Create filter string
 pid_string=""
@@ -75,22 +80,10 @@ if [ -f "$CONFIG_DIR/events_to_enable.txt" ]; then
     done < "$CONFIG_DIR/events_to_enable.txt"
 fi
 
-# Enable vendor-specific events
-if [ -f "$CONFIG_DIR/events_to_enable_conditional.txt" ]; then
-    while IFS='->' read -r tag event; do
-        if [ "$tag" = "$device_tag" ] && [ -d "$TRACE_DIR/$event" ] && [ -w "$TRACE_DIR/$event/enable" ]; then
-            echo 1 > "$TRACE_DIR/$event/enable" 2>/dev/null
-        fi
-    done < "$CONFIG_DIR/events_to_enable_conditional.txt"
-fi
-
 # IMPORTANT: Enable tracing AFTER all configuration is done
 echo 1 > $TRACE_DIR/tracing_on
 echo "Tracing enabled. Starting data collection..."
 
-# Start trace_pipe background read
-cat $TRACE_DIR/trace_pipe > $TMP_DIR/trace.trace &
-waitpid=$!
 
 echo "Trace collection active. Press ENTER to stop..."
 

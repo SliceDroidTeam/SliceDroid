@@ -32,7 +32,7 @@ for line in lines:
     if 'pcm' in line and line.split(' ')[0].endswith('c') and \
         ('audio'== line.split(' ')[3].removesuffix('\n') or 'audio'== line.split(' ')[2]):
         device_nodes['audio_in'].append(line.split(' ')[1])
-    if 'trusty-log' in line.split(' ')[0] or 'nfc'== line.split(' ')[2] or 'nfc'== line.split(' ')[3].removesuffix('\n'):
+    if 'nfc' in line.split(' ')[0] or 'nfc'== line.split(' ')[2] or 'nfc'== line.split(' ')[3].removesuffix('\n'):
         device_nodes['nfc'].append(line.split(' ')[1])
     if 'gnss' in line.split(' ')[0] or 'gps' in line.split(' ')[0] or 'gps'== line.split(' ')[2] or 'gps'== line.split(' ')[3].removesuffix('\n'):
         device_nodes['gnss'].append(line.split(' ')[1])
