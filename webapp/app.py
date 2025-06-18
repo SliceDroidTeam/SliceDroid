@@ -77,6 +77,7 @@ def load_device_mapping():
 # Cache for loaded data to avoid repeated file reads
 _data_cache = {}
 _cache_timestamp = None
+_metadata_cache = {}
 
 def load_data():
     """Load the processed events from JSON file with caching"""
@@ -100,9 +101,10 @@ def load_data():
             if not isinstance(data, list):
                 return []
             
-        # Update cache
+        # Update cache and clear metadata cache when file changes
         _data_cache['events'] = data
         _cache_timestamp = file_mtime
+        _metadata_cache.clear()  # Clear PIDs/devices cache when data changes
         
         return data
     except (json.JSONDecodeError, IOError) as e:
@@ -110,15 +112,30 @@ def load_data():
     return []
 
 def get_unique_pids(events):
-    """Extract unique PIDs from events"""
+    """Extract unique PIDs from events with caching"""
+    global _metadata_cache, _cache_timestamp
+    
+    # Use cached PIDs if available and data hasn't changed
+    if _cache_timestamp and 'pids' in _metadata_cache:
+        return _metadata_cache['pids']
+    
     pids = set()
     for event in events:
         if 'tgid' in event:
             pids.add(event['tgid'])
-    return sorted(list(pids))
+    
+    sorted_pids = sorted(list(pids))
+    _metadata_cache['pids'] = sorted_pids
+    return sorted_pids
 
 def get_unique_devices(events):
-    """Extract unique devices from events (optimized)"""
+    """Extract unique devices from events with caching"""
+    global _metadata_cache, _cache_timestamp
+    
+    # Use cached devices if available and data hasn't changed
+    if _cache_timestamp and 'devices' in _metadata_cache:
+        return _metadata_cache['devices']
+    
     devices = set()
     for event in events:
         details = event.get('details')
@@ -126,7 +143,70 @@ def get_unique_devices(events):
             device_id = details.get('k_dev') or details.get('k__dev')
             if device_id and device_id != 0:
                 devices.add(device_id)
-    return sorted(list(devices))
+    
+    sorted_devices = sorted(list(devices))
+    _metadata_cache['devices'] = sorted_devices
+    return sorted_devices
+
+def get_unique_pids_fast(sample_events, full_events):
+    """Fast PID extraction for large datasets using sampling"""
+    global _metadata_cache, _cache_timestamp
+    
+    # Use cached PIDs if available
+    if _cache_timestamp and 'pids' in _metadata_cache:
+        return _metadata_cache['pids']
+    
+    # Quick sampling approach for large datasets
+    pids = set()
+    # Get PIDs from sample first
+    for event in sample_events:
+        if 'tgid' in event:
+            pids.add(event['tgid'])
+    
+    # If sample seems incomplete, do a sparse scan of full dataset
+    if len(pids) < 10:  # Very few PIDs found, might need more scanning
+        step = max(1, len(full_events) // 50000)  # Scan every nth event
+        for i in range(0, len(full_events), step):
+            event = full_events[i]
+            if 'tgid' in event:
+                pids.add(event['tgid'])
+    
+    sorted_pids = sorted(list(pids))
+    _metadata_cache['pids'] = sorted_pids
+    return sorted_pids
+
+def get_unique_devices_fast(sample_events, full_events):
+    """Fast device extraction for large datasets using sampling"""
+    global _metadata_cache, _cache_timestamp
+    
+    # Use cached devices if available
+    if _cache_timestamp and 'devices' in _metadata_cache:
+        return _metadata_cache['devices']
+    
+    # Quick sampling approach for large datasets  
+    devices = set()
+    # Get devices from sample first
+    for event in sample_events:
+        details = event.get('details')
+        if details:
+            device_id = details.get('k_dev') or details.get('k__dev')
+            if device_id and device_id != 0:
+                devices.add(device_id)
+    
+    # If sample seems incomplete, do a sparse scan of full dataset
+    if len(devices) < 5:  # Very few devices found, might need more scanning
+        step = max(1, len(full_events) // 50000)  # Scan every nth event
+        for i in range(0, len(full_events), step):
+            event = full_events[i]
+            details = event.get('details')
+            if details:
+                device_id = details.get('k_dev') or details.get('k__dev')
+                if device_id and device_id != 0:
+                    devices.add(device_id)
+    
+    sorted_devices = sorted(list(devices))
+    _metadata_cache['devices'] = sorted_devices
+    return sorted_devices
 
 def filter_events(events, pid=None, device=None):
     """Filter events by PID and/or device"""
@@ -289,11 +369,25 @@ def process_tcp_events(events):
 # Routes
 @app.route('/')
 def index():
-    """Main application page"""
-    events = load_data()
-    pids = get_unique_pids(events)
-    devices = get_unique_devices(events)
-    return render_template('index.html', pids=pids, devices=devices)
+    """Main application page with optimized loading"""
+    try:
+        events = load_data()
+        
+        # For very large datasets, limit initial processing
+        if len(events) > 100000:  # More than 100k events
+            # Sample for quick PID/device extraction
+            sample_events = events[::max(1, len(events) // 10000)]  # Sample ~10k events
+            pids = get_unique_pids_fast(sample_events, events)
+            devices = get_unique_devices_fast(sample_events, events)
+        else:
+            pids = get_unique_pids(events)
+            devices = get_unique_devices(events)
+        
+        return render_template('index.html', pids=pids, devices=devices, 
+                             events_count=len(events))
+    except Exception as e:
+        print(f"Error in index route: {e}")
+        return render_template('index.html', pids=[], devices=[], events_count=0)
 
 @app.route('/api/timeline')
 def timeline_data():

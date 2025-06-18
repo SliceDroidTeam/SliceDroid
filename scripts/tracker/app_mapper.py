@@ -144,69 +144,16 @@ class AppMapper:
                     pass
 
     def _is_commercial_app(self, package_name: str, commercial_name: str) -> bool:
-        """Check if this is an app worth including (user apps + commercial system apps)"""
+        """Check if this is an app worth including (USER APPS + SPECIFIC GOOGLE APPS ONLY)"""
         package_lower = package_name.lower()
 
-        # Always include user apps (non-system)
+
+
+        # ONLY include user apps (non-system apps)
         if not package_lower.startswith(('com.google.', 'com.android.', 'android.')):
             return True
 
-        # Commercial system apps worth including (popular Google/Android apps)
-        commercial_system_apps = [
-            # Google Apps
-            'com.google.android.youtube',                    # YouTube
-            'com.google.android.apps.maps',                 # Google Maps
-            'com.google.android.gm',                        # Gmail
-            'com.google.android.googlequicksearchbox',      # Google App
-            'com.google.android.apps.photos',               # Google Photos
-            'com.google.android.apps.docs',                 # Google Docs
-            'com.google.android.apps.drive',                # Google Drive
-            'com.google.android.music',                     # YouTube Music
-            'com.google.android.apps.translate',            # Google Translate
-            'com.google.android.calendar',                  # Google Calendar
-            'com.google.android.contacts',                  # Google Contacts
-            'com.google.android.dialer',                    # Phone by Google
-            'com.google.android.apps.messaging',            # Messages by Google
-            'com.google.android.keep',                      # Google Keep
-            'com.google.android.play.games',                # Google Play Games
-            'com.google.android.apps.podcasts',             # Google Podcasts
-            'com.google.android.apps.tachyon',              # Google Duo/Meet
-            'com.google.android.apps.nbu.files',            # Files by Google
-            'com.google.android.gms',                       # Google Play Services
-            'com.google.android.gsf',                       # Google Services Framework
-
-            # Chrome browsers
-            'com.android.chrome',                           # Chrome
-            'com.chrome.beta',                              # Chrome Beta
-            'com.chrome.dev',                               # Chrome Dev
-            'com.chrome.canary',                            # Chrome Canary
-
-            # Google Play Store
-            'com.android.vending',                          # Google Play Store
-
-            # Essential Android system apps
-            'com.android.settings',                         # Settings
-            'com.android.systemui',                         # System UI
-            'com.android.launcher3',                        # Pixel Launcher
-            'com.google.android.launcher',                  # Google Now Launcher
-            'com.android.camera2',                          # Camera
-            'com.google.android.camera',                    # Google Camera
-            'com.android.gallery3d',                        # Gallery
-            'com.google.android.apps.nexuslauncher',        # Pixel Launcher
-            'com.android.phone',                            # Phone
-            'com.android.contacts',                         # Contacts
-            'com.android.mms',                              # Messages
-            'com.android.email',                            # Email
-            'com.android.calculator2',                      # Calculator
-            'com.android.deskclock',                        # Clock
-            'com.android.calendar',                         # Calendar
-        ]
-
-        # Include if it's in our commercial system apps list
-        if package_lower in commercial_system_apps:
-            return True
-
-        # Skip other system apps
+        # Skip ALL system/Google/Android apps
         return False
 
     def _mapping_matches_device(self, existing_mapping: Dict, device_packages: List[str]) -> bool:
@@ -264,9 +211,9 @@ class AppMapper:
             print("androguard not available. Install failed.")
             return mapping
 
-        # Get all packages from device (we'll filter them with our logic)
-        print("Getting all packages from device...")
-        installed_packages = self.get_installed_packages(user_apps_only=False)
+        # Get ONLY user apps from device (third-party apps)
+        print("Getting user apps from device...")
+        installed_packages = self.get_installed_packages(user_apps_only=True)
 
         if not installed_packages:
             print("No packages found on device.")
@@ -277,29 +224,23 @@ class AppMapper:
             print("Existing mapping matches current device apps. Skipping app mapping generation.")
             return existing_mapping
 
-        # Limit for performance
-        packages_to_process = installed_packages[:limit]
-        print(f"Processing {len(packages_to_process)} packages...")
+        # Process ALL user apps (no artificial limit needed since we're only getting user apps)
+        print(f"Processing {len(installed_packages)} user apps...")
 
-        for i, package in enumerate(packages_to_process, 1):
-            print(f"[{i}/{len(packages_to_process)}] Processing {package}")
+        for i, package in enumerate(installed_packages, 1):
+            print(f"[{i}/{len(installed_packages)}] Processing {package}")
 
             # Try to get commercial name from APK
             commercial_name = self.get_app_label(package)
 
             if commercial_name:
-                # Check if this is a commercial app worth including
-                if self._is_commercial_app(package, commercial_name):
-                    print(f"  Found: {commercial_name}")
-
-                    mapping[package] = {
-                        "package_name": package,
-                        "commercial_name": commercial_name,
-                        "processes": [package],
-                        "is_running": True
-                    }
-                else:
-                    print(f"  Skipping system app: {commercial_name}")
+                print(f"  Found: {commercial_name}")
+                mapping[package] = {
+                    "package_name": package,
+                    "commercial_name": commercial_name,
+                    "processes": [package],
+                    "is_running": True
+                }
             else:
                 print(f"  APK analysis failed - skipping {package}")
 
@@ -387,12 +328,12 @@ class AppMapper:
                     shortened_name = process_name
             else:
                 shortened_name = process_name
-            
+
             shortened.append(shortened_name)
             # Also keep the original for fallback matching
             if shortened_name != process_name:
                 shortened.append(process_name)
-                
+
         return shortened
 
 
@@ -425,7 +366,7 @@ def main():
     parser = argparse.ArgumentParser(description="Self-Installing App Mapper")
     parser.add_argument("--create", action="store_true",
                        help="Create app mapping from device")
-    parser.add_argument("--limit", type=int, default=30,
+    parser.add_argument("--limit", type=int, default=100,
                        help="Limit packages to process")
     parser.add_argument("--output", default="app_mapping.json",
                        help="Output file")
