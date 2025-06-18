@@ -33,22 +33,49 @@ class AppMapperService:
         """Load app mapping from file"""
         try:
             if self.mapping_file.exists():
+                print(f"Loading mapping from: {self.mapping_file}")
                 with open(self.mapping_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     
+                print(f"Found {len(data)} apps in JSON file")
                 for pkg, info in data.items():
-                    self.apps_cache[pkg] = AppInfo(
-                        package_name=info['package_name'],
-                        commercial_name=info['commercial_name'],
-                        category=info['category'],
-                        processes=info['processes'],
-                        is_running=info.get('is_running', False)
-                    )
-                print(f"Loaded {len(self.apps_cache)} apps from mapping file")
-            # No print when mapping file doesn't exist - it's normal on first run
+                    try:
+                        # Handle both old and new JSON structures
+                        package_name = info.get('package_name', pkg)
+                        commercial_name = info.get('commercial_name', pkg)
+                        processes = info.get('processes', [pkg])
+                        is_running = info.get('is_running', False)
+                        
+                        # Determine category based on available information
+                        category = info.get('category', 'User')  # Use existing category if available
+                        if category == 'User':
+                            # Try to determine category from package name patterns
+                            if any(system_pkg in package_name for system_pkg in [
+                                'com.android.', 'com.google.android.', 'android.', 
+                                'com.samsung.', 'com.sec.', 'com.lge.', 'com.htc.',
+                                'com.huawei.', 'com.xiaomi.', 'com.oppo.', 'com.vivo.',
+                                'com.oneplus.', 'com.nothing.'
+                            ]):
+                                category = 'System'
+                        
+                        self.apps_cache[pkg] = AppInfo(
+                            package_name=package_name,
+                            commercial_name=commercial_name,
+                            category=category,
+                            processes=processes,
+                            is_running=is_running
+                        )
+                    except Exception as app_error:
+                        print(f"Error loading app {pkg}: {app_error}")
+                        
+                print(f"Successfully loaded {len(self.apps_cache)} apps from mapping file")
+            else:
+                print(f"Mapping file not found: {self.mapping_file}")
                 
         except Exception as e:
             print(f"Error loading app mapping: {e}")
+            import traceback
+            traceback.print_exc()
             
         return self.apps_cache
 
