@@ -25,10 +25,10 @@ class AppMapperService:
         self.mapper_script = project_root / "scripts" / "tracker" / "app_mapper.py"
         self.apps_cache = {}
         self.device_connected = False
-        
+
         # Load existing mapping immediately without any delays
         self.load_mapping()
-        
+
     def load_mapping(self) -> Dict[str, AppInfo]:
         """Load app mapping from file"""
         try:
@@ -36,7 +36,7 @@ class AppMapperService:
                 print(f"Loading mapping from: {self.mapping_file}")
                 with open(self.mapping_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    
+
                 print(f"Found {len(data)} apps in JSON file")
                 for pkg, info in data.items():
                     try:
@@ -45,19 +45,19 @@ class AppMapperService:
                         commercial_name = info.get('commercial_name', pkg)
                         processes = info.get('processes', [pkg])
                         is_running = info.get('is_running', False)
-                        
+
                         # Determine category based on available information
                         category = info.get('category', 'User')  # Use existing category if available
                         if category == 'User':
                             # Try to determine category from package name patterns
                             if any(system_pkg in package_name for system_pkg in [
-                                'com.android.', 'com.google.android.', 'android.', 
+                                'com.android.', 'com.google.android.', 'android.',
                                 'com.samsung.', 'com.sec.', 'com.lge.', 'com.htc.',
                                 'com.huawei.', 'com.xiaomi.', 'com.oppo.', 'com.vivo.',
                                 'com.oneplus.', 'com.nothing.'
                             ]):
                                 category = 'System'
-                        
+
                         self.apps_cache[pkg] = AppInfo(
                             package_name=package_name,
                             commercial_name=commercial_name,
@@ -67,26 +67,26 @@ class AppMapperService:
                         )
                     except Exception as app_error:
                         print(f"Error loading app {pkg}: {app_error}")
-                        
+
                 print(f"Successfully loaded {len(self.apps_cache)} apps from mapping file")
             else:
                 print(f"Mapping file not found: {self.mapping_file}")
-                
+
         except Exception as e:
             print(f"Error loading app mapping: {e}")
             import traceback
             traceback.print_exc()
-            
+
         return self.apps_cache
 
 
     def get_all_apps(self, category: Optional[str] = None) -> List[AppInfo]:
         """Get all apps, optionally filtered by category"""
         apps = list(self.apps_cache.values())
-        
+
         if category:
             apps = [app for app in apps if app.category.lower() == category.lower()]
-            
+
         # Sort by commercial name
         return sorted(apps, key=lambda x: x.commercial_name)
 
@@ -94,13 +94,13 @@ class AppMapperService:
         """Search apps by name, package, or category"""
         query_lower = query.lower()
         results = []
-        
+
         for app in self.apps_cache.values():
             if (query_lower in app.commercial_name.lower() or
                 query_lower in app.package_name.lower() or
                 query_lower in app.category.lower()):
                 results.append(app)
-                
+
         return sorted(results, key=lambda x: x.commercial_name)
 
     def get_app_by_package(self, package_name: str) -> Optional[AppInfo]:
@@ -120,48 +120,26 @@ class AppMapperService:
         app = self.get_app_by_package(app_identifier)
         if app:
             return self._get_shortened_process_names(app.processes)
-            
+
         # Then try as commercial name
         app = self.get_app_by_commercial_name(app_identifier)
         if app:
             return self._get_shortened_process_names(app.processes)
-            
+
         return []
-    
+
     def _get_shortened_process_names(self, process_names: List[str]) -> List[str]:
-        """Convert full package names to shortened process names for trace matching"""
+        """Convert process names to last 15 characters for trace matching"""
         shortened = []
         for process_name in process_names:
-            # Convert com.google.android.apps.nbu.files -> .apps.nbu.files
-            # Convert com.android.systemui -> .systemui
-            # Convert org.telegram.messenger -> .telegram.messenger
-            if '.' in process_name:
-                parts = process_name.split('.')
-                if len(parts) >= 3:
-                    # Take the last 2-3 meaningful parts, skip common prefixes
-                    if parts[0] in ['com', 'org'] and parts[1] in ['google', 'android', 'samsung', 'nothing']:
-                        if len(parts) > 4:
-                            # For long names like com.google.android.apps.nbu.files -> .apps.nbu.files
-                            shortened_name = '.' + '.'.join(parts[3:])
-                        else:
-                            # For com.google.android.contacts -> .contacts
-                            shortened_name = '.' + parts[-1]
-                    elif parts[0] in ['com', 'org']:
-                        # For com.spotify.music -> .spotify.music or org.telegram.messenger -> .telegram.messenger
-                        shortened_name = '.' + '.'.join(parts[1:])
-                    else:
-                        # Keep original if doesn't match patterns
-                        shortened_name = process_name
-                else:
-                    shortened_name = process_name
-            else:
-                shortened_name = process_name
-            
+            # Use last 15 characters of process name for trace matching
+            shortened_name = process_name[-15:] if len(process_name) > 15 else process_name
+
             shortened.append(shortened_name)
             # Also keep the original for fallback matching
             if shortened_name != process_name:
                 shortened.append(process_name)
-                
+
         return shortened
 
     def get_categories(self) -> List[str]:
@@ -178,49 +156,49 @@ class AppMapperService:
             "running_apps": sum(1 for app in self.apps_cache.values() if app.is_running),
             "categories": len(self.get_categories())
         }
-        
+
         # Stats by category
         category_stats = {}
         for app in self.apps_cache.values():
             cat = app.category
             category_stats[cat] = category_stats.get(cat, 0) + 1
-            
+
         stats["category_breakdown"] = category_stats
         return stats
 
     def export_process_targets(self, selected_apps: List[str]) -> str:
         """Export process targets for selected apps"""
         process_names = []
-        
+
         for app_id in selected_apps:
             processes = self.get_processes_for_app(app_id)
             process_names.extend(processes)
-            
+
         # Remove duplicates and sort
         unique_processes = sorted(list(set(process_names)))
-        
+
         # Create PID targets file
         targets_file = self.project_root / "scripts" / "tracer" / "config_files" / "pid_targets.txt"
         targets_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         with open(targets_file, 'w') as f:
             for process in unique_processes:
                 f.write(f"{process}\n")
-                
+
         return str(targets_file)
 
     def refresh_mapping_from_device(self) -> Dict[str, str]:
         """Refresh mapping from connected device"""
         try:
             import subprocess
-            
+
             # Check if script exists
             if not self.mapper_script.exists():
                 return {"error": "App mapper script not found"}
-                
+
             # Create data directory if needed
             self.mapping_file.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # Run script
             result = subprocess.run([
                 "python", str(self.mapper_script),
@@ -229,7 +207,7 @@ class AppMapperService:
                 "--limit", "50",  # Limit to prevent long execution
                 "--include-system"
             ], capture_output=True, text=True, timeout=300)
-            
+
             if result.returncode == 0:
                 # Reload mapping
                 self.load_mapping()
@@ -243,7 +221,7 @@ class AppMapperService:
                     "error": f"Script failed: {result.stderr}",
                     "output": result.stdout
                 }
-                
+
         except subprocess.TimeoutExpired:
             return {"error": "Mapping update timed out"}
         except Exception as e:
@@ -258,7 +236,7 @@ class AppMapperService:
             "mapping_age_hours": self._get_mapping_age_hours(),
             "last_refresh": self._get_last_refresh_time()
         }
-    
+
     def _get_mapping_age_hours(self) -> Optional[float]:
         """Get mapping file age in hours"""
         try:
@@ -269,7 +247,7 @@ class AppMapperService:
             return age_seconds / 3600  # Convert to hours
         except Exception:
             return None
-    
+
     def _get_last_refresh_time(self) -> Optional[str]:
         """Get last refresh time"""
         try:
@@ -286,13 +264,13 @@ class AppMapperService:
         process_names = self.get_processes_for_app(app_identifier)
         if not process_names:
             return []
-        
+
         pids = set()
         for event in events:
             event_process = event.get('process', '')
             if not event_process:
                 continue
-                
+
             # Check for exact match first
             if event_process in process_names:
                 if 'tgid' in event:
@@ -304,7 +282,7 @@ class AppMapperService:
                         if 'tgid' in event:
                             pids.add(event['tgid'])
                         break
-        
+
         return sorted(list(pids))
 
     def to_dict(self, app: AppInfo) -> Dict:
@@ -315,13 +293,13 @@ class AppMapperService:
             "processes": app.processes,
             "is_running": app.is_running
         }
-        
+
         # Only include category if it exists
         if hasattr(app, 'category') and app.category:
             result["category"] = app.category
-            
+
         # Only include icon_url if it exists and is not None
         if hasattr(app, 'icon_url') and app.icon_url:
             result["icon_url"] = app.icon_url
-            
+
         return result
