@@ -276,9 +276,11 @@ class AppMapperService:
                 if 'tgid' in event:
                     pids.add(event['tgid'])
             else:
-                # Check for substring matching with shortened names
+                # Check for match with shortened process names (last 15 characters)
                 for process_name in process_names:
-                    if process_name.startswith('.') and process_name in event_process:
+                    # Get last 15 characters of the process name for comparison
+                    shortened_process = process_name[-15:] if len(process_name) > 15 else process_name
+                    if event_process == shortened_process:
                         if 'tgid' in event:
                             pids.add(event['tgid'])
                         break
