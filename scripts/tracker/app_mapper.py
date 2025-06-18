@@ -84,6 +84,17 @@ class AppMapper:
             packages = [line.split(":")[1].strip()
                        for line in result.stdout.splitlines()
                        if line.startswith("package:")]
+            
+            # Extra filtering: Remove Google/Android apps even if -3 doesn't catch them
+            if user_apps_only:
+                filtered_packages = []
+                for package in packages:
+                    package_lower = package.lower()
+                    # ONLY include true user apps (non-Google/Android)
+                    if not package_lower.startswith(('com.google.', 'com.android.', 'android.')):
+                        filtered_packages.append(package)
+                return filtered_packages
+            
             return packages
         except Exception as e:
             print(f"Error getting packages: {e}")
@@ -235,10 +246,12 @@ class AppMapper:
 
             if commercial_name:
                 print(f"  Found: {commercial_name}")
+                # Generate process name from last 15 characters of package name
+                process_name = package[-15:] if len(package) > 15 else package
                 mapping[package] = {
                     "package_name": package,
                     "commercial_name": commercial_name,
-                    "processes": [package],
+                    "processes": [process_name],
                     "is_running": True
                 }
             else:
@@ -279,9 +292,8 @@ class AppMapper:
                     processes = mapping[app_id].get("processes", [app_id])
                 else:
                     processes = [app_id]
-                # Convert to shortened names
-                shortened_processes = self._get_shortened_process_names(processes)
-                process_names.extend(shortened_processes)
+                # Use processes directly (already shortened in mapping)
+                process_names.extend(processes)
             else:
                 # Search by commercial name
                 found = False
@@ -289,52 +301,16 @@ class AppMapper:
                     if isinstance(info, dict):
                         if info.get("commercial_name", "").lower() == app_id.lower():
                             processes = info.get("processes", [package])
-                            shortened_processes = self._get_shortened_process_names(processes)
-                            process_names.extend(shortened_processes)
+                            process_names.extend(processes)
                             found = True
                             break
                 if not found:
-                    # Fallback: treat as package name and shorten it
-                    shortened = self._get_shortened_process_names([app_id])
-                    process_names.extend(shortened)
+                    # Fallback: treat as package name and use last 15 chars
+                    fallback_process = app_id[-15:] if len(app_id) > 15 else app_id
+                    process_names.append(fallback_process)
 
         return list(set(process_names))
 
-    def _get_shortened_process_names(self, process_names: List[str]) -> List[str]:
-        """Convert full package names to shortened process names for trace matching"""
-        shortened = []
-        for process_name in process_names:
-            # Convert com.google.android.apps.nbu.files -> .apps.nbu.files
-            # Convert com.android.systemui -> .systemui
-            # Convert org.telegram.messenger -> .telegram.messenger
-            if '.' in process_name:
-                parts = process_name.split('.')
-                if len(parts) >= 3:
-                    # Take the last 2-3 meaningful parts, skip common prefixes
-                    if parts[0] in ['com', 'org'] and parts[1] in ['google', 'android', 'samsung', 'nothing']:
-                        if len(parts) > 4:
-                            # For long names like com.google.android.apps.nbu.files -> .apps.nbu.files
-                            shortened_name = '.' + '.'.join(parts[3:])
-                        else:
-                            # For com.google.android.contacts -> .contacts
-                            shortened_name = '.' + parts[-1]
-                    elif parts[0] in ['com', 'org']:
-                        # For com.spotify.music -> .spotify.music or org.telegram.messenger -> .telegram.messenger
-                        shortened_name = '.' + '.'.join(parts[1:])
-                    else:
-                        # Keep original if doesn't match patterns
-                        shortened_name = process_name
-                else:
-                    shortened_name = process_name
-            else:
-                shortened_name = process_name
-
-            shortened.append(shortened_name)
-            # Also keep the original for fallback matching
-            if shortened_name != process_name:
-                shortened.append(process_name)
-
-        return shortened
 
 
     def generate_pid_targets(self, selected_apps: List[str], output_file: str = None):
