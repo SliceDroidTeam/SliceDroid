@@ -880,46 +880,10 @@ def generate_process_targets():
         print(f"Error in generate_process_targets: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
-def load_original_data():
-    """Load the original unfiltered trace data"""
-    # Try to load from backup first
-    backup_file = app.config_class.EXPORTS_DIR / 'original_processed_events.json'
-    if backup_file.exists():
-        try:
-            with open(backup_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            pass
-    
-    # Fall back to main file if backup doesn't exist
-    return load_data()
-
-def ensure_original_backup():
-    """Ensure we have a backup of the original trace data"""
-    main_file = app.config_class.PROCESSED_EVENTS_JSON
-    backup_file = app.config_class.EXPORTS_DIR / 'original_processed_events.json'
-    
-    # If backup doesn't exist but main file does, create backup
-    if main_file.exists() and not backup_file.exists():
-        try:
-            import shutil
-            # Check if main file contains process information (indicates it's the original)
-            with open(main_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                if data and isinstance(data, list) and len(data) > 0:
-                    first_event = data[0]
-                    if 'process' in first_event:
-                        # This looks like original data, create backup
-                        shutil.copy2(main_file, backup_file)
-                        print(f"[DEBUG] Created backup of original trace data: {backup_file}")
-                    else:
-                        print(f"[DEBUG] Main file appears to be sliced data, not creating backup")
-        except Exception as e:
-            print(f"[WARNING] Failed to create backup: {e}")
 
 @app.route('/api/apps/analyze', methods=['POST'])
 def analyze_app():
-    """API endpoint for re-slicing events for a specific app"""
+    """API endpoint for processing trace and analyzing specific app"""
     try:
         data = request.get_json()
         app_id = data.get('app_id')
@@ -928,25 +892,34 @@ def analyze_app():
             print(f"[ERROR] No app_id provided. Request data: {data}")
             return jsonify({'error': 'No app specified'}), 400
 
-        # Ensure we have a backup of original data
-        ensure_original_backup()
+        # Check if trace file exists
+        trace_file = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
+        if not trace_file.exists():
+            return jsonify({'error': 'No trace file found. Please upload a trace file first.'}), 400
 
-        # Load all events (original unfiltered data)
-        events = load_original_data()
-        print(f"[DEBUG] Loaded {len(events)} events from trace data")
+        print(f"[DEBUG] Processing trace file for app: {app_id}")
+        
+        # Process the trace file fresh each time
+        trace_processor = TraceProcessor(app.config_class)
+        result = trace_processor.process_trace_file(str(trace_file))
+        
+        if not result.get('success', False):
+            return jsonify({'error': f'Failed to process trace: {result.get("error", "Unknown error")}'}), 500
+            
+        # Load the processed events
+        events = load_data()
+        print(f"[DEBUG] Loaded {len(events)} events from processed trace")
+        
         if not events:
-            print("[ERROR] No trace data available")
-            return jsonify({'error': 'No trace data available'}), 400
+            return jsonify({'error': 'No events found in processed trace'}), 400
 
         # Get PIDs for the selected app
         print(f"[DEBUG] Getting PIDs for app: {app_id}")
         app_pids = app_mapper.get_pids_for_app(app_id, events)
         print(f"[DEBUG] Found PIDs: {app_pids} for app {app_id}")
+        
         if not app_pids:
-            print(f"[ERROR] No PIDs found for app {app_id} in trace data")
             return jsonify({'error': f'No PIDs found for app {app_id} in trace data'}), 400
-
-        print(f"Found PIDs {app_pids} for app {app_id}")
 
         # Use the main PID (first one found) for slicing
         target_pid = app_pids[0]
@@ -957,18 +930,11 @@ def analyze_app():
         # Perform slicing analysis for this specific app
         sliced_events = comprehensive_analyzer.slice_events(events, target_pid, asynchronous=True)
 
-        # Create app-specific processed events file
+        # Get app display name
         app_name = app_mapper.get_app_by_package(app_id)
         app_display_name = app_name.commercial_name if app_name else app_id
 
-        # Save sliced events to a new file for the dashboard to use
-        app_events_file = app.config_class.EXPORTS_DIR / f'app_{app_id.replace(".", "_")}_events.json'
-        app_events_file.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(app_events_file, 'w', encoding='utf-8') as f:
-            json.dump(sliced_events, f, indent=2, ensure_ascii=False)
-
-        # Update the main processed events file to show app-specific data
+        # Save sliced events for the dashboard to use
         main_events_file = app.config_class.PROCESSED_EVENTS_JSON
         with open(main_events_file, 'w', encoding='utf-8') as f:
             json.dump(sliced_events, f, indent=2, ensure_ascii=False)
@@ -979,8 +945,7 @@ def analyze_app():
             'target_pid': target_pid,
             'pids': app_pids,
             'events_count': len(sliced_events),
-            'message': f'Analysis complete for {app_display_name}. Found {len(sliced_events)} relevant events.',
-            'events_file': str(app_events_file)
+            'message': f'Analysis complete for {app_display_name}. Found {len(sliced_events)} relevant events.'
         })
 
     except Exception as e:
@@ -1073,85 +1038,15 @@ def export_analysis():
         return jsonify({'error': 'Internal server error'}), 500
 
 def preload_trace_file():
-    """Pre-load and process the default trace file if it exists"""
+    """Check if trace file exists (no automatic processing)"""
     try:
         default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
         if default_trace_path.exists():
             print(f"Found default trace file: {default_trace_path}")
-
-            # Check if already processed by comparing trace file info with cache
-            events_json = app.config_class.PROCESSED_EVENTS_JSON
-            cache_info_file = app.config_class.PROJECT_ROOT / 'data' / 'traces' / '.trace_cache_info.json'
-
-            if Path(events_json).exists() and cache_info_file.exists():
-                try:
-                    # Get current trace file info
-                    trace_stat = default_trace_path.stat()
-                    current_info = {
-                        'filename': default_trace_path.name,
-                        'size': trace_stat.st_size,
-                        'mtime': trace_stat.st_mtime
-                    }
-
-                    # Load cached trace info
-                    with open(cache_info_file, 'r') as f:
-                        cached_info = json.load(f)
-
-                    # Compare trace file info
-                    if (current_info['filename'] == cached_info.get('filename') and
-                        current_info['size'] == cached_info.get('size') and
-                        current_info['mtime'] == cached_info.get('mtime')):
-                        print(f"[*] Trace file '{current_info['filename']}' already processed - skipping preprocessing")
-                        return
-                    else:
-                        print(f"[*] Trace file changed (name/size/time) - will reprocess")
-                except (json.JSONDecodeError, KeyError, OSError):
-                    print("[*] Cache info invalid - will reprocess")
-            else:
-                print("[*] No cache found - will process")
-
-            print("[*] Pre-processing trace file in background...")
-
-            # Process the trace file in background thread for faster startup
-            def background_process():
-                try:
-                    processor = TraceProcessor(app.config_class)
-                    result = processor.process_trace_file(str(default_trace_path))
-
-                    if result.get('success', False):
-                        print("[*] Background trace processing completed!")
-
-                        # Save cache info after successful processing
-                        try:
-                            trace_stat = default_trace_path.stat()
-                            cache_info = {
-                                'filename': default_trace_path.name,
-                                'size': trace_stat.st_size,
-                                'mtime': trace_stat.st_mtime,
-                                'processed_at': time.time()
-                            }
-
-                            cache_info_file = app.config_class.PROJECT_ROOT / 'data' / 'traces' / '.trace_cache_info.json'
-                            cache_info_file.parent.mkdir(parents=True, exist_ok=True)
-
-                            with open(cache_info_file, 'w') as f:
-                                json.dump(cache_info, f, indent=2)
-                            print(f"[*] Cache info saved for '{cache_info['filename']}'")
-                        except Exception as cache_error:
-                            print(f"[!] Failed to save cache info: {cache_error}")
-                    else:
-                        print("[!] Background trace processing failed")
-                except Exception as e:
-                    print(f"Background processing error: {e}")
-
-            import threading
-            thread = threading.Thread(target=background_process)
-            thread.daemon = True
-            thread.start()
         else:
             print(f"No default trace file found at: {default_trace_path}")
     except Exception as e:
-        print(f"Error preloading trace file: {e}")
+        print(f"Error checking trace file: {e}")
 
 if __name__ == '__main__':
     # Validate configuration on startup

@@ -134,13 +134,9 @@ class AppMapperService:
         for process_name in process_names:
             # Use last 15 characters of process name for trace matching
             shortened_name = process_name[-15:] if len(process_name) > 15 else process_name
-
             shortened.append(shortened_name)
-            # Also keep the original for fallback matching
-            if shortened_name != process_name:
-                shortened.append(process_name)
 
-        return shortened
+        return list(set(shortened))  # Remove duplicates
 
     def get_categories(self) -> List[str]:
         """Get all app categories"""
@@ -268,7 +264,7 @@ class AppMapperService:
             return None
 
     def get_pids_for_app(self, app_identifier: str, events: List[Dict]) -> List[int]:
-        """Get PIDs for app from trace events using shortened process name matching"""
+        """Get PIDs for app from trace events using process name matching"""
         process_names = self.get_processes_for_app(app_identifier)
         if not process_names:
             return []
@@ -276,22 +272,9 @@ class AppMapperService:
         pids = set()
         for event in events:
             event_process = event.get('process', '')
-            if not event_process:
-                continue
-
-            # Check for exact match first
             if event_process in process_names:
                 if 'tgid' in event:
                     pids.add(event['tgid'])
-            else:
-                # Check for match with shortened process names (last 15 characters)
-                for process_name in process_names:
-                    # Get last 15 characters of the process name for comparison
-                    shortened_process = process_name[-15:] if len(process_name) > 15 else process_name
-                    if event_process == shortened_process:
-                        if 'tgid' in event:
-                            pids.add(event['tgid'])
-                        break
 
         return sorted(list(pids))
 
