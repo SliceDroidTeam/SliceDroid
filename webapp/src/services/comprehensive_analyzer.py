@@ -509,12 +509,14 @@ class ComprehensiveAnalyzer:
                             device_list = sensitive_resources[dtype]
                             # Check if device ID matches any in the sensitive category
                             if str(device) in device_list:
-                                sensitive_type = dtype
+                                # Map callogger to call_logs for consistency with rest of system
+                                sensitive_type = 'call_logs' if dtype == 'callogger' else dtype
                                 break
                             # Also check for compound IDs like "124845621 - 5488"
                             for device_id in device_list:
                                 if ' - ' in device_id and str(device) in device_id:
-                                    sensitive_type = dtype
+                                    # Map callogger to call_logs for consistency with rest of system
+                                    sensitive_type = 'call_logs' if dtype == 'callogger' else dtype
                                     break
                             if sensitive_type:
                                 break

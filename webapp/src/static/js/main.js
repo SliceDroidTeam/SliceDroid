@@ -1714,6 +1714,8 @@ function renderProtocolDistribution(networkAnalysis) {
 }
 
 function renderConnectionTables(networkAnalysis) {
+    console.log('Rendering connection tables with data:', networkAnalysis);
+    
     // 1. Render TCP connections table
     renderTcpConnections(networkAnalysis);
     

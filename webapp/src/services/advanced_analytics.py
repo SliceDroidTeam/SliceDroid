@@ -769,11 +769,13 @@ class AdvancedAnalytics:
                 for data_type, device_list in sensitive_resources.items():
                     # Check if device ID matches any in the sensitive category
                     if str(k_dev) in device_list:
-                        return data_type
+                        # Map callogger to call_logs for consistency with rest of system
+                        return 'call_logs' if data_type == 'callogger' else data_type
                     # Also check for compound IDs like "124845621 - 5488"
                     for device_id in device_list:
                         if ' - ' in device_id and str(k_dev) in device_id:
-                            return data_type
+                            # Map callogger to call_logs for consistency with rest of system
+                            return 'call_logs' if data_type == 'callogger' else data_type
                             
             return None
             
