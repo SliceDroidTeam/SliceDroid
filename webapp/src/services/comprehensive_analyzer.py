@@ -502,13 +502,22 @@ class ComprehensiveAnalyzer:
         
         if track_sensitive and sensitive_resources and 'details' in e:
             try:
-                for dtype in ['contacts', 'sms', 'calendar', 'call_logs']:
-                    if dtype in sensitive_resources:
-                        res = sensitive_resources[dtype]
-                        if (e['details'].get('s_dev_inode') == res['st_dev32'] and 
-                            e['details'].get('inode') == res['inode']):
-                            sensitive_type = dtype
-                            break
+                device = e['details'].get('k_dev') or e['details'].get('k__dev')
+                if device:
+                    for dtype in ['contacts', 'sms', 'calendar', 'callogger']:
+                        if dtype in sensitive_resources:
+                            device_list = sensitive_resources[dtype]
+                            # Check if device ID matches any in the sensitive category
+                            if str(device) in device_list:
+                                sensitive_type = dtype
+                                break
+                            # Also check for compound IDs like "124845621 - 5488"
+                            for device_id in device_list:
+                                if ' - ' in device_id and str(device) in device_id:
+                                    sensitive_type = dtype
+                                    break
+                            if sensitive_type:
+                                break
             except Exception as ex:
                 self.logger.warning(f"Error checking sensitive type: {str(ex)}")
         
