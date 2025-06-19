@@ -1790,6 +1790,101 @@ function renderDataTransferChart(networkAnalysis) {
         .text('Data (MB)');
 }
 
+function renderSocketDistributionChart(networkAnalysis) {
+    const container = d3.select('#socket-distribution-chart');
+    container.selectAll('*').remove();
+    
+    if (!networkAnalysis || !networkAnalysis.summary) {
+        container.append('div')
+            .attr('class', 'alert alert-info')
+            .text('No socket distribution data available');
+        return;
+    }
+    
+    // Prepare socket type data from network analysis
+    const socketData = [];
+    const summary = networkAnalysis.summary;
+    
+    if (summary.tcp_connections > 0) {
+        socketData.push({type: 'TCP', count: summary.tcp_connections, color: '#007bff'});
+    }
+    if (summary.udp_communications > 0) {
+        socketData.push({type: 'UDP', count: summary.udp_communications, color: '#28a745'});
+    }
+    if (summary.unix_stream_connections > 0) {
+        socketData.push({type: 'Unix Stream', count: summary.unix_stream_connections, color: '#17a2b8'});
+    }
+    if (summary.unix_datagram_connections > 0) {
+        socketData.push({type: 'Unix Datagram', count: summary.unix_datagram_connections, color: '#6c757d'});
+    }
+    
+    if (socketData.length === 0) {
+        container.append('div')
+            .attr('class', 'alert alert-info')
+            .text('No socket connections found');
+        return;
+    }
+    
+    const width = 300;
+    const height = 300;
+    const radius = Math.min(width, height) / 2;
+    
+    const svg = container.append('svg')
+        .attr('width', width)
+        .attr('height', height);
+        
+    const g = svg.append('g')
+        .attr('transform', `translate(${width/2}, ${height/2})`);
+    
+    const pie = d3.pie()
+        .value(d => d.count)
+        .sort(null);
+        
+    const arc = d3.arc()
+        .innerRadius(0)
+        .outerRadius(radius - 10);
+    
+    const arcs = g.selectAll('.arc')
+        .data(pie(socketData))
+        .enter().append('g')
+        .attr('class', 'arc');
+    
+    arcs.append('path')
+        .attr('d', arc)
+        .attr('fill', d => d.data.color)
+        .attr('stroke', 'white')
+        .attr('stroke-width', 2);
+    
+    arcs.append('text')
+        .attr('transform', d => `translate(${arc.centroid(d)})`)
+        .attr('dy', '0.35em')
+        .style('text-anchor', 'middle')
+        .style('font-size', '12px')
+        .style('fill', 'white')
+        .text(d => d.data.count);
+    
+    // Add legend
+    const legend = svg.append('g')
+        .attr('transform', `translate(10, 10)`);
+    
+    const legendItems = legend.selectAll('.legend')
+        .data(socketData)
+        .enter().append('g')
+        .attr('class', 'legend')
+        .attr('transform', (d, i) => `translate(0, ${i * 20})`);
+    
+    legendItems.append('rect')
+        .attr('width', 15)
+        .attr('height', 15)
+        .attr('fill', d => d.color);
+    
+    legendItems.append('text')
+        .attr('x', 20)
+        .attr('y', 12)
+        .style('font-size', '12px')
+        .text(d => `${d.type} (${d.count})`);
+}
+
 function renderConnectionTables(networkAnalysis) {
     console.log('Rendering connection tables with data:', networkAnalysis);
     

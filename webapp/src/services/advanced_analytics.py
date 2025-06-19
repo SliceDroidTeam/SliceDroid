@@ -81,6 +81,18 @@ class AdvancedAnalytics:
         
         return logger
     
+    def _make_json_serializable(self, obj):
+        """Convert sets and other non-serializable objects to JSON-serializable format"""
+        if isinstance(obj, set):
+            return list(obj)
+        elif isinstance(obj, dict):
+            # Convert ALL keys to strings to prevent mixed int/str key errors during JSON serialization
+            return {str(key): self._make_json_serializable(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._make_json_serializable(item) for item in obj]
+        else:
+            return obj
+    
     def analyze_trace_data(self, events, target_pid=None, window_size=1000, overlap=200):
         """
         Perform comprehensive analysis of trace data
@@ -142,7 +154,8 @@ class AdvancedAnalytics:
                 })
             }
             
-            return analysis
+            # Ensure all data is JSON serializable before returning
+            return self._make_json_serializable(analysis)
             
         except Exception as e:
             self.logger.error(f"Error in advanced analysis: {str(e)}")
@@ -181,8 +194,8 @@ class AdvancedAnalytics:
         
         return {
             'process_distribution': dict(process_counts.most_common(10)),
-            'pid_distribution': dict(pid_counts.most_common(10)),
-            'pid_to_process_map': pid_to_process,
+            'pid_distribution': {str(k): v for k, v in pid_counts.most_common(10)},
+            'pid_to_process_map': {str(k): v for k, v in pid_to_process.items()},
             'unique_processes': len(process_counts),
             'unique_pids': len(pid_counts)
         }
@@ -201,7 +214,9 @@ class AdvancedAnalytics:
                 dev2cat = {}
                 for cat, devs in cat2devs.items():
                     for dev in devs:
+                        # Store both int and str versions for flexible lookup
                         dev2cat[dev] = cat
+                        dev2cat[str(dev)] = cat
             else:
                 dev2cat = {}
         except:
@@ -222,11 +237,11 @@ class AdvancedAnalytics:
                     if device_id in dev2cat:
                         device_categories[dev2cat[device_id]] += 1
         
-        # Convert sets to lists for JSON serialization
-        device_paths_dict = {k: list(v) for k, v in device_paths.items()}
+        # Convert sets to lists and ensure string keys for JSON serialization
+        device_paths_dict = {str(k): list(v) for k, v in device_paths.items()}
         
         return {
-            'device_usage': dict(sorted(device_counts.items(), key=lambda x: x[1], reverse=True)[:20]),
+            'device_usage': {str(k): v for k, v in sorted(device_counts.items(), key=lambda x: (x[1], str(x[0])), reverse=True)[:20]},
             'device_paths': device_paths_dict,
             'category_usage': dict(device_categories),
             'unique_devices': len(device_counts),
@@ -790,7 +805,7 @@ class AdvancedAnalytics:
             
         kdev = e['details'].get('k_dev') or e['details'].get('k__dev')
         
-        # For device nodes (kdev != 0), use kdev directly
+        # For device nodes (kdev != 0), use kdev directly as integer
         if kdev and kdev != 0:
             return kdev
             
@@ -1232,8 +1247,8 @@ class AdvancedAnalytics:
             if not device_counts:
                 return None
             
-            # Top 10 devices
-            top_devices = sorted(device_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+            # Top 10 devices - handle mixed int/str device identifiers safely
+            top_devices = sorted(device_counts.items(), key=lambda x: (x[1], str(x[0])), reverse=True)[:10]
             
             plt.figure(figsize=(12, 6))
             devices, counts = zip(*top_devices)
@@ -2037,7 +2052,7 @@ class AdvancedAnalytics:
         }
         
         self.logger.info(f"Generated comprehensive report for PID {target_pid}")
-        return report
+        return self._make_json_serializable(report)
     
     def _generate_enhanced_visualization_data(self, events, target_pid, security_analysis, network_analysis, process_analysis):
         """Generate enhanced data optimized for new visualization categories"""
@@ -2145,10 +2160,16 @@ class AdvancedAnalytics:
         if 'process_tree' in process_analysis:
             enhanced_process_tree = self._convert_enhanced_process_tree_for_viz(process_analysis['process_tree'])
         
+        # Convert nested defaultdict properly
+        security_heatmap_converted = {
+            str(time_bucket): dict(event_dict) 
+            for time_bucket, event_dict in security_heatmap.items()
+        }
+        
         return {
             'category_distribution': dict(category_counts),
             'timeline_data': timeline_data,
-            'security_heatmap': dict(security_heatmap),
+            'security_heatmap': security_heatmap_converted,
             'network_flows': network_flows,
             'process_tree': enhanced_process_tree,
             'event_distribution_by_hour': self._generate_hourly_distribution(events, target_pid),
@@ -2199,7 +2220,7 @@ class AdvancedAnalytics:
         return {
             'nodes': nodes, 
             'edges': edges,
-            'levels': dict(levels),
+            'levels': {str(k): v for k, v in levels.items()},
             'max_depth': max(levels.keys()) if levels else 0
         }
     

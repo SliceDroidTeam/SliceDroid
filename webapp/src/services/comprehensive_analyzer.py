@@ -349,7 +349,8 @@ class ComprehensiveAnalyzer:
                 sensitive_categories = ['contacts', 'sms', 'calendar', 'callogger']
                 for category in sensitive_categories:
                     if category in category_mapping:
-                        sensitive_resources[category] = category_mapping[category]
+                        # Convert all device IDs to strings for consistent comparison
+                        sensitive_resources[category] = [str(dev) for dev in category_mapping[category]]
             else:
                 sensitive_resources = {}
         except:
@@ -479,7 +480,8 @@ class ComprehensiveAnalyzer:
         if isinstance(obj, set):
             return list(obj)
         elif isinstance(obj, dict):
-            return {key: self._make_json_serializable(value) for key, value in obj.items()}
+            # Convert ALL keys to strings to prevent mixed int/str key errors during JSON serialization
+            return {str(key): self._make_json_serializable(value) for key, value in obj.items()}
         elif isinstance(obj, list):
             return [self._make_json_serializable(item) for item in obj]
         else:
@@ -559,7 +561,7 @@ class ComprehensiveAnalyzer:
             
         kdev = e['details'].get('k_dev') or e['details'].get('k__dev')
         
-        # For device nodes (kdev != 0), use kdev directly
+        # For device nodes (kdev != 0), use kdev directly as integer
         if kdev and kdev != 0:
             return kdev
             
@@ -632,7 +634,9 @@ class ComprehensiveAnalyzer:
                 dev2cat = {}
                 for cat, devs in cat2devs.items():
                     for dev in devs:
+                        # Store both int and str versions for flexible lookup
                         dev2cat[dev] = cat
+                        dev2cat[str(dev)] = cat
             else:
                 dev2cat = {}
         except:
@@ -656,8 +660,8 @@ class ComprehensiveAnalyzer:
                 max_count = count
                 most_used_cat = cat
         
-        # Top devices
-        sorted_devices = sorted(devs2num.items(), key=lambda x: x[1], reverse=True)
+        # Top devices - handle mixed int/str device identifiers safely
+        sorted_devices = sorted(devs2num.items(), key=lambda x: (x[1], str(x[0])), reverse=True)
         top_devices = sorted_devices[:10]
         
         return {
@@ -665,10 +669,10 @@ class ComprehensiveAnalyzer:
             'total_categories': len(cat2num),
             'total_devices': len(devs2num),
             'most_used_category': {'name': most_used_cat, 'count': max_count},
-            'top_devices': top_devices,
-            'device_stats': devs2num,
+            'top_devices': [(str(k), v) for k, v in top_devices],
+            'device_stats': {str(k): v for k, v in devs2num.items()},
             'category_stats': cat2num,
-            'device_pathnames': {k: list(v) for k, v in dev2pathnames.items()},
+            'device_pathnames': {str(k): list(v) for k, v in dev2pathnames.items()},
             'events_processed': analysis_results['events_processed']
         }
     
@@ -1105,7 +1109,7 @@ class ComprehensiveAnalyzer:
             'risk_level': self._calculate_risk_level_from_file_analysis(security_analysis)
         }
         
-        return security_analysis
+        return self._make_json_serializable(security_analysis)
     
     def _calculate_risk_level_from_file_analysis(self, security_analysis):
         """Calculate risk level based on file access analysis"""
@@ -1421,7 +1425,7 @@ class ComprehensiveAnalyzer:
         # Analyze patterns
         network_analysis['summary'] = self._analyze_network_patterns(network_analysis)
         
-        return network_analysis
+        return self._make_json_serializable(network_analysis)
     
     def _process_communication_flows(self, communication_flows):
         """Process communication flows to identify relationships"""
@@ -1694,7 +1698,7 @@ class ComprehensiveAnalyzer:
             process_activities, ipc_events, file_operations, target_pid
         )
         
-        return genealogy_analysis
+        return self._make_json_serializable(genealogy_analysis)
     
     def _build_communication_tree(self, process_activities, ipc_events):
         """Build a tree structure based on communication patterns"""
