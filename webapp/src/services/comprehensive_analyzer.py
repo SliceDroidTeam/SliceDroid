@@ -337,12 +337,19 @@ class ComprehensiveAnalyzer:
         sensitive_data_trace = {'contacts': [], 'sms': [], 'calendar': [], 'call_logs': []}
         all_sensitive_events = {'contacts': [], 'sms': [], 'calendar': [], 'call_logs': []}
         
-        # Load sensitive resources
+        # Load device categories from cat2devs.txt (unified mapping file)
         try:
-            sensitive_resources_file = self.config.MAPPINGS_DIR / 'cat2stdevs_oneplus.json'
-            if sensitive_resources_file.exists():
-                with open(sensitive_resources_file, 'r') as f:
-                    sensitive_resources = json.load(f)
+            cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs.txt'
+            if cat2devs_file.exists():
+                with open(cat2devs_file, 'r') as f:
+                    category_mapping = json.load(f)
+                
+                # Extract sensitive categories for analysis
+                sensitive_resources = {}
+                sensitive_categories = ['contacts', 'sms', 'calendar', 'callogger']
+                for category in sensitive_categories:
+                    if category in category_mapping:
+                        sensitive_resources[category] = category_mapping[category]
             else:
                 sensitive_resources = {}
         except:

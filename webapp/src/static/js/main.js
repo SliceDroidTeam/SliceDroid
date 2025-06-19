@@ -496,9 +496,17 @@ function renderBehaviorTimeline(analysisData) {
     let dev2cat = {};
     
     // Load the category mapping asynchronously
+    console.log('Loading device category mapping...');
     fetch('/data/mappings/cat2devs.txt')
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(categoryMapping => {
+            console.log('Category mapping loaded successfully:', Object.keys(categoryMapping).length, 'categories');
             // Convert category-to-devices mapping to device-to-category mapping
             Object.keys(categoryMapping).forEach(category => {
                 categoryMapping[category].forEach(deviceId => {

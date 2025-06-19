@@ -722,14 +722,21 @@ class AdvancedAnalytics:
     def _analyze_sensitive_data(self, events):
         """Analyze potential sensitive data access using device ID + inode matching"""
         try:
-            # Load sensitive resources mappings
-            sensitive_resources_file = self.config.MAPPINGS_DIR / 'cat2stdevs_oneplus.json'
-            if not sensitive_resources_file.exists():
-                self.logger.warning(f"Sensitive resources file not found: {sensitive_resources_file}")
+            # Load device categories from cat2devs.txt (unified mapping file)
+            cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs.txt'
+            if not cat2devs_file.exists():
+                self.logger.debug("cat2devs.txt not found, using fallback analysis")
                 return self._fallback_sensitive_analysis(events)
             
-            with open(sensitive_resources_file, 'r') as f:
-                sensitive_resources = json.load(f)
+            with open(cat2devs_file, 'r') as f:
+                category_mapping = json.load(f)
+                
+            # Extract sensitive categories for analysis
+            sensitive_resources = {}
+            sensitive_categories = ['contacts', 'sms', 'calendar', 'callogger']
+            for category in sensitive_categories:
+                if category in category_mapping:
+                    sensitive_resources[category] = category_mapping[category]
             
             sensitive_access = defaultdict(int)
             
@@ -910,12 +917,19 @@ class AdvancedAnalytics:
             except:
                 dev2cat = {}
             
-            # Load sensitive resources mappings
+            # Load device categories from cat2devs.txt (unified mapping file)
             try:
-                sensitive_resources_file = self.config.MAPPINGS_DIR / 'cat2stdevs_oneplus.json'
-                if sensitive_resources_file.exists():
-                    with open(sensitive_resources_file, 'r') as f:
-                        sensitive_resources = json.load(f)
+                cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs.txt'
+                if cat2devs_file.exists():
+                    with open(cat2devs_file, 'r') as f:
+                        category_mapping = json.load(f)
+                    
+                    # Extract sensitive categories for analysis
+                    sensitive_resources = {}
+                    sensitive_categories = ['contacts', 'sms', 'calendar', 'callogger']
+                    for category in sensitive_categories:
+                        if category in category_mapping:
+                            sensitive_resources[category] = category_mapping[category]
                 else:
                     sensitive_resources = {}
             except:
