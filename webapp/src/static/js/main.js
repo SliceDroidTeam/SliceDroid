@@ -1198,6 +1198,22 @@ function renderNetworkAnalysis(data) {
         } else {
             setTimeout(() => renderProtocolDistribution(data.network_analysis), 500);
         }
+        
+        // Render data transfer chart
+        if (document.getElementById('data-transfer-chart') && 
+            document.getElementById('data-transfer-chart').offsetWidth > 0) {
+            renderDataTransferChart(data.network_analysis);
+        } else {
+            setTimeout(() => renderDataTransferChart(data.network_analysis), 500);
+        }
+        
+        // Render socket distribution chart
+        if (document.getElementById('socket-distribution-chart') && 
+            document.getElementById('socket-distribution-chart').offsetWidth > 0) {
+            renderSocketDistributionChart(data.network_analysis);
+        } else {
+            setTimeout(() => renderSocketDistributionChart(data.network_analysis), 500);
+        }
 
         // Render connection tables
         renderConnectionTables(data.network_analysis);
