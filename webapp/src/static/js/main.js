@@ -539,8 +539,13 @@ function renderBehaviorTimeline(analysisData) {
 
 // Separate function to process behavior timeline data
 function processBehaviorTimelineData(kdevsTrace, tcpTrace, sensitiveTrace, dev2cat) {
+    console.log('processBehaviorTimelineData called');
     const container = document.getElementById('behavior-timeline-chart');
-    if (!container) return;
+    console.log('Container found:', container);
+    if (!container) {
+        console.log('Container not found, returning');
+        return;
+    }
 
     // Create behavior timeline from window data (similar to legacy code)
     behaviorTimelineData = [];
@@ -634,7 +639,9 @@ function processBehaviorTimelineData(kdevsTrace, tcpTrace, sensitiveTrace, dev2c
     behaviorTimelineData.sort((a, b) => a.timestamp - b.timestamp);
 
     if (behaviorTimelineData.length === 0) {
-        container.innerHTML = '<div class="alert alert-info">No behavior events found in reconstruction windows</div>';
+        if (container) {
+            container.innerHTML = '<div class="alert alert-info">No behavior events found in reconstruction windows</div>';
+        }
         return;
     }
 
