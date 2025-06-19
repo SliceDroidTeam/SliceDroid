@@ -903,7 +903,7 @@ def analyze_app():
         
         # Process the trace file fresh each time
         trace_processor = TraceProcessor(app.config_class)
-        result = trace_processor.process_trace_file(str(trace_file))
+        result = trace_processor.process_trace_file(str(trace_file), target_app=app_id)
         
         if not result.get('success', False):
             return jsonify({'error': f'Failed to process trace: {result.get("error", "Unknown error")}'}), 500

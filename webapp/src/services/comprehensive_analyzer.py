@@ -163,7 +163,7 @@ class ComprehensiveAnalyzer:
                     else:
                         unix_dgrams[e['details']['inode']] = sources
                     unix_dgrams_waiting.remove(tid)
-                elif ((event == 'write_probe' and e['details']['pathname'] != 'null') or 
+                elif ((event == 'write_probe' and e['details'].get('pathname', 'null') != 'null') or 
                       (event == 'ioctl_probe') or (event == 'inet_sock_set_state')):
                     # Add event as output event for this instance
                     out_flows_slice.append(e_index)
@@ -300,10 +300,10 @@ class ComprehensiveAnalyzer:
         filtered_events = []
         for e in merged_unique:
             # Filter out remnant api logging and binder transactions
-            if ((e['event'] == 'write_probe' and e['details']['pathname'] != 'null') or 
+            if ((e['event'] == 'write_probe' and e['details'].get('pathname', 'null') != 'null') or 
                 (e['event'] == 'ioctl_probe' and 
-                 e['details']['pathname'] != 'binder' and 
-                 e['details']['pathname'] != 'hwbinder') or 
+                 e['details'].get('pathname', 'unknown') != 'binder' and 
+                 e['details'].get('pathname', 'unknown') != 'hwbinder') or 
                 (e['event'] != 'write_probe' and e['event'] != 'ioctl_probe' and 'binder' not in e['event'])):
                 # Keep all event information, not just event and details
                 filtered_events.append(e.copy())
@@ -535,9 +535,9 @@ class ComprehensiveAnalyzer:
             # Remove API logging and monkey process operations
             try:
                 if (not (e['event'] == 'write_probe' and 
-                        e['details']['pathname'] == 'null' and 
-                        e['details']['count'] > 999999) and 
-                    'monkey' not in e['process']):
+                        e['details'].get('pathname', 'unknown') == 'null' and 
+                        e['details'].get('count', 0) > 999999) and 
+                    'monkey' not in e.get('process', '')):
                     cleaned_events.append(e.copy())
             except:
                 self.logger.warning(f"Error processing event {i}")
@@ -648,8 +648,8 @@ class ComprehensiveAnalyzer:
                 continue
             
             if (e['event'] == 'write_probe' and 
-                e['details']['pathname'] == 'null' and 
-                e['details']['count'] > 999999):
+                e['details'].get('pathname', 'unknown') == 'null' and 
+                e['details'].get('count', 0) > 999999):
                 
                 api = e['details']['count']
                 tid = e['tid']
@@ -694,8 +694,8 @@ class ComprehensiveAnalyzer:
         for e in parsed_events:
             if (e['tgid'] == target_pid and 
                 e['event'] == 'write_probe' and 
-                e['details']['pathname'] == 'null' and 
-                e['details']['count'] > 99999):
+                e['details'].get('pathname', 'unknown') == 'null' and 
+                e['details'].get('count', 0) > 99999):
                 
                 api = e['details']['count']
                 start = (api % 2 == 0)
@@ -748,7 +748,7 @@ class ComprehensiveAnalyzer:
                     e = parsed_events[line]
                     
                     # Continue if an API start/end event is encountered
-                    if e['event'] == 'write_probe' and e['details']['pathname'] == 'null':
+                    if e['event'] == 'write_probe' and e['details'].get('pathname', 'unknown') == 'null':
                         continue
                     
                     tid = e['tid']
@@ -760,7 +760,7 @@ class ComprehensiveAnalyzer:
                     if pid in pid_set:
                         if event == 'binder_transaction':
                             binders.add(e['details']['transaction'])
-                        elif ((event == 'write_probe' and e['details']['pathname'] != 'null') or 
+                        elif ((event == 'write_probe' and e['details'].get('pathname', 'null') != 'null') or 
                               (event == 'ioctl_probe') or (event == 'inet_sock_set_state')):
                             out_flows_slice.append(line)
                     
@@ -778,7 +778,7 @@ class ComprehensiveAnalyzer:
                 for line in range(instance[1], instance[0] - 1, -1):
                     e = parsed_events[line]
                     
-                    if e['event'] == 'write_probe' and e['details']['pathname'] == 'null':
+                    if e['event'] == 'write_probe' and e['details'].get('pathname', 'unknown') == 'null':
                         continue
                     
                     tid = e['tid']

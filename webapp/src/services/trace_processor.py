@@ -65,13 +65,14 @@ class TraceProcessor:
         except (ValueError, TypeError):
             return str(size_value)
 
-    def process_trace_file(self, trace_file_path, progress_callback=None):
+    def process_trace_file(self, trace_file_path, progress_callback=None, target_app=None):
         """
         Process a .trace file and generate JSON output
 
         Args:
             trace_file_path: Path to the .trace file
             progress_callback: Optional callback function for progress updates
+            target_app: Optional target app name to avoid auto-detection from filename
 
         Returns:
             dict: Result containing success status, message, and file paths
@@ -115,12 +116,17 @@ class TraceProcessor:
                 progress_callback(40, "Finding target process...")
 
             # Find target process
-            t_pid = self._find_process(raw_events, trace_file_path)
-            if t_pid == 0:
-                return {
-                    'success': False,
-                    'error': 'Could not identify target process from trace file'
-                }
+            if target_app:
+                # Skip process finding when target app is specified - will be handled later
+                t_pid = None
+                self.logger.info(f"Skipping auto process detection - target app specified: {target_app}")
+            else:
+                t_pid = self._find_process(raw_events, trace_file_path)
+                if t_pid == 0:
+                    return {
+                        'success': False,
+                        'error': 'Could not identify target process from trace file'
+                    }
 
             self.logger.info(f"Target PID: {t_pid}")
 
