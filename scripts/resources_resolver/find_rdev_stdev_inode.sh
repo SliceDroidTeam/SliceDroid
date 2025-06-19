@@ -54,21 +54,12 @@ for file in "${db_paths[@]}"; do
     
         # 1) get inode
         ino=$(stat -c '%i' "$file")
-        
-        # 2) get full major:minor in hex, use %d:%D because
-        #they are not character/block device special files
-        hex=$(stat -c '%d:%D' "$file")
 
-        # 3) split into hex‐major and hex‐minor
-        maj_hex=${hex%%:*}
-        min_hex=${hex##*:}
-        maj=$((0x$maj_hex))
-        mino=$((0x$min_hex))
+        dev64=$(stat -c '%d' $file)
 
-        # 4) pack into 32-bit dev_t
-        dev32=$(( (maj << MINORBITS) | (mino & MINORMASK) ))
-
-        # 5) emit file, dev32, inode
+        maj=$(( (dev64 >> 8)  & 0xfff ))            # bits 8-19   major[11:0]
+        min=$(( (dev64 & 0xff) | ((dev64 >> 12) & 0xfffff00) ))   # minor[7:0] + minor[19:8]
+        dev32=$(( (maj << 20) | (min & 0xfffff) ))  # 12-bit major | 20-bit minor
         printf '%s %d %s\n' "$file" "$dev32" "$ino"
 
 done |
