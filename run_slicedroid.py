@@ -9,6 +9,7 @@ import urllib.request
 import zipfile
 import shutil
 import argparse
+import json
 from pathlib import Path
 
 def check_adb_installed():
@@ -122,6 +123,33 @@ def check_device_connection(adb_command):
         print(f"[!] Error checking device connection: {e}")
         return False, []
 
+def should_create_app_mapping():
+    """Check if app_mapping.json is missing or empty"""
+    app_mapping_file = "data/app_mapping.json"
+    
+    # File doesn't exist
+    if not os.path.exists(app_mapping_file):
+        return True
+    
+    # File exists but is empty or contains empty JSON
+    try:
+        with open(app_mapping_file, 'r') as f:
+            content = f.read().strip()
+            if not content or content == '{}' or content == '[]':
+                return True
+        
+        # Try to parse JSON and check if it has meaningful content
+        with open(app_mapping_file, 'r') as f:
+            data = json.load(f)
+            if not data or len(data) == 0:
+                return True
+                
+    except (json.JSONDecodeError, Exception):
+        # File is corrupted, needs recreation
+        return True
+    
+    return False
+
 # Main script starts here
 def print_banner():
     """Print ASCII art banner"""
@@ -176,28 +204,31 @@ print(f"[*] Found {len(devices)} connected device(s):")
 for device in devices:
     print(f"    - {device}")
 
-# Create app mapping from connected device
-print("[*] Creating app mapping from connected device...")
-app_mapper_script = os.path.join("scripts", "tracker", "app_mapper.py")
-if os.path.exists(app_mapper_script):
-    try:
-        print("[*] Analyzing installed apps to extract commercial names...")
-        subprocess.run([
-            sys.executable, app_mapper_script,
-            "--create", 
-            "--output", "data/app_mapping.json",
-            "--limit", "50",
-            "--include-system"
-        ], check=True, timeout=120)
-        print("[*] App mapping completed successfully")
-    except subprocess.TimeoutExpired:
-        print("[!] App mapping timed out, continuing with existing mapping...")
-    except subprocess.CalledProcessError as e:
-        print(f"[!] App mapping failed: {e}, continuing...")
-    except Exception as e:
-        print(f"[!] App mapping error: {e}, continuing...")
+# Create app mapping from connected device if needed
+if should_create_app_mapping():
+    print("[*] App mapping is missing or empty - creating from connected device...")
+    app_mapper_script = os.path.join("scripts", "tracker", "app_mapper.py")
+    if os.path.exists(app_mapper_script):
+        try:
+            print("[*] Analyzing installed apps to extract commercial names...")
+            subprocess.run([
+                sys.executable, app_mapper_script,
+                "--create", 
+                "--output", "data/app_mapping.json",
+                "--limit", "50",
+                "--include-system"
+            ], check=True, timeout=120)
+            print("[*] App mapping completed successfully")
+        except subprocess.TimeoutExpired:
+            print("[!] App mapping timed out, continuing without app mapping...")
+        except subprocess.CalledProcessError as e:
+            print(f"[!] App mapping failed: {e}, continuing without app mapping...")
+        except Exception as e:
+            print(f"[!] App mapping error: {e}, continuing without app mapping...")
+    else:
+        print("[!] App mapper script not found, skipping app mapping...")
 else:
-    print("[!] App mapper script not found, skipping app mapping...")
+    print("[*] App mapping already exists and contains data - skipping creation")
 
 # Check if rdevs.txt and regularfiles.txt exist to skip the script
 mapping_dir = "data/mappings"
