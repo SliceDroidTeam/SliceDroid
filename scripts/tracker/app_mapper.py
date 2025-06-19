@@ -222,19 +222,16 @@ class AppMapper:
 
         # Check requirements
         if not self.check_adb_available():
-            print("[!] ADB not available. Install Android SDK tools.")
-            print("[!] Cannot create app mapping without ADB.")
-            return None
+            print("ADB not available. Install Android SDK tools.")
+            return mapping
 
         if not self.check_device_connected():
-            print("[!] No Android device connected.")
-            print("[!] Cannot create app mapping without connected device.")
-            return None
+            print("No Android device connected.")
+            return mapping
 
         if not ANDROGUARD_AVAILABLE:
-            print("[!] androguard not available. Install failed.")
-            print("[!] Cannot create app mapping without androguard.")
-            return None
+            print("androguard not available. Install failed.")
+            return mapping
 
         # Get ONLY user apps from device (third-party apps)
         print("Getting user apps from device...")
@@ -379,12 +376,6 @@ def main():
     elif args.create:
         print("Creating app mapping...")
         mapping = mapper.create_mapping(limit=args.limit, include_system=args.include_system)
-        
-        if mapping is None:
-            print("[!] App mapping creation failed due to missing requirements.")
-            print("[!] No mapping file will be created.")
-            return 1
-        
         mapper.save_mapping(mapping, args.output)
 
         # Show summary
