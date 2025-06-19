@@ -760,22 +760,21 @@ class AdvancedAnalytics:
             return self._fallback_sensitive_analysis(events)
     
     def _check_sensitive_resource(self, event, sensitive_resources):
-        """Check if event accesses a sensitive resource using device+inode matching"""
+        """Check if event accesses a sensitive resource using device ID matching"""
         try:
-            for data_type, resource_info in sensitive_resources.items():
-                # Check if event matches device and inode
-                event_details = event.get('details', {})
-                
-                # Check s_dev_inode (32-bit device ID) and inode
-                if (event_details.get('s_dev_inode') == resource_info.get('st_dev32') and 
-                    event_details.get('inode') == resource_info.get('inode')):
-                    return data_type
-                
-                # Alternative check using k_dev if s_dev_inode not available
-                if (event_details.get('k_dev') == resource_info.get('st_dev32') and 
-                    event_details.get('inode') == resource_info.get('inode')):
-                    return data_type
-                    
+            event_details = event.get('details', {})
+            k_dev = event_details.get('k_dev') or event_details.get('k__dev')
+            
+            if k_dev:
+                for data_type, device_list in sensitive_resources.items():
+                    # Check if device ID matches any in the sensitive category
+                    if str(k_dev) in device_list:
+                        return data_type
+                    # Also check for compound IDs like "124845621 - 5488"
+                    for device_id in device_list:
+                        if ' - ' in device_id and str(k_dev) in device_id:
+                            return data_type
+                            
             return None
             
         except Exception as e:
