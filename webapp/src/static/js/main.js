@@ -1713,6 +1713,83 @@ function renderProtocolDistribution(networkAnalysis) {
         .text(d => d.data.count > 0 ? d.data.name : '');
 }
 
+function renderDataTransferChart(networkAnalysis) {
+    const container = d3.select('#data-transfer-chart');
+    container.selectAll('*').remove();
+    
+    if (!networkAnalysis || !networkAnalysis.data_transfer) {
+        container.append('div')
+            .attr('class', 'alert alert-info')
+            .text('No data transfer information available');
+        return;
+    }
+    
+    const data = networkAnalysis.data_transfer;
+    const margin = {top: 20, right: 30, bottom: 40, left: 50};
+    const width = 400 - margin.left - margin.right;
+    const height = 280 - margin.top - margin.bottom;
+    
+    const svg = container.append('svg')
+        .attr('width', width + margin.left + margin.right)
+        .attr('height', height + margin.top + margin.bottom);
+        
+    const g = svg.append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+    
+    // Prepare data for chart
+    const chartData = [
+        {protocol: 'TCP Sent', value: data.tcp?.sent_mb || 0, color: '#007bff'},
+        {protocol: 'TCP Received', value: data.tcp?.received_mb || 0, color: '#17a2b8'},
+        {protocol: 'UDP Sent', value: data.udp?.sent_mb || 0, color: '#28a745'},
+        {protocol: 'UDP Received', value: data.udp?.received_mb || 0, color: '#6c757d'}
+    ];
+    
+    const maxValue = d3.max(chartData, d => d.value) || 1;
+    
+    const xScale = d3.scaleBand()
+        .domain(chartData.map(d => d.protocol))
+        .range([0, width])
+        .padding(0.1);
+        
+    const yScale = d3.scaleLinear()
+        .domain([0, maxValue])
+        .range([height, 0]);
+    
+    // Add bars
+    g.selectAll('.bar')
+        .data(chartData)
+        .enter().append('rect')
+        .attr('class', 'bar')
+        .attr('x', d => xScale(d.protocol))
+        .attr('width', xScale.bandwidth())
+        .attr('y', d => yScale(d.value))
+        .attr('height', d => height - yScale(d.value))
+        .attr('fill', d => d.color);
+    
+    // Add x axis
+    g.append('g')
+        .attr('transform', `translate(0,${height})`)
+        .call(d3.axisBottom(xScale))
+        .selectAll('text')
+        .style('font-size', '10px');
+    
+    // Add y axis
+    g.append('g')
+        .call(d3.axisLeft(yScale))
+        .selectAll('text')
+        .style('font-size', '10px');
+        
+    // Add y axis label
+    g.append('text')
+        .attr('transform', 'rotate(-90)')
+        .attr('y', 0 - margin.left)
+        .attr('x', 0 - (height / 2))
+        .attr('dy', '1em')
+        .style('text-anchor', 'middle')
+        .style('font-size', '12px')
+        .text('Data (MB)');
+}
+
 function renderConnectionTables(networkAnalysis) {
     console.log('Rendering connection tables with data:', networkAnalysis);
     

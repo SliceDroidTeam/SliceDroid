@@ -927,6 +927,13 @@ def analyze_app():
 
         # Use the main PID (first one found) for slicing
         target_pid = app_pids[0]
+        
+        # Get process name for display
+        target_process_name = "Unknown"
+        for event in events:
+            if event.get('tgid') == target_pid:
+                target_process_name = event.get('process', 'Unknown')
+                break
 
         # Generate process targets file automatically
         app_mapper.export_process_targets([app_id])
@@ -947,6 +954,7 @@ def analyze_app():
             'success': True,
             'app_name': app_display_name,
             'target_pid': target_pid,
+            'target_process_name': target_process_name,
             'pids': app_pids,
             'events_count': len(sliced_events),
             'message': f'Analysis complete for {app_display_name}. Found {len(sliced_events)} relevant events.'

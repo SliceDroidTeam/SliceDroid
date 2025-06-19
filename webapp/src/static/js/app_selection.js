@@ -148,7 +148,7 @@ function analyzeApp() {
                         <i class="fas fa-check-circle me-2"></i>
                         <span>
                             <strong>Analysis complete for ${analysisData.app_name}</strong><br>
-                            <small>Process targets: ${processTargets.join(', ')} | Target PID: ${analysisData.target_pid} | Events: ${analysisData.events_count}</small><br>
+                            <small>Process targets: ${processTargets.join(', ')} | Target Process: ${analysisData.target_process_name} | Events: ${analysisData.events_count}</small><br>
                             <small><i class="fas fa-sync fa-spin me-1"></i>Refreshing charts...</small>
                         </span>
                     `);
