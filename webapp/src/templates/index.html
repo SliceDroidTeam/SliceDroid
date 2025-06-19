@@ -235,6 +235,138 @@
                     </div>
                 </div>
 
+                <!-- Advanced Analytics -->
+                <div class="feature-card analysis-only" style="display: none;">
+                    <div class="card-header-custom">
+                        <div class="card-title-section">
+                            <div class="card-icon">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            <h2 class="card-title">Advanced Analytics</h2>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#analytics-config">
+                                <i class="fas fa-cog"></i> Configure
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Configuration Panel -->
+                    <div class="collapse mb-4" id="analytics-config">
+                        <div class="professional-card p-3">
+                            <h6><i class="fas fa-sliders-h"></i> Analysis Parameters</h6>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <label class="form-label">Window Size</label>
+                                    <input type="number" class="form-control form-control-modern" id="analytics-window-size" value="1000" min="100" max="5000">
+                                    <small class="text-muted">Events per window</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Overlap</label>
+                                    <input type="number" class="form-control form-control-modern" id="analytics-overlap" value="200" min="0" max="1000">
+                                    <small class="text-muted">Window overlap</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Target PID</label>
+                                    <select class="form-control form-control-modern" id="analytics-target-pid">
+                                        <option value="">Auto-detect</option>
+                                        {% for pid in pids %}
+                                        <option value="{{ pid }}">PID {{ pid }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button type="button" class="btn btn-primary btn-sm" id="apply-analytics-config">
+                                        <i class="fas fa-play"></i> Run Analysis
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="analytics-loading" class="text-center p-5" style="display: none;">
+                        <div class="loading-spinner mx-auto mb-3"></div>
+                        <h5>Processing Statistical Analysis...</h5>
+                        <p class="text-muted">This may take a few moments</p>
+                    </div>
+
+                    <div id="analytics-content" style="display: none;">
+                        <!-- Summary Cards -->
+                        <div class="row mb-4" id="analytics-summary">
+                            <!-- Summary cards will be populated by JavaScript -->
+                        </div>
+
+                        <!-- Behavior Timeline - Full Width -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="feature-card">
+                                    <div class="card-header-custom">
+                                        <div class="card-title-section">
+                                            <div class="card-icon">
+                                                <i class="fas fa-chart-line"></i>
+                                            </div>
+                                            <h2 class="card-title">Behavior Timeline</h2>
+                                        </div>
+                                        <div class="btn-group" role="group">
+                                            <button id="behavior-zoom-in" class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-search-plus"></i> Zoom In
+                                            </button>
+                                            <button id="behavior-zoom-out" class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-search-minus"></i> Zoom Out
+                                            </button>
+                                            <button id="behavior-reset-zoom" class="btn btn-outline-secondary btn-sm">
+                                                <i class="fas fa-expand-arrows-alt"></i> Reset
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="timeline-container">
+                                        <div id="behavior-timeline-chart" style="height: 300px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Charts Section -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-chart-pie"></i> Category Distribution</h6>
+                                    <div id="category-chart" style="height: 400px; display: flex; align-items: center; justify-content: center;"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-network-wired"></i> Network Activity</h6>
+                                    <div id="network-chart" style="height: 400px;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-hdd"></i> Device Usage</h6>
+                                    <div id="device-usage-chart"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-cogs"></i> Process Activity</h6>
+                                    <div id="process-activity-chart"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detailed Insights -->
+                        <div class="professional-card p-3">
+                            <h6><i class="fas fa-lightbulb"></i> Detailed Analysis</h6>
+                            <div id="detailed-insights"></div>
+                        </div>
+                    </div>
+
+                    <div id="analytics-error" class="alert alert-danger" style="display: none;"></div>
+                </div>
 
                 <!-- Network Analysis Dashboard -->
                 <div class="feature-card analysis-only" style="display: none;">
@@ -382,139 +514,6 @@
                     <div id="process-error" class="alert alert-info" style="display: block;">
                         Upload a trace file to view process analysis
                     </div>
-                </div>
-
-                <!-- Advanced Analytics -->
-                <div class="feature-card analysis-only" style="display: none;">
-                    <div class="card-header-custom">
-                        <div class="card-title-section">
-                            <div class="card-icon">
-                                <i class="fas fa-chart-bar"></i>
-                            </div>
-                            <h2 class="card-title">Advanced Analytics</h2>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#analytics-config">
-                                <i class="fas fa-cog"></i> Configure
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Configuration Panel -->
-                    <div class="collapse mb-4" id="analytics-config">
-                        <div class="professional-card p-3">
-                            <h6><i class="fas fa-sliders-h"></i> Analysis Parameters</h6>
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <label class="form-label">Window Size</label>
-                                    <input type="number" class="form-control form-control-modern" id="analytics-window-size" value="1000" min="100" max="5000">
-                                    <small class="text-muted">Events per window</small>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Overlap</label>
-                                    <input type="number" class="form-control form-control-modern" id="analytics-overlap" value="200" min="0" max="1000">
-                                    <small class="text-muted">Window overlap</small>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Target PID</label>
-                                    <select class="form-control form-control-modern" id="analytics-target-pid">
-                                        <option value="">Auto-detect</option>
-                                        {% for pid in pids %}
-                                        <option value="{{ pid }}">PID {{ pid }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-3 d-flex align-items-end">
-                                    <button type="button" class="btn btn-primary btn-sm" id="apply-analytics-config">
-                                        <i class="fas fa-play"></i> Run Analysis
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="analytics-loading" class="text-center p-5" style="display: none;">
-                        <div class="loading-spinner mx-auto mb-3"></div>
-                        <h5>Processing Statistical Analysis...</h5>
-                        <p class="text-muted">This may take a few moments</p>
-                    </div>
-
-                    <div id="analytics-content" style="display: none;">
-                        <!-- Summary Cards -->
-                        <div class="row mb-4" id="analytics-summary">
-                            <!-- Summary cards will be populated by JavaScript -->
-                        </div>
-
-                        <!-- Behavior Timeline - Full Width -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <div class="feature-card">
-                                    <div class="card-header-custom">
-                                        <div class="card-title-section">
-                                            <div class="card-icon">
-                                                <i class="fas fa-chart-line"></i>
-                                            </div>
-                                            <h2 class="card-title">Behavior Timeline</h2>
-                                        </div>
-                                        <div class="btn-group" role="group">
-                                            <button id="behavior-zoom-in" class="btn btn-outline-primary btn-sm">
-                                                <i class="fas fa-search-plus"></i> Zoom In
-                                            </button>
-                                            <button id="behavior-zoom-out" class="btn btn-outline-primary btn-sm">
-                                                <i class="fas fa-search-minus"></i> Zoom Out
-                                            </button>
-                                            <button id="behavior-reset-zoom" class="btn btn-outline-secondary btn-sm">
-                                                <i class="fas fa-expand-arrows-alt"></i> Reset
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div class="timeline-container">
-                                        <div id="behavior-timeline-chart" style="height: 300px;"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Charts Section -->
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="professional-card p-3">
-                                    <h6><i class="fas fa-chart-pie"></i> Category Distribution</h6>
-                                    <div id="category-chart" style="height: 400px; display: flex; align-items: center; justify-content: center;"></div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="professional-card p-3">
-                                    <h6><i class="fas fa-network-wired"></i> Network Activity</h6>
-                                    <div id="network-chart" style="height: 400px;"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="professional-card p-3">
-                                    <h6><i class="fas fa-hdd"></i> Device Usage</h6>
-                                    <div id="device-usage-chart"></div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="professional-card p-3">
-                                    <h6><i class="fas fa-cogs"></i> Process Activity</h6>
-                                    <div id="process-activity-chart"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Detailed Insights -->
-                        <div class="professional-card p-3">
-                            <h6><i class="fas fa-lightbulb"></i> Detailed Analysis</h6>
-                            <div id="detailed-insights"></div>
-                        </div>
-                    </div>
-
-                    <div id="analytics-error" class="alert alert-danger" style="display: none;"></div>
                 </div>
 
                 <!-- Statistics Grid -->

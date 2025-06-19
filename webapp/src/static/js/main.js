@@ -474,6 +474,12 @@ function renderBehaviorTimeline(analysisData) {
     // Clear existing content
     container.innerHTML = '';
 
+    // First check if we have valid analysis data
+    if (!analysisData || typeof analysisData !== 'object') {
+        container.innerHTML = '<div class="alert alert-info">No analysis data available. Please analyze an app first.</div>';
+        return;
+    }
+
     // Extract comprehensive analytics data (from SliceDroid reconstruction)
     const comprehensiveAnalytics = analysisData.comprehensive_analytics;
     
@@ -533,6 +539,8 @@ function renderBehaviorTimeline(analysisData) {
 
 // Separate function to process behavior timeline data
 function processBehaviorTimelineData(kdevsTrace, tcpTrace, sensitiveTrace, dev2cat) {
+    const container = document.getElementById('behavior-timeline-chart');
+    if (!container) return;
 
     // Create behavior timeline from window data (similar to legacy code)
     behaviorTimelineData = [];
@@ -1902,6 +1910,9 @@ function renderConnectionTables(networkAnalysis) {
 }
 
 function renderTcpConnections(networkAnalysis) {
+    console.log('renderTcpConnections called with:', networkAnalysis);
+    console.log('TCP connections data:', networkAnalysis?.tcp_connections);
+    
     if (networkAnalysis && networkAnalysis.tcp_connections && networkAnalysis.tcp_connections.length > 0) {
         let tcpHtml = '<div class="table-responsive" style="max-height: 300px; overflow-y: auto;"><table class="table table-sm table-striped">';
         tcpHtml += '<thead class="table-dark sticky-top"><tr><th>Time</th><th>Direction</th><th>Source</th><th>Destination</th><th>Size</th><th>Process</th></tr></thead><tbody>';

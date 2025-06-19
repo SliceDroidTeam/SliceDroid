@@ -341,8 +341,11 @@ class ComprehensiveAnalyzer:
         try:
             cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs.txt'
             if cat2devs_file.exists():
+                self.logger.info(f"Loading device category mapping from: {cat2devs_file}")
                 with open(cat2devs_file, 'r') as f:
                     category_mapping = json.load(f)
+                
+                self.logger.info(f"Successfully loaded device category mapping with {len(category_mapping)} categories")
                 
                 # Extract sensitive categories for analysis
                 sensitive_resources = {}
@@ -355,8 +358,12 @@ class ComprehensiveAnalyzer:
                     else:
                         self.logger.warning(f"Category '{category}' not found in cat2devs.txt")
             else:
+                self.logger.warning(f"Device category mapping file not found: {cat2devs_file}")
                 sensitive_resources = {}
-        except:
+        except Exception as e:
+            self.logger.error(f"Error loading device category mapping: {str(e)}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
             sensitive_resources = {}
         
         # Detect all sensitive events first
@@ -701,7 +708,9 @@ class ComprehensiveAnalyzer:
                 cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs.txt'
             
             if cat2devs_file.exists():
+                self.logger.info(f"Loading device categories for stats from: {cat2devs_file}")
                 cat2devs = myutils.load_file(str(cat2devs_file))
+                self.logger.info(f"Loaded {len(cat2devs)} device categories for stats")
                 dev2cat = {}
                 for cat, devs in cat2devs.items():
                     for dev in devs:
@@ -709,8 +718,12 @@ class ComprehensiveAnalyzer:
                         dev2cat[dev] = cat
                         dev2cat[str(dev)] = cat
             else:
+                self.logger.warning(f"Device category file not found: {cat2devs_file}")
                 dev2cat = {}
-        except:
+        except Exception as e:
+            self.logger.error(f"Error loading device categories for stats: {str(e)}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
             dev2cat = {}
         
         # Calculate category statistics
