@@ -103,7 +103,6 @@ class AppMapper:
     def get_app_label(self, package_name: str) -> Optional[str]:
         """Extract commercial name from APK using androguard (optimized & silent)"""
         if not ANDROGUARD_AVAILABLE:
-            print(f"    DEBUG: Androguard not available for {package_name}")
             return None
 
         temp_apk = None
@@ -111,11 +110,10 @@ class AppMapper:
             # Get APK path from device
             result = subprocess.run(
                 ["adb", "shell", "pm", "path", package_name],
-                capture_output=True, text=True, timeout=10
+                capture_output=True, text=True, timeout=10, stderr=subprocess.DEVNULL
             )
 
             if result.returncode != 0:
-                print(f"    DEBUG: PM path failed for {package_name}: {result.stderr}")
                 return None
 
             # Find APK path
@@ -126,10 +124,7 @@ class AppMapper:
                     break
 
             if not device_apk_path:
-                print(f"    DEBUG: No APK path found for {package_name}")
                 return None
-
-            print(f"    DEBUG: Found APK path for {package_name}: {device_apk_path}")
 
             # Pull APK to temporary file (silently)
             temp_apk = tempfile.NamedTemporaryFile(suffix=".apk", delete=False)
@@ -137,14 +132,11 @@ class AppMapper:
 
             pull_result = subprocess.run(
                 ["adb", "pull", device_apk_path, temp_apk.name],
-                capture_output=True, timeout=15
+                capture_output=True, timeout=15, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL
             )
 
             if pull_result.returncode != 0:
-                print(f"    DEBUG: APK pull failed for {package_name}: {pull_result.stderr}")
                 return None
-
-            print(f"    DEBUG: APK pulled successfully for {package_name}")
 
             # Analyze APK with androguard (suppress all logging)
             import logging
@@ -157,10 +149,6 @@ class AppMapper:
             try:
                 apk = APK(temp_apk.name)
                 app_label = apk.get_app_name()
-                if app_label:
-                    print(f"    DEBUG: Found label for {package_name}: {app_label}")
-                else:
-                    print(f"    DEBUG: No label found for {package_name}")
                 return app_label if app_label else None
             finally:
                 # Re-enable logging
@@ -168,7 +156,6 @@ class AppMapper:
                 warnings.resetwarnings()
 
         except Exception as e:
-            print(f"    DEBUG: Exception for {package_name}: {e}")
             return None
         finally:
             # Cleanup temporary file

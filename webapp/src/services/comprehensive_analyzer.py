@@ -412,7 +412,7 @@ class ComprehensiveAnalyzer:
                     filtered = self._is_filtered_device(e)
                     if not filtered:
                         kdev = e['details'].get('k_dev') or e['details'].get('k__dev')
-                        pathname = e['details']['pathname']
+                        pathname = e['details'].get('pathname', 'unknown')
                         if kdev not in kdev2count_window:
                             kdev2count_window[kdev] = 1
                         else:
