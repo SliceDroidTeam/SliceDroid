@@ -613,13 +613,15 @@ def upload_trace():
                 final_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'uploaded_trace.trace'
                 shutil.move(temp_file_path, final_path)
 
-                # Process with optimizations
-                result = trace_processor.process_trace_file(str(final_path), progress_callback)
+                # Skip automatic processing - only process when user analyzes specific app
+                result = {
+                    'success': True,
+                    'message': 'Trace file uploaded successfully. Select an app to analyze.',
+                    'csv_file': 'data/Exports/processed_events.csv',
+                    'json_file': 'data/Exports/processed_events.json'
+                }
                 upload_progress[upload_id]['result'] = result
                 upload_progress[upload_id]['completed'] = True
-
-                if not result['success']:
-                    upload_progress[upload_id]['error'] = result.get('error', 'Unknown error')
 
             except Exception as e:
                 upload_progress[upload_id]['error'] = str(e)

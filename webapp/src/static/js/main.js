@@ -19,7 +19,7 @@ $(document).ready(function() {
     // Load configuration first, then data
     loadConfiguration().then(function() {
         updateAppStatus('success', 'System Ready');
-        loadAllData();
+        // Skip loading trace data automatically
         setupEventListeners();
         
         // Initialize upload functionality
@@ -32,7 +32,7 @@ $(document).ready(function() {
         updateAppStatus('warning', 'Fallback Mode');
         // Use fallback configuration
         setFallbackConfiguration();
-        loadAllData();
+        // Skip loading trace data automatically
         setupEventListeners();
         
         // Initialize upload functionality

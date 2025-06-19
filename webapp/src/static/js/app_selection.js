@@ -140,6 +140,9 @@ function analyzeApp() {
                 // Mark this app as analyzed
                 lastAnalyzedApp = selectedApp;
                 
+                // Show all analysis sections
+                $('.analysis-only').show();
+                
                 $('#app-status').removeClass('alert-info alert-warning alert-danger').addClass('alert-success')
                     .html(`
                         <i class="fas fa-check-circle me-2"></i>
