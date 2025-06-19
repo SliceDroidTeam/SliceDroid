@@ -600,12 +600,12 @@ function processBehaviorTimelineData(kdevsTrace, tcpTrace, sensitiveTrace, dev2c
         
         // Add sensitive data events for this window
         Object.keys(sensitiveTrace).forEach(sensitiveType => {
-            if (sensitiveTrace[sensitiveType] && sensitiveTrace[sensitiveType].length > 0) {
-                // Check if any sensitive events are in this window range
-                const windowEvents = sensitiveTrace[sensitiveType].filter(event => {
-                    // This is a simplified check - in production you'd need proper window bounds
-                    return Math.floor(Math.random() * kdevsTrace.length) === windowIndex;
-                });
+            if (sensitiveTrace[sensitiveType] && 
+                sensitiveTrace[sensitiveType][windowIndex] && 
+                sensitiveTrace[sensitiveType][windowIndex].length > 0) {
+                
+                // Get the actual sensitive events for this specific window
+                const windowEvents = sensitiveTrace[sensitiveType][windowIndex];
                 
                 if (windowEvents.length > 0) {
                     behaviorTimelineData.push({

@@ -351,6 +351,9 @@ class ComprehensiveAnalyzer:
                     if category in category_mapping:
                         # Convert all device IDs to strings for consistent comparison
                         sensitive_resources[category] = [str(dev) for dev in category_mapping[category]]
+                        self.logger.info(f"Loaded {len(sensitive_resources[category])} device IDs for {category}: {sensitive_resources[category][:3]}...")
+                    else:
+                        self.logger.warning(f"Category '{category}' not found in cat2devs.txt")
             else:
                 sensitive_resources = {}
         except:
@@ -363,10 +366,15 @@ class ComprehensiveAnalyzer:
                 if sensitive_type:
                     all_sensitive_events[sensitive_type].append(event)
             
-            # Log detection results
+            # Log detection results with details
             for data_type, events_list in all_sensitive_events.items():
                 if events_list:
                     self.logger.info(f"Access to {data_type} detected! Found {len(events_list)} events.")
+                    # Log sample of events for verification
+                    for i, event in enumerate(events_list[:3]):  # Show first 3 events
+                        device_id = self._get_device_identifier(event)
+                        pathname = event.get('details', {}).get('pathname', 'unknown')
+                        self.logger.info(f"  Sample {i+1}: Device {device_id}, Path: {pathname}, Event: {event.get('event', 'unknown')}")
                 else:
                     self.logger.info(f"No access to {data_type} detected in this trace.")
         
@@ -405,10 +413,16 @@ class ComprehensiveAnalyzer:
                 
                 # Detect sensitive data in this window
                 if sensitive_resources:
+                    sensitive_events_in_window = 0
                     for event in window:
                         _, sensitive_type = self._is_filtered_sensitive(event, sensitive_resources, True)
                         if sensitive_type:
                             window_sensitive[sensitive_type].append(event)
+                            sensitive_events_in_window += 1
+                    
+                    # Log window-level detection for debugging
+                    if sensitive_events_in_window > 0:
+                        self.logger.debug(f"Window {window_count}: Found {sensitive_events_in_window} sensitive events")
                     
                     for data_type in sensitive_data_trace:
                         sensitive_data_trace[data_type].append(window_sensitive[data_type])
@@ -479,11 +493,14 @@ class ComprehensiveAnalyzer:
         """Convert sets and other non-serializable objects to JSON-serializable format"""
         if isinstance(obj, set):
             return list(obj)
-        elif isinstance(obj, dict):
+        elif isinstance(obj, (dict, defaultdict)):
             # Convert ALL keys to strings to prevent mixed int/str key errors during JSON serialization
             return {str(key): self._make_json_serializable(value) for key, value in obj.items()}
         elif isinstance(obj, list):
             return [self._make_json_serializable(item) for item in obj]
+        elif hasattr(obj, '__dict__'):
+            # Handle objects with attributes
+            return self._make_json_serializable(obj.__dict__)
         else:
             return obj
     
@@ -505,23 +522,35 @@ class ComprehensiveAnalyzer:
         
         if track_sensitive and sensitive_resources and 'details' in e:
             try:
+                # Only check events that are actual file/device access operations
+                if e['event'] not in ['read_probe', 'write_probe', 'ioctl_probe']:
+                    if not track_sensitive:
+                        return filtered
+                    return filtered, None
+                
                 # Get the appropriate device identifier
                 device_id = self._get_device_identifier(e)
                 if device_id:
+                    # Log device ID for debugging
+                    self.logger.debug(f"Checking device ID: {device_id} for event {e['event']} on path {e['details'].get('pathname', 'unknown')}")
+                    
                     for dtype in ['contacts', 'sms', 'calendar', 'callogger']:
                         if dtype in sensitive_resources:
                             device_list = sensitive_resources[dtype]
-                            # Check if device ID matches any in the sensitive category
-                            if str(device_id) in device_list:
-                                # Map callogger to call_logs for consistency with rest of system
-                                sensitive_type = 'call_logs' if dtype == 'callogger' else dtype
-                                break
-                            # Also check for compound IDs like "124845621 - 5488"
-                            for device_entry in device_list:
-                                if str(device_id) == str(device_entry):
-                                    # Map callogger to call_logs for consistency with rest of system
+                            # Exact string match for device identifiers
+                            device_id_str = str(device_id)
+                            
+                            # Check direct match in device list
+                            if device_id_str in device_list:
+                                # Verify this is actually accessing sensitive data, not just any file on same device
+                                pathname = e['details'].get('pathname', '').lower()
+                                if self._is_legitimate_sensitive_access(pathname, dtype):
                                     sensitive_type = 'call_logs' if dtype == 'callogger' else dtype
+                                    self.logger.info(f"Confirmed sensitive access: {dtype} via device {device_id_str} path {pathname}")
                                     break
+                                else:
+                                    self.logger.debug(f"Device {device_id_str} matches {dtype} but path {pathname} doesn't seem to be sensitive data")
+                            
                             if sensitive_type:
                                 break
             except Exception as ex:
@@ -531,6 +560,48 @@ class ComprehensiveAnalyzer:
             return filtered
         
         return filtered, sensitive_type
+    
+    def _is_legitimate_sensitive_access(self, pathname, data_type):
+        """
+        Validate that the pathname actually represents access to sensitive data
+        This helps prevent false positives from regular files on the same device
+        """
+        if not pathname:
+            return False
+            
+        pathname_lower = pathname.lower()
+        
+        # Define sensitive patterns for each data type
+        sensitive_patterns = {
+            'contacts': ['contacts2.db', 'contacts.db', 'people.db', '/contacts/', 'addressbook'],
+            'sms': ['mmssms.db', 'sms.db', 'mms.db', '/sms/', '/messages/', 'telephony.db'],
+            'calendar': ['calendar.db', 'calendarconfig.db', '/calendar/', 'events.db'],
+            'callogger': ['calllog.db', 'calls.db', '/calllog/', 'call_log.db'],
+            'call_logs': ['calllog.db', 'calls.db', '/calllog/', 'call_log.db']
+        }
+        
+        # Check if pathname contains sensitive patterns for this data type
+        patterns = sensitive_patterns.get(data_type, [])
+        for pattern in patterns:
+            if pattern in pathname_lower:
+                return True
+        
+        # Additional check for Android provider URIs or database files
+        if data_type == 'contacts' and ('com.android.contacts' in pathname_lower or 'contacts' in pathname_lower):
+            return True
+        elif data_type == 'sms' and ('com.android.providers.telephony' in pathname_lower or 'telephony' in pathname_lower):
+            return True
+        elif data_type == 'calendar' and ('com.android.providers.calendar' in pathname_lower or 'calendar' in pathname_lower):
+            return True
+        elif data_type in ['callogger', 'call_logs'] and ('calllog' in pathname_lower or 'calls' in pathname_lower):
+            return True
+        
+        # If pathname is just a device node like '/dev/something', it might not be sensitive data
+        if pathname_lower.startswith('/dev/') and data_type not in pathname_lower:
+            return False
+            
+        # Default to false for unrecognized patterns to reduce false positives
+        return False
     
     def _is_filtered_device(self, e):
         """Check if event should be filtered for device analysis"""

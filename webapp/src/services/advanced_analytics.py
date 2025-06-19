@@ -85,11 +85,14 @@ class AdvancedAnalytics:
         """Convert sets and other non-serializable objects to JSON-serializable format"""
         if isinstance(obj, set):
             return list(obj)
-        elif isinstance(obj, dict):
+        elif isinstance(obj, (dict, defaultdict, Counter)):
             # Convert ALL keys to strings to prevent mixed int/str key errors during JSON serialization
             return {str(key): self._make_json_serializable(value) for key, value in obj.items()}
         elif isinstance(obj, list):
             return [self._make_json_serializable(item) for item in obj]
+        elif hasattr(obj, '__dict__'):
+            # Handle objects with attributes
+            return self._make_json_serializable(obj.__dict__)
         else:
             return obj
     
@@ -762,6 +765,14 @@ class AdvancedAnalytics:
                     if sensitive_type:
                         sensitive_access[sensitive_type] += 1
             
+            # Log detection results for verification
+            self.logger.info(f"Sensitive data detection results:")
+            for data_type, count in sensitive_access.items():
+                if count > 0:
+                    self.logger.info(f"  {data_type}: {count} events detected")
+                else:
+                    self.logger.debug(f"  {data_type}: No events detected")
+            
             # Fallback to pathname patterns for additional categories
             self._add_pathname_based_detection(events, sensitive_access)
             
@@ -775,28 +786,76 @@ class AdvancedAnalytics:
             return self._fallback_sensitive_analysis(events)
     
     def _check_sensitive_resource(self, event, sensitive_resources):
-        """Check if event accesses a sensitive resource using device ID matching"""
+        """Check if event accesses a sensitive resource using device ID matching with pathname validation"""
         try:
+            # Only check events that are actual file/device access operations
+            if event.get('event', '') not in ['read_probe', 'write_probe', 'ioctl_probe']:
+                return None
+            
             # Get the appropriate device identifier
             device_id = self._get_device_identifier(event)
             
             if device_id:
                 for data_type, device_list in sensitive_resources.items():
                     # Check if device ID matches any in the sensitive category
-                    if str(device_id) in device_list:
-                        # Map callogger to call_logs for consistency with rest of system
-                        return 'call_logs' if data_type == 'callogger' else data_type
-                    # Also check for exact matches with compound IDs like "124845621 - 5488"
-                    for device_entry in device_list:
-                        if str(device_id) == str(device_entry):
-                            # Map callogger to call_logs for consistency with rest of system
-                            return 'call_logs' if data_type == 'callogger' else data_type
+                    device_id_str = str(device_id)
+                    if device_id_str in device_list:
+                        # Verify this is actually accessing sensitive data, not just any file on same device
+                        pathname = event.get('details', {}).get('pathname', '').lower()
+                        if self._is_legitimate_sensitive_access(pathname, data_type):
+                            mapped_type = 'call_logs' if data_type == 'callogger' else data_type
+                            self.logger.debug(f"Confirmed sensitive access: {mapped_type} via device {device_id_str} path {pathname}")
+                            return mapped_type
+                        else:
+                            self.logger.debug(f"Device {device_id_str} matches {data_type} but path {pathname} doesn't appear to be sensitive data")
                             
             return None
             
         except Exception as e:
             self.logger.warning(f"Error checking sensitive resource: {str(e)}")
             return None
+    
+    def _is_legitimate_sensitive_access(self, pathname, data_type):
+        """
+        Validate that the pathname actually represents access to sensitive data
+        This helps prevent false positives from regular files on the same device
+        """
+        if not pathname:
+            return False
+            
+        pathname_lower = pathname.lower()
+        
+        # Define sensitive patterns for each data type
+        sensitive_patterns = {
+            'contacts': ['contacts2.db', 'contacts.db', 'people.db', '/contacts/', 'addressbook'],
+            'sms': ['mmssms.db', 'sms.db', 'mms.db', '/sms/', '/messages/', 'telephony.db'],
+            'calendar': ['calendar.db', 'calendarconfig.db', '/calendar/', 'events.db'],
+            'callogger': ['calllog.db', 'calls.db', '/calllog/', 'call_log.db'],
+            'call_logs': ['calllog.db', 'calls.db', '/calllog/', 'call_log.db']
+        }
+        
+        # Check if pathname contains sensitive patterns for this data type
+        patterns = sensitive_patterns.get(data_type, [])
+        for pattern in patterns:
+            if pattern in pathname_lower:
+                return True
+        
+        # Additional check for Android provider URIs or database files
+        if data_type == 'contacts' and ('com.android.contacts' in pathname_lower or 'contacts' in pathname_lower):
+            return True
+        elif data_type == 'sms' and ('com.android.providers.telephony' in pathname_lower or 'telephony' in pathname_lower):
+            return True
+        elif data_type == 'calendar' and ('com.android.providers.calendar' in pathname_lower or 'calendar' in pathname_lower):
+            return True
+        elif data_type in ['callogger', 'call_logs'] and ('calllog' in pathname_lower or 'calls' in pathname_lower):
+            return True
+        
+        # If pathname is just a device node like '/dev/something', it might not be sensitive data
+        if pathname_lower.startswith('/dev/') and data_type not in pathname_lower:
+            return False
+            
+        # Default to false for unrecognized patterns to reduce false positives
+        return False
     
     def _get_device_identifier(self, e):
         """Get device identifier - use stdev+inode for regular files, kdev for device nodes"""
@@ -837,25 +896,28 @@ class AdvancedAnalytics:
                         sensitive_access[category] += 1
     
     def _fallback_sensitive_analysis(self, events):
-        """Fallback analysis using only pathname patterns"""
+        """Fallback analysis using only specific pathname patterns to avoid false positives"""
+        # More conservative patterns to reduce false positives
         sensitive_patterns = {
-            'contacts': ['contacts', 'people', 'addressbook'],
-            'sms': ['sms', 'messages', 'mms'],
-            'calendar': ['calendar', 'events'],
-            'call_logs': ['calls', 'calllog'],
-            'location': ['gps', 'location', 'gnss'],
-            'camera': ['camera', 'picture', 'photo'],
-            'microphone': ['audio', 'mic', 'sound']
+            'contacts': ['contacts2.db', 'contacts.db', 'people.db', 'com.android.contacts'],
+            'sms': ['mmssms.db', 'sms.db', 'telephony.db', 'com.android.providers.telephony'],
+            'calendar': ['calendar.db', 'calendarconfig.db', 'com.android.providers.calendar'],
+            'call_logs': ['calllog.db', 'calls.db', 'call_log.db'],
         }
         
         sensitive_access = defaultdict(int)
         
         for event in events:
-            if 'details' in event and 'pathname' in event['details']:
+            # Only check file access events to avoid counting unrelated events
+            if (event.get('event', '') in ['read_probe', 'write_probe', 'ioctl_probe'] and 
+                'details' in event and 'pathname' in event['details']):
                 pathname = event['details']['pathname'].lower()
                 for category, patterns in sensitive_patterns.items():
+                    # Use stricter matching - require exact database file names or provider URIs
                     if any(pattern in pathname for pattern in patterns):
+                        self.logger.debug(f"Fallback detection: {category} access via pathname {pathname}")
                         sensitive_access[category] += 1
+                        break  # Only count once per event
         
         return {
             'sensitive_data_access': dict(sensitive_access),
