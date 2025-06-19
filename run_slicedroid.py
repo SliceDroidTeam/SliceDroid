@@ -8,6 +8,7 @@ import re
 import urllib.request
 import zipfile
 import shutil
+import argparse
 from pathlib import Path
 
 def check_adb_installed():
@@ -321,3 +322,62 @@ webbrowser.open("http://127.0.0.1:5000")
 
 # Wait for the server to exit before letting the script finish
 server_proc.wait()
+
+# Handle command line arguments
+def handle_args():
+    """Handle command line arguments"""
+    parser = argparse.ArgumentParser(
+        description="SliceDroid - Android Security Analysis Tool",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python run_slicedroid.py                    # Run normal SliceDroid analysis
+  python run_slicedroid.py --network          # Run network traffic aggregator
+  python run_slicedroid.py --network -t 60    # Run network aggregator for 60 seconds
+  python run_slicedroid.py --network -i eth0  # Monitor specific interface
+        """
+    )
+    
+    parser.add_argument('--network', action='store_true',
+                       help='Run network traffic aggregator instead of normal analysis')
+    parser.add_argument('-i', '--interface', default='any',
+                       help='Network interface to monitor (default: any)')
+    parser.add_argument('-t', '--duration', type=int,
+                       help='Network capture duration in seconds')
+    parser.add_argument('-o', '--output',
+                       help='Save network summary to JSON file')
+    
+    args = parser.parse_args()
+    
+    # If network flag is set, run network aggregator instead
+    if args.network:
+        print("\n" + "="*60)
+        print("NETWORK TRAFFIC AGGREGATOR MODE")
+        print("="*60)
+        
+        # Build command for network aggregator
+        aggregator_script = os.path.join("scripts", "network_aggregator.py")
+        cmd = [sys.executable, aggregator_script]
+        
+        if args.interface:
+            cmd.extend(['-i', args.interface])
+        if args.duration:
+            cmd.extend(['-t', str(args.duration)])
+        if args.output:
+            cmd.extend(['-o', args.output])
+        
+        print(f"[*] Running: {' '.join(cmd)}")
+        
+        try:
+            subprocess.run(cmd)
+        except KeyboardInterrupt:
+            print("\n[*] Network aggregation stopped by user")
+        except Exception as e:
+            print(f"[!] Error running network aggregator: {e}")
+        
+        sys.exit(0)
+
+# Check for network flag before running normal flow
+if __name__ == "__main__":
+    handle_args()
+    # Continue with normal execution if no network flag

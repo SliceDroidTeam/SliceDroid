@@ -1225,6 +1225,13 @@ class ComprehensiveAnalyzer:
                     'process': process,
                     'socket': details.get('sk'),
                     'size': details.get('size'),
+                    'size_formatted': details.get('size_formatted'),
+                    'src_ip': details.get('src_ip'),
+                    'src_ip_readable': details.get('src_ip_readable'),
+                    'dst_ip': details.get('dst_ip'),
+                    'dst_ip_readable': details.get('dst_ip_readable'),
+                    'src_port': details.get('src_port'),
+                    'dst_port': details.get('dst_port'),
                     'direction': 'send',
                     'details': details
                 }
@@ -1237,6 +1244,13 @@ class ComprehensiveAnalyzer:
                     'process': process,
                     'socket': details.get('sk'),
                     'len': details.get('len'),
+                    'len_formatted': details.get('len_formatted'),
+                    'src_ip': details.get('src_ip'),
+                    'src_ip_readable': details.get('src_ip_readable'),
+                    'dst_ip': details.get('dst_ip'),
+                    'dst_ip_readable': details.get('dst_ip_readable'),
+                    'src_port': details.get('src_port'),
+                    'dst_port': details.get('dst_port'),
                     'direction': 'receive',
                     'details': details
                 }
@@ -1250,6 +1264,13 @@ class ComprehensiveAnalyzer:
                     'process': process,
                     'socket': details.get('sock'),
                     'len': details.get('len'),
+                    'len_formatted': details.get('len_formatted'),
+                    'src_ip': details.get('src_ip'),
+                    'src_ip_readable': details.get('src_ip_readable'),
+                    'dst_ip': details.get('dst_ip'),
+                    'dst_ip_readable': details.get('dst_ip_readable'),
+                    'src_port': details.get('src_port'),
+                    'dst_port': details.get('dst_port'),
                     'direction': 'send',
                     'details': details
                 }
@@ -1262,10 +1283,34 @@ class ComprehensiveAnalyzer:
                     'process': process,
                     'socket': details.get('sk'),
                     'len': details.get('len'),
+                    'len_formatted': details.get('len_formatted'),
+                    'src_ip': details.get('src_ip'),
+                    'src_ip_readable': details.get('src_ip_readable'),
+                    'dst_ip': details.get('dst_ip'),
+                    'dst_ip_readable': details.get('dst_ip_readable'),
+                    'src_port': details.get('src_port'),
+                    'dst_port': details.get('dst_port'),
                     'direction': 'receive',
                     'details': details
                 }
                 network_analysis['udp_communications'].append(udp_recv)
+            
+            # TCP connect events
+            elif event_name == 'tcp_connect':
+                tcp_connect = {
+                    'timestamp': timestamp,
+                    'pid': pid,
+                    'process': process,
+                    'src_ip': details.get('src_ip'),
+                    'src_ip_readable': details.get('src_ip_readable'),
+                    'dst_ip': details.get('dst_ip'),
+                    'dst_ip_readable': details.get('dst_ip_readable'),
+                    'src_port': details.get('src_port'),
+                    'dst_port': details.get('dst_port'),
+                    'direction': 'connect',
+                    'details': details
+                }
+                network_analysis['tcp_connections'].append(tcp_connect)
             
             # Socket state changes
             elif event_name == 'inet_sock_set_state':

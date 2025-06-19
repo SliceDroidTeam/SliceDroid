@@ -1039,6 +1039,23 @@ def export_analysis():
         print(f"Error in export analysis: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
+@app.route('/data/mappings/cat2devs.txt')
+def get_category_mapping():
+    """Serve device category mapping file"""
+    try:
+        mapping_file = app.config_class.PROJECT_ROOT / 'data' / 'mappings' / 'cat2devs.txt'
+        if mapping_file.exists():
+            with open(mapping_file, 'r') as f:
+                content = f.read()
+            response = make_response(content)
+            response.headers['Content-Type'] = 'application/json'
+            return response
+        else:
+            return jsonify({'error': 'Category mapping file not found'}), 404
+    except Exception as e:
+        print(f"Error serving category mapping: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 def preload_trace_file():
     """Check if trace file exists (no automatic processing)"""
     try:

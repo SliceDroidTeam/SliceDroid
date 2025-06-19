@@ -262,33 +262,49 @@
                         </div>
 
                         <!-- Network Flow Visualization -->
-                        <div class="row mb-3">
+                        <div class="row mb-5">
                             <div class="col-md-8">
-                                <div class="professional-card p-3">
+                                <div class="professional-card p-3 pb-4">
                                     <h6><i class="fas fa-project-diagram"></i> Communication Flow</h6>
-                                    <div id="network-flow-chart" style="height: 300px;"></div>
+                                    <div id="network-flow-chart" style="height: 350px;"></div>
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="professional-card p-3">
+                                <div class="professional-card p-3 pb-4">
                                     <h6><i class="fas fa-chart-pie"></i> Protocol Distribution</h6>
-                                    <div id="protocol-distribution-chart" style="height: 300px;"></div>
+                                    <div id="protocol-distribution-chart" style="height: 350px;"></div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Network Details -->
-                        <div class="row">
+                        <div class="row mt-5">
                             <div class="col-md-6">
                                 <div class="professional-card p-3">
-                                    <h6><i class="fas fa-exchange-alt"></i> TCP Connections</h6>
+                                    <h6><i class="fas fa-network-wired"></i> TCP Connections</h6>
                                     <div id="tcp-connections-table"></div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="professional-card p-3">
-                                    <h6><i class="fas fa-broadcast-tower"></i> UDP Communications</h6>
+                                    <h6><i class="fas fa-satellite-dish"></i> UDP Communications</h6>
                                     <div id="udp-communications-table"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Unix Socket Details -->
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-exchange-alt"></i> Unix Stream Connections</h6>
+                                    <div id="unix-stream-table"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="professional-card p-3">
+                                    <h6><i class="fas fa-broadcast-tower"></i> Unix Datagram Communications</h6>
+                                    <div id="unix-datagram-table"></div>
                                 </div>
                             </div>
                         </div>
@@ -336,15 +352,9 @@
                             </div>
                         </div>
 
-                        <!-- Process Timeline -->
+                        <!-- Suspicious Patterns -->
                         <div class="row">
-                            <div class="col-md-8">
-                                <div class="professional-card p-3">
-                                    <h6><i class="fas fa-clock"></i> Execution Timeline</h6>
-                                    <div id="process-timeline-chart" style="height: 250px;"></div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
+                            <div class="col-12">
                                 <div class="professional-card p-3">
                                     <h6><i class="fas fa-exclamation-circle"></i> Suspicious Patterns</h6>
                                     <div id="process-suspicious-patterns"></div>
@@ -455,13 +465,13 @@
                             <div class="col-md-6">
                                 <div class="professional-card p-3">
                                     <h6><i class="fas fa-chart-pie"></i> Category Distribution</h6>
-                                    <div id="category-chart"></div>
+                                    <div id="category-chart" style="height: 400px; display: flex; align-items: center; justify-content: center;"></div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="professional-card p-3">
                                     <h6><i class="fas fa-network-wired"></i> Network Activity</h6>
-                                    <div id="network-chart"></div>
+                                    <div id="network-chart" style="height: 400px;"></div>
                                 </div>
                             </div>
                         </div>
@@ -506,7 +516,7 @@
 
                             <div id="device-chart-container" style="height: 350px; margin-bottom: 1rem;"></div>
 
-                            <div class="table-responsive">
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                                 <table class="table table-modern" id="device-stats-table">
                                     <thead>
                                         <tr>
@@ -537,7 +547,7 @@
 
                             <div id="event-chart-container" style="height: 350px; margin-bottom: 1rem;"></div>
 
-                            <div class="table-responsive">
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                                 <table class="table table-modern" id="event-stats-table">
                                     <thead>
                                         <tr>

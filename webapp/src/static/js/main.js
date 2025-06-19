@@ -492,23 +492,39 @@ function renderBehaviorTimeline(analysisData) {
         return;
     }
 
-    // Load device category mapping (simulated for now)
-    const dev2cat = {
-        // Simulated device to category mapping based on legacy code
-        // These should come from cat2devs.txt file in production
-        // Camera devices
-        264241152: 'camera',
-        264241153: 'camera',
-        // Audio devices  
-        402653184: 'audio_in',
-        402653185: 'audio_in',
-        // Bluetooth devices
-        167772160: 'bluetooth',
-        // NFC devices
-        285212672: 'nfc',
-        // GNSS devices
-        301989888: 'gnss'
-    };
+    // Load device category mapping from file
+    let dev2cat = {};
+    
+    // Load the category mapping asynchronously
+    fetch('/data/mappings/cat2devs.txt')
+        .then(response => response.json())
+        .then(categoryMapping => {
+            // Convert category-to-devices mapping to device-to-category mapping
+            Object.keys(categoryMapping).forEach(category => {
+                categoryMapping[category].forEach(deviceId => {
+                    // Handle both string and numeric device IDs
+                    // For strings like "124845621 - 5421", use the whole string as key
+                    let deviceKey;
+                    if (typeof deviceId === 'string' && deviceId.includes(' - ')) {
+                        deviceKey = deviceId; // Keep compound IDs as strings
+                    } else {
+                        deviceKey = parseInt(deviceId) || deviceId;
+                    }
+                    dev2cat[deviceKey] = category;
+                });
+            });
+            
+            // Now process the timeline data with the loaded mapping
+            processBehaviorTimelineData(kdevsTrace, tcpTrace, sensitiveTrace, dev2cat);
+        })
+        .catch(error => {
+            console.error('Error loading device mapping:', error);
+            container.innerHTML = '<div class="alert alert-warning">Could not load device category mapping. Behavior timeline unavailable.</div>';
+        });
+}
+
+// Separate function to process behavior timeline data
+function processBehaviorTimelineData(kdevsTrace, tcpTrace, sensitiveTrace, dev2cat) {
 
     // Create behavior timeline from window data (similar to legacy code)
     behaviorTimelineData = [];
@@ -519,13 +535,22 @@ function renderBehaviorTimeline(analysisData) {
         
         // Process device events in this window
         Object.keys(kdevWindow).forEach(kdev => {
-            const deviceId = parseInt(kdev);
             const count = kdevWindow[kdev];
             
-            // Map device to category
-            let category = 'other';
-            if (deviceId in dev2cat) {
-                category = dev2cat[deviceId];
+            // Try to map device to category - check both numeric and string forms
+            let category = null;
+            const deviceIdNum = parseInt(kdev);
+            const deviceIdStr = kdev.toString();
+            
+            if (deviceIdNum in dev2cat) {
+                category = dev2cat[deviceIdNum];
+            } else if (deviceIdStr in dev2cat) {
+                category = dev2cat[deviceIdStr];
+            }
+            
+            // Skip unknown devices
+            if (!category) {
+                return;
             }
             
             // Add category to this window if not already present
@@ -538,8 +563,8 @@ function renderBehaviorTimeline(analysisData) {
                     type: 'device',
                     category: category,
                     process: 'system',
-                    details: `${category} Activity (Device ${deviceId}, ${count} events)`,
-                    deviceId: deviceId,
+                    details: `${category} Activity (Device ${kdev}, ${count} events)`,
+                    deviceId: kdev,
                     count: count
                 });
             }
@@ -627,7 +652,7 @@ function renderBehaviorTimelineChart() {
         .attr('transform', `translate(${margin.left},${margin.top})`);
 
     // Define categories and colors for behavior timeline (based on legacy SliceDroid code)
-    const categories = ['camera', 'audio_in', 'TCP', 'bluetooth', 'nfc', 'gnss', 'contacts', 'sms', 'calendar', 'call_logs', 'other'];
+    const categories = ['camera', 'audio_in', 'TCP', 'bluetooth', 'nfc', 'gnss', 'contacts', 'sms', 'calendar', 'call_logs', 'callogger'];
     const categoryColors = {
         'camera': '#007bff',      // Blue
         'audio_in': '#dc3545',    // Red
@@ -639,7 +664,7 @@ function renderBehaviorTimelineChart() {
         'sms': '#ffc107',         // Yellow
         'calendar': '#17a2b8',    // Cyan
         'call_logs': '#6f42c1',   // Purple
-        'other': '#6c757d'        // Grey
+        'callogger': '#8e44ad'    // Dark purple
     };
 
     // Set up scales
@@ -686,7 +711,7 @@ function renderBehaviorTimelineChart() {
         .attr('cx', (d, i) => timeScale(i))
         .attr('cy', d => categoryScale(d.category) + categoryScale.bandwidth() / 2)
         .attr('r', 4)
-        .attr('fill', d => categoryColors[d.category] || categoryColors.other)
+        .attr('fill', d => categoryColors[d.category] || '#6c757d')
         .attr('stroke', '#fff')
         .attr('stroke-width', 1)
         .style('cursor', 'pointer')
@@ -1017,7 +1042,7 @@ function renderAnalyticsCharts(charts, analysisData) {
     renderBehaviorTimeline(analysisData || {})
 
     if (charts.category_distribution) {
-        $('#category-chart').html(`<img src="${charts.category_distribution}" class="img-fluid" alt="Category Distribution">`);
+        $('#category-chart').html(`<img src="${charts.category_distribution}" class="img-fluid" alt="Category Distribution" style="max-height: 350px; max-width: 100%; object-fit: contain;">`);
     } else {
         $('#category-chart').html('<div class="alert alert-info">No category data available</div>');
     }
@@ -1665,12 +1690,150 @@ function renderProtocolDistribution(networkAnalysis) {
 }
 
 function renderConnectionTables(networkAnalysis) {
-    // Show Unix Stream connections (most relevant for this trace data)
+    // 1. Render TCP connections table
+    renderTcpConnections(networkAnalysis);
+    
+    // 2. Render UDP communications table 
+    renderUdpCommunications(networkAnalysis);
+    
+    // 3. Render Unix Stream connections table
+    renderUnixStreamConnections(networkAnalysis);
+    
+    // 4. Render Unix Datagram communications table
+    renderUnixDatagramCommunications(networkAnalysis);
+}
+
+function renderTcpConnections(networkAnalysis) {
+    if (networkAnalysis && networkAnalysis.tcp_connections && networkAnalysis.tcp_connections.length > 0) {
+        let tcpHtml = '<div class="table-responsive" style="max-height: 300px; overflow-y: auto;"><table class="table table-sm table-striped">';
+        tcpHtml += '<thead class="table-dark sticky-top"><tr><th>Time</th><th>Direction</th><th>Source</th><th>Destination</th><th>Size</th><th>Process</th></tr></thead><tbody>';
+        
+        networkAnalysis.tcp_connections.forEach(conn => {
+            const time = new Date(conn.timestamp * 1000).toLocaleTimeString();
+            const directionIcon = conn.direction === 'send' ? '→' : (conn.direction === 'connect' ? '🔗' : '←');
+            const directionBadge = conn.direction === 'send' ? 'bg-primary' : (conn.direction === 'connect' ? 'bg-warning' : 'bg-success');
+            
+            // Use readable IP addresses if available, fallback to raw IPs
+            let srcIP = 'N/A';
+            let dstIP = 'N/A';
+            
+            // Debug logging (only first connection)
+            if (networkAnalysis.tcp_connections.indexOf(conn) === 0) {
+                console.log('TCP Connection sample:', {
+                    src_ip_readable: conn.src_ip_readable,
+                    src_ip: conn.src_ip,
+                    dst_ip_readable: conn.dst_ip_readable,
+                    dst_ip: conn.dst_ip
+                });
+            }
+            
+            if (conn.src_ip_readable) {
+                srcIP = conn.src_ip_readable;
+            } else if (conn.src_ip !== undefined && conn.src_ip !== null) {
+                srcIP = conn.src_ip.toString();
+            }
+            
+            if (conn.dst_ip_readable) {
+                dstIP = conn.dst_ip_readable;
+            } else if (conn.dst_ip !== undefined && conn.dst_ip !== null) {
+                dstIP = conn.dst_ip.toString();
+            }
+            const srcPort = conn.src_port || '';
+            const dstPort = conn.dst_port || '';
+            
+            // Format source and destination with ports
+            const source = srcPort ? `${srcIP}:${srcPort}` : srcIP;
+            const destination = dstPort ? `${dstIP}:${dstPort}` : dstIP;
+            
+            // Use formatted size if available, fallback to raw size, or show "N/A" for connect events
+            const sizeDisplay = conn.direction === 'connect' ? 'N/A' : (conn.size_formatted || conn.len_formatted || `${conn.size || conn.len || 0}B`);
+            
+            tcpHtml += `<tr>
+                <td><small>${time}</small></td>
+                <td><span class="badge ${directionBadge}">${directionIcon} ${conn.direction}</span></td>
+                <td><small><code>${source}</code></small></td>
+                <td><small><code>${destination}</code></small></td>
+                <td><strong>${sizeDisplay}</strong></td>
+                <td><small>${conn.process}</small></td>
+            </tr>`;
+        });
+        
+        tcpHtml += '</tbody></table></div>';
+        tcpHtml += `<small class="text-muted mt-2 d-block">Total: ${networkAnalysis.tcp_connections.length} TCP connections</small>`;
+        $('#tcp-connections-table').html(tcpHtml);
+    } else {
+        $('#tcp-connections-table').html('<div class="alert alert-info">No TCP connections found</div>');
+    }
+}
+
+function renderUdpCommunications(networkAnalysis) {
+    if (networkAnalysis && networkAnalysis.udp_communications && networkAnalysis.udp_communications.length > 0) {
+        let udpHtml = '<div class="table-responsive" style="max-height: 300px; overflow-y: auto;"><table class="table table-sm table-striped">';
+        udpHtml += '<thead class="table-dark sticky-top"><tr><th>Time</th><th>Direction</th><th>Source</th><th>Destination</th><th>Size</th><th>Process</th></tr></thead><tbody>';
+        
+        networkAnalysis.udp_communications.forEach(comm => {
+            const time = new Date(comm.timestamp * 1000).toLocaleTimeString();
+            const directionIcon = comm.direction === 'send' ? '→' : '←';
+            const directionBadge = comm.direction === 'send' ? 'bg-warning' : 'bg-info';
+            
+            // Use readable IP addresses if available, fallback to raw IPs
+            let srcIP = 'N/A';
+            let dstIP = 'N/A';
+            
+            // Debug logging (only first communication)
+            if (networkAnalysis.udp_communications.indexOf(comm) === 0) {
+                console.log('UDP Communication sample:', {
+                    src_ip_readable: comm.src_ip_readable,
+                    src_ip: comm.src_ip,
+                    dst_ip_readable: comm.dst_ip_readable,
+                    dst_ip: comm.dst_ip
+                });
+            }
+            
+            if (comm.src_ip_readable) {
+                srcIP = comm.src_ip_readable;
+            } else if (comm.src_ip !== undefined && comm.src_ip !== null) {
+                srcIP = comm.src_ip.toString();
+            }
+            
+            if (comm.dst_ip_readable) {
+                dstIP = comm.dst_ip_readable;
+            } else if (comm.dst_ip !== undefined && comm.dst_ip !== null) {
+                dstIP = comm.dst_ip.toString();
+            }
+            const srcPort = comm.src_port || '';
+            const dstPort = comm.dst_port || '';
+            
+            // Format source and destination with ports
+            const source = srcPort ? `${srcIP}:${srcPort}` : srcIP;
+            const destination = dstPort ? `${dstIP}:${dstPort}` : dstIP;
+            
+            // Use formatted size if available, fallback to raw size
+            const sizeDisplay = comm.len_formatted || `${comm.len || 0}B`;
+            
+            udpHtml += `<tr>
+                <td><small>${time}</small></td>
+                <td><span class="badge ${directionBadge}">${directionIcon} ${comm.direction}</span></td>
+                <td><small><code>${source}</code></small></td>
+                <td><small><code>${destination}</code></small></td>
+                <td><strong>${sizeDisplay}</strong></td>
+                <td><small>${comm.process}</small></td>
+            </tr>`;
+        });
+        
+        udpHtml += '</tbody></table></div>';
+        udpHtml += `<small class="text-muted mt-2 d-block">Total: ${networkAnalysis.udp_communications.length} UDP communications</small>`;
+        $('#udp-communications-table').html(udpHtml);
+    } else {
+        $('#udp-communications-table').html('<div class="alert alert-info">No UDP communications found</div>');
+    }
+}
+
+function renderUnixStreamConnections(networkAnalysis) {
     if (networkAnalysis && networkAnalysis.unix_stream_connections && networkAnalysis.unix_stream_connections.length > 0) {
         let streamHtml = '<div class="table-responsive" style="max-height: 300px; overflow-y: auto;"><table class="table table-sm table-striped">';
         streamHtml += '<thead class="table-dark sticky-top"><tr><th>Time</th><th>Direction</th><th>PID</th><th>To/From PID</th><th>Process</th></tr></thead><tbody>';
         
-        // Show all connections, not just first 10
         networkAnalysis.unix_stream_connections.forEach(conn => {
             const time = new Date(conn.timestamp * 1000).toLocaleTimeString();
             const peerPid = conn.direction === 'send' ? conn.to_pid : conn.from_pid;
@@ -1684,33 +1847,20 @@ function renderConnectionTables(networkAnalysis) {
                 <td><small>${conn.process}</small></td>
             </tr>`;
         });
+        
         streamHtml += '</tbody></table></div>';
-        
         streamHtml += `<small class="text-muted mt-2 d-block">Total: ${networkAnalysis.unix_stream_connections.length} Unix stream connections</small>`;
-        
-        $('#tcp-connections-table').html(streamHtml);
-        
-        // Update the header to reflect what we're showing
-        $('#tcp-connections-table').closest('.professional-card').find('h6').html('<i class="fas fa-exchange-alt"></i> Unix Stream Connections');
-    } else if (networkAnalysis && networkAnalysis.tcp_connections && networkAnalysis.tcp_connections.length > 0) {
-        // Fallback to TCP if available
-        let tcpHtml = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Time</th><th>Direction</th><th>Size/Length</th></tr></thead><tbody>';
-        networkAnalysis.tcp_connections.slice(0, 10).forEach(conn => {
-            const time = new Date(conn.timestamp * 1000).toLocaleTimeString();
-            tcpHtml += `<tr><td>${time}</td><td>${conn.direction}</td><td>${conn.size || conn.len || 0} bytes</td></tr>`;
-        });
-        tcpHtml += '</tbody></table></div>';
-        $('#tcp-connections-table').html(tcpHtml);
+        $('#unix-stream-table').html(streamHtml);
     } else {
-        $('#tcp-connections-table').html('<div class="alert alert-info">No TCP or Unix stream connections</div>');
+        $('#unix-stream-table').html('<div class="alert alert-info">No Unix stream connections found</div>');
     }
+}
 
-    // Show Unix Datagram communications
+function renderUnixDatagramCommunications(networkAnalysis) {
     if (networkAnalysis && networkAnalysis.unix_dgram_communications && networkAnalysis.unix_dgram_communications.length > 0) {
         let dgramHtml = '<div class="table-responsive" style="max-height: 300px; overflow-y: auto;"><table class="table table-sm table-striped">';
         dgramHtml += '<thead class="table-dark sticky-top"><tr><th>Time</th><th>Direction</th><th>PID</th><th>Process</th><th>Inode</th></tr></thead><tbody>';
         
-        // Show all communications, not just first 10
         networkAnalysis.unix_dgram_communications.forEach(comm => {
             const time = new Date(comm.timestamp * 1000).toLocaleTimeString();
             const directionIcon = comm.direction === 'send' ? '→' : '←';
@@ -1723,26 +1873,14 @@ function renderConnectionTables(networkAnalysis) {
                 <td>${comm.inode || 'N/A'}</td>
             </tr>`;
         });
+        
         dgramHtml += '</tbody></table></div>';
-        
         dgramHtml += `<small class="text-muted mt-2 d-block">Total: ${networkAnalysis.unix_dgram_communications.length} Unix datagram communications</small>`;
-        
-        $('#udp-communications-table').html(dgramHtml);
-        
-        // Update the header to reflect what we're showing
-        $('#udp-communications-table').closest('.professional-card').find('h6').html('<i class="fas fa-broadcast-tower"></i> Unix Datagram Communications');
-    } else if (networkAnalysis && networkAnalysis.udp_communications && networkAnalysis.udp_communications.length > 0) {
-        // Fallback to UDP if available
-        let udpHtml = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Time</th><th>Direction</th><th>Length</th></tr></thead><tbody>';
-        networkAnalysis.udp_communications.slice(0, 10).forEach(comm => {
-            const time = new Date(comm.timestamp * 1000).toLocaleTimeString();
-            udpHtml += `<tr><td>${time}</td><td>${comm.direction}</td><td>${comm.len || 0} bytes</td></tr>`;
-        });
-        udpHtml += '</tbody></table></div>';
-        $('#udp-communications-table').html(udpHtml);
+        $('#unix-datagram-table').html(dgramHtml);
     } else {
-        $('#udp-communications-table').html('<div class="alert alert-info">No UDP or Unix datagram communications</div>');
+        $('#unix-datagram-table').html('<div class="alert alert-info">No Unix datagram communications found</div>');
     }
+
 }
 
 function showNetworkError(error) {
@@ -1791,14 +1929,6 @@ function renderProcessAnalysis(data) {
             renderProcessTree(data.process_analysis);
         } else {
             setTimeout(() => renderProcessTree(data.process_analysis), 500);
-        }
-
-        // Render process timeline with container check
-        if (document.getElementById('process-timeline-chart') && 
-            document.getElementById('process-timeline-chart').offsetWidth > 0) {
-            renderProcessTimeline(data.process_analysis);
-        } else {
-            setTimeout(() => renderProcessTimeline(data.process_analysis), 500);
         }
 
         // Render suspicious patterns
@@ -1912,15 +2042,6 @@ function renderProcessTree(processAnalysis) {
     $('#process-tree-chart').html(treeHtml);
 }
 
-function renderProcessTimeline(processAnalysis) {
-    if (!processAnalysis || !processAnalysis.execution_timeline) {
-        $('#process-timeline-chart').html('<div class="alert alert-info">No process timeline data available</div>');
-        return;
-    }
-
-    // Simple timeline for process events
-    $('#process-timeline-chart').html('<div class="alert alert-info">Process timeline chart will show fork/exec events over time</div>');
-}
 
 function renderSuspiciousPatterns(processAnalysis) {
     const container = $('#process-suspicious-patterns');
@@ -1937,10 +2058,10 @@ function renderSuspiciousPatterns(processAnalysis) {
         return;
     }
 
-    const patternList = $('<div class="pattern-list"></div>');
+    const patternList = $('<div class="pattern-list" style="max-height: 300px; overflow-y: auto;"></div>');
     patterns.forEach(pattern => {
         patternList.append(`
-            <div class="alert alert-warning alert-sm">
+            <div class="alert alert-warning alert-sm mb-2">
                 <strong>${pattern.type}</strong><br>
                 <small>${pattern.description}</small>
             </div>

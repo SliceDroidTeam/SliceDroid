@@ -6,6 +6,8 @@ import re
 import logging
 import tempfile
 import shutil
+import socket
+import struct
 from pathlib import Path
 
 
@@ -29,6 +31,39 @@ class TraceProcessor:
             logger.addHandler(handler)
 
         return logger
+
+    def _convert_raw_ip_to_string(self, raw_ip):
+        """Convert raw 32-bit IP value to readable IP address string"""
+        try:
+            # Handle special cases
+            if raw_ip == 0:
+                return "0.0.0.0"
+            
+            # Convert from little-endian to IP string
+            ip_bytes = struct.pack('<I', raw_ip)
+            ip_string = socket.inet_ntoa(ip_bytes)
+            
+            # Log for debugging
+            self.logger.debug(f"Converted IP: {raw_ip} -> {ip_string}")
+            return ip_string
+        except (struct.error, OSError) as e:
+            self.logger.warning(f"Failed to convert IP {raw_ip}: {e}")
+            return str(raw_ip)  # Return raw value if conversion fails
+
+    def _format_size_to_kb(self, size_value):
+        """Convert size to KB format for better readability"""
+        try:
+            if isinstance(size_value, str) and size_value.startswith("0x"):
+                size_bytes = int(size_value, 16)
+            else:
+                size_bytes = int(size_value)
+            
+            if size_bytes >= 1024:
+                return f"{size_bytes / 1024:.2f}KB"
+            else:
+                return f"{size_bytes}B"
+        except (ValueError, TypeError):
+            return str(size_value)
 
     def process_trace_file(self, trace_file_path, progress_callback=None):
         """
@@ -367,6 +402,29 @@ class TraceProcessor:
                                 parsed_details[key] = int(value)  # Convert to integer if possible
                             except ValueError:
                                 parsed_details[key] = value.strip('"')  # Keep as string if not int
+                    
+                    # Convert IP addresses and sizes for network events
+                    if event in ['tcp_sendmsg', 'tcp_recvmsg', 'tcp_connect', 'udp_sendmsg', 'udp_recvmsg']:
+                        # Debug logging
+                        self.logger.info(f"Processing {event} with details: {parsed_details}")
+                        
+                        # Convert IP addresses to readable format
+                        if 'src_ip' in parsed_details and isinstance(parsed_details['src_ip'], int):
+                            if parsed_details['src_ip'] != 0:  # Only convert non-zero IPs
+                                parsed_details['src_ip_readable'] = self._convert_raw_ip_to_string(parsed_details['src_ip'])
+                            else:
+                                parsed_details['src_ip_readable'] = "0.0.0.0"
+                                
+                        if 'dst_ip' in parsed_details and isinstance(parsed_details['dst_ip'], int):
+                            if parsed_details['dst_ip'] != 0:  # Only convert non-zero IPs
+                                parsed_details['dst_ip_readable'] = self._convert_raw_ip_to_string(parsed_details['dst_ip'])
+                            else:
+                                parsed_details['dst_ip_readable'] = "0.0.0.0"
+                        
+                        # Convert sizes to KB format
+                        for size_key in ['size', 'len']:
+                            if size_key in parsed_details:
+                                parsed_details[f'{size_key}_formatted'] = self._format_size_to_kb(parsed_details[size_key])
 
                     # Create a dictionary to store the parsed event
                     parsed_event = {
