@@ -209,18 +209,18 @@ class AdvancedAnalytics:
         
         for event in events:
             if 'details' in event:
-                # Check for both k_dev and k__dev
-                device = event['details'].get('k_dev') or event['details'].get('k__dev')
-                if device and device != 0:
-                    device_counts[device] += 1
+                # Get device identifier - use stdev+inode for regular files, kdev for device nodes
+                device_id = self._get_device_identifier(event)
+                if device_id:
+                    device_counts[device_id] += 1
                     
                     # Track paths
                     if 'pathname' in event['details'] and event['details']['pathname']:
-                        device_paths[device].add(event['details']['pathname'])
+                        device_paths[device_id].add(event['details']['pathname'])
                     
                     # Categorize device
-                    if device in dev2cat:
-                        device_categories[dev2cat[device]] += 1
+                    if device_id in dev2cat:
+                        device_categories[dev2cat[device_id]] += 1
         
         # Convert sets to lists for JSON serialization
         device_paths_dict = {k: list(v) for k, v in device_paths.items()}
@@ -762,18 +762,18 @@ class AdvancedAnalytics:
     def _check_sensitive_resource(self, event, sensitive_resources):
         """Check if event accesses a sensitive resource using device ID matching"""
         try:
-            event_details = event.get('details', {})
-            k_dev = event_details.get('k_dev') or event_details.get('k__dev')
+            # Get the appropriate device identifier
+            device_id = self._get_device_identifier(event)
             
-            if k_dev:
+            if device_id:
                 for data_type, device_list in sensitive_resources.items():
                     # Check if device ID matches any in the sensitive category
-                    if str(k_dev) in device_list:
+                    if str(device_id) in device_list:
                         # Map callogger to call_logs for consistency with rest of system
                         return 'call_logs' if data_type == 'callogger' else data_type
-                    # Also check for compound IDs like "124845621 - 5488"
-                    for device_id in device_list:
-                        if ' - ' in device_id and str(k_dev) in device_id:
+                    # Also check for exact matches with compound IDs like "124845621 - 5488"
+                    for device_entry in device_list:
+                        if str(device_id) == str(device_entry):
                             # Map callogger to call_logs for consistency with rest of system
                             return 'call_logs' if data_type == 'callogger' else data_type
                             
@@ -782,6 +782,27 @@ class AdvancedAnalytics:
         except Exception as e:
             self.logger.warning(f"Error checking sensitive resource: {str(e)}")
             return None
+    
+    def _get_device_identifier(self, e):
+        """Get device identifier - use stdev+inode for regular files, kdev for device nodes"""
+        if 'details' not in e:
+            return None
+            
+        kdev = e['details'].get('k_dev') or e['details'].get('k__dev')
+        
+        # For device nodes (kdev != 0), use kdev directly
+        if kdev and kdev != 0:
+            return kdev
+            
+        # For regular files (kdev = 0), use stdev + inode combination
+        stdev = e['details'].get('s_dev_inode')
+        inode = e['details'].get('inode')
+        
+        if stdev and inode:
+            # Create compound identifier matching cat2devs.txt format: "stdev - inode"
+            return f"{stdev} - {inode}"
+            
+        return None
     
     def _add_pathname_based_detection(self, events, sensitive_access):
         """Add pathname-based detection for categories not covered by device+inode"""
@@ -960,9 +981,10 @@ class AdvancedAnalytics:
                 # Device categorization and sensitive data detection
                 for event in window:
                     if event.get('tgid') == target_pid and 'details' in event:
-                        device = event['details'].get('k_dev') or event['details'].get('k__dev')
-                        if device and device != 0 and device in dev2cat:
-                            cat = dev2cat[device]
+                        # Get device identifier - use stdev+inode for regular files, kdev for device nodes
+                        device_id = self._get_device_identifier(event)
+                        if device_id and device_id in dev2cat:
+                            cat = dev2cat[device_id]
                             # Only add categories that are in our defined event types
                             if cat in event_types and cat not in cats_window:
                                 cats_window.append(cat)

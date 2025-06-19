@@ -418,17 +418,18 @@ class ComprehensiveAnalyzer:
                 for e in relevant_events:
                     filtered = self._is_filtered_device(e)
                     if not filtered:
-                        kdev = e['details'].get('k_dev') or e['details'].get('k__dev')
+                        # Get device identifier - use stdev+inode for regular files, kdev for device nodes
+                        device_id = self._get_device_identifier(e)
                         pathname = e['details'].get('pathname', 'unknown')
-                        if kdev not in kdev2count_window:
-                            kdev2count_window[kdev] = 1
+                        if device_id not in kdev2count_window:
+                            kdev2count_window[device_id] = 1
                         else:
-                            kdev2count_window[kdev] += 1
-                        if kdev not in kdev2pathname_window:
-                            kdev2pathname_window[kdev] = [pathname]
+                            kdev2count_window[device_id] += 1
+                        if device_id not in kdev2pathname_window:
+                            kdev2pathname_window[device_id] = [pathname]
                         else:
-                            if pathname not in kdev2pathname_window[kdev]:
-                                kdev2pathname_window[kdev].append(pathname)
+                            if pathname not in kdev2pathname_window[device_id]:
+                                kdev2pathname_window[device_id].append(pathname)
                 
                 # Update global device mappings
                 for kdev in kdev2pathname_window:
@@ -502,19 +503,20 @@ class ComprehensiveAnalyzer:
         
         if track_sensitive and sensitive_resources and 'details' in e:
             try:
-                device = e['details'].get('k_dev') or e['details'].get('k__dev')
-                if device:
+                # Get the appropriate device identifier
+                device_id = self._get_device_identifier(e)
+                if device_id:
                     for dtype in ['contacts', 'sms', 'calendar', 'callogger']:
                         if dtype in sensitive_resources:
                             device_list = sensitive_resources[dtype]
                             # Check if device ID matches any in the sensitive category
-                            if str(device) in device_list:
+                            if str(device_id) in device_list:
                                 # Map callogger to call_logs for consistency with rest of system
                                 sensitive_type = 'call_logs' if dtype == 'callogger' else dtype
                                 break
                             # Also check for compound IDs like "124845621 - 5488"
-                            for device_id in device_list:
-                                if ' - ' in device_id and str(device) in device_id:
+                            for device_entry in device_list:
+                                if str(device_id) == str(device_entry):
                                     # Map callogger to call_logs for consistency with rest of system
                                     sensitive_type = 'call_logs' if dtype == 'callogger' else dtype
                                     break
@@ -533,15 +535,43 @@ class ComprehensiveAnalyzer:
         filtered_pathnames = []
         
         if 'details' in e:
-            device = e['details'].get('k_dev') or e['details'].get('k__dev')
-            if (e['event'] in ['read_probe', 'write_probe', 'ioctl_probe']) and device and device != 0:
-                try:
-                    if 'pathname' in e['details'] and e['details']['pathname'] in filtered_pathnames:
+            # Check if this is a valid file/device access event
+            if e['event'] in ['read_probe', 'write_probe', 'ioctl_probe']:
+                kdev = e['details'].get('k_dev') or e['details'].get('k__dev')
+                stdev = e['details'].get('s_dev_inode')
+                inode = e['details'].get('inode')
+                
+                # For regular files (kdev=0), check if we have stdev and inode
+                # For device nodes (kdev!=0), use kdev
+                if (kdev and kdev != 0) or (stdev and inode):
+                    try:
+                        if 'pathname' in e['details'] and e['details']['pathname'] in filtered_pathnames:
+                            return True
+                        return False
+                    except:
                         return True
-                    return False
-                except:
-                    return True
         return True
+    
+    def _get_device_identifier(self, e):
+        """Get device identifier - use stdev+inode for regular files, kdev for device nodes"""
+        if 'details' not in e:
+            return None
+            
+        kdev = e['details'].get('k_dev') or e['details'].get('k__dev')
+        
+        # For device nodes (kdev != 0), use kdev directly
+        if kdev and kdev != 0:
+            return kdev
+            
+        # For regular files (kdev = 0), use stdev + inode combination
+        stdev = e['details'].get('s_dev_inode')
+        inode = e['details'].get('inode')
+        
+        if stdev and inode:
+            # Create compound identifier matching cat2devs.txt format: "stdev - inode"
+            return f"{stdev} - {inode}"
+            
+        return None
     
     def _remove_apis(self, events):
         """Remove API logging events"""
