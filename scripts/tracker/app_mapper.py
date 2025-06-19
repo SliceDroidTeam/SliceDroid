@@ -101,69 +101,99 @@ class AppMapper:
             return []
 
     def get_app_label(self, package_name: str) -> Optional[str]:
-        """Extract commercial name from APK using androguard (optimized & silent)"""
+        """Extract commercial name from APK using androguard (with debug output)"""
         if not ANDROGUARD_AVAILABLE:
+            print(f"  ERROR: androguard not available")
             return None
 
         temp_apk = None
         try:
+            print(f"  Getting APK path for {package_name}")
             # Get APK path from device
             result = subprocess.run(
                 ["adb", "shell", "pm", "path", package_name],
-                capture_output=True, text=True, timeout=10, stderr=subprocess.DEVNULL
+                capture_output=True, text=True, timeout=10
             )
 
             if result.returncode != 0:
+                print(f"  ERROR: pm path failed. Return code: {result.returncode}")
+                print(f"  STDERR: {result.stderr}")
+                print(f"  STDOUT: {result.stdout}")
                 return None
 
             # Find APK path
             device_apk_path = None
+            print(f"  pm path output: {result.stdout}")
             for line in result.stdout.splitlines():
                 if line.startswith("package:"):
                     device_apk_path = line.split(":", 1)[1].strip()
                     break
 
             if not device_apk_path:
+                print(f"  ERROR: No APK path found in output")
                 return None
 
-            # Pull APK to temporary file (silently)
+            print(f"  Found APK path: {device_apk_path}")
+
+            # Pull APK to temporary file
             temp_apk = tempfile.NamedTemporaryFile(suffix=".apk", delete=False)
             temp_apk.close()
+            print(f"  Pulling APK to: {temp_apk.name}")
 
             pull_result = subprocess.run(
                 ["adb", "pull", device_apk_path, temp_apk.name],
-                capture_output=True, timeout=15, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL
+                capture_output=True, text=True, timeout=30
             )
 
             if pull_result.returncode != 0:
+                print(f"  ERROR: APK pull failed. Return code: {pull_result.returncode}")
+                print(f"  STDERR: {pull_result.stderr}")
+                print(f"  STDOUT: {pull_result.stdout}")
                 return None
 
-            # Analyze APK with androguard (suppress all logging)
-            import logging
-            import warnings
-            
-            # Temporarily disable all logging
-            logging.disable(logging.CRITICAL)
-            warnings.filterwarnings('ignore')
-            
+            # Check if APK file was actually pulled
+            if not os.path.exists(temp_apk.name) or os.path.getsize(temp_apk.name) == 0:
+                print(f"  ERROR: APK file not found or empty after pull")
+                return None
+
+            print(f"  APK pulled successfully. Size: {os.path.getsize(temp_apk.name)} bytes")
+
+            # Analyze APK with androguard
+            print(f"  Analyzing APK with androguard...")
             try:
                 apk = APK(temp_apk.name)
                 app_label = apk.get_app_name()
-                return app_label if app_label else None
-            finally:
-                # Re-enable logging
-                logging.disable(logging.NOTSET)
-                warnings.resetwarnings()
+                
+                if app_label:
+                    print(f"  SUCCESS: Found app name: {app_label}")
+                    return app_label
+                else:
+                    print(f"  WARNING: androguard returned empty app name")
+                    # Try to get package label as alternative
+                    try:
+                        package_label = apk.get_package()
+                        print(f"  Package info: {package_label}")
+                    except:
+                        pass
+                    return None
+                    
+            except Exception as apk_error:
+                print(f"  ERROR: androguard APK analysis failed: {str(apk_error)}")
+                print(f"  APK error type: {type(apk_error).__name__}")
+                return None
 
         except Exception as e:
+            print(f"  ERROR: Unexpected error: {str(e)}")
+            print(f"  Error type: {type(e).__name__}")
             return None
         finally:
             # Cleanup temporary file
             if temp_apk and os.path.exists(temp_apk.name):
                 try:
                     os.unlink(temp_apk.name)
-                except:
-                    pass
+                    print(f"  Cleaned up temp file")
+                except Exception as cleanup_error:
+                    print(f"  WARNING: Could not cleanup temp file: {cleanup_error}")
 
     def _is_commercial_app(self, package_name: str, commercial_name: str) -> bool:
         """Check if this is an app worth including (USER APPS + SPECIFIC GOOGLE APPS ONLY)"""
@@ -256,7 +286,7 @@ class AppMapper:
             commercial_name = self.get_app_label(package)
 
             if commercial_name:
-                print(f"  Found: {commercial_name}")
+                print(f"  SUCCESS: Found commercial name: {commercial_name}")
                 # Generate process name from last 15 characters of package name
                 process_name = package[-15:] if len(package) > 15 else package
                 mapping[package] = {
@@ -266,7 +296,7 @@ class AppMapper:
                     "is_running": True
                 }
             else:
-                print(f"  APK analysis failed - skipping {package}")
+                print(f"  FAILED: Could not extract commercial name for {package}")
 
         print(f"Completed mapping for {len(mapping)} apps")
         return mapping
