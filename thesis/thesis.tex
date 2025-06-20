@@ -1042,32 +1042,83 @@ The resulting flow descriptors are serialised to
 PDF plots and the interactive Flask–D3 dashboard.
 
 
-\subsubsection{Data Visualization and User Interface Design}
+\subsection{Data Visualization and User Interface Design}
 
-The system’s user interface has been carefully designed to support intuitive exploration and interpretation of complex kernel-level traces. Users begin by uploading raw \texttt{.trace} files through an integrated upload module, which provides real-time progress tracking and background processing to ensure responsiveness during large file handling. Once ingested, traces are visualised in an interactive event timeline that supports category-based filtering, zoom controls, and detailed tooltips to inspect individual read, write, ioctl, Binder, and network events.
+The SliceDroid platform has been significantly extended into a fully-featured web application with an integrated dashboard, while maintaining its thoughtfully designed, step-by-step interface that guides analysts from initial trace file upload through to detailed security insights and forensics.
 
-Security analysis features are embedded throughout the dashboard, enabling automatic detection of potential privilege escalation attempts, debugging activities, and other suspicious patterns. Risk levels are indicated with contextual badges and accompanied by targeted security recommendations to aid quick decision-making.
+Figure~\ref{fig:home_screen} shows the home screen, which acts as the starting point for each analysis session. Users can upload a new raw \texttt{.trace} file by dragging it onto the upload area or selecting it manually. For convenience, the system also supports preloading the most recently used trace file, indicated as \texttt{trace.trace}, so that repeated uploads are not necessary during iterative investigations. In parallel, the user can choose which specific application’s behaviour to examine from a curated list of popular apps (e.g., Messenger, Signal, Telegram, Termux), ensuring that only relevant events are shown in the analysis views. Additional process ID and device filters refine the scope even further before launching the analysis.
 
-For network behaviour, dedicated views illustrate TCP and UDP connections, protocol distributions, and communication intensity over time, complemented by flow diagrams that clarify external and internal data exchanges. Process analysis tools reconstruct process genealogy, track fork and exec chains, and highlight abnormal execution sequences that may suggest malicious behaviour.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{home_screen.png}
+\caption{Home screen with options for uploading a new trace file, preloading the last trace, and selecting a target application for focused security analysis.}
+\label{fig:home_screen}
+\end{figure}
 
-The analytics suite extends these capabilities with configurable parameters for windowed analysis, statistical summaries, and charts illustrating the distribution of syscall categories and device usage. Users can apply fine-grained filters based on process IDs, devices, or syscall classes and export selected results in JSON or CSV formats for offline inspection or reporting.
-
-All visual elements leverage D3.js for dynamic, interactive charts, while the layout employs a modern, responsive design built with Bootstrap. The dashboard features a collapsible sidebar for efficient navigation, integrated help documentation, real-time system status indicators, and health checks to ensure continuous, error-free operation.
-
+After selecting the trace and target application, the analyst transitions to the interactive event timeline (Figure~\ref{fig:event_timeline}). This timeline provides a clear, category-separated view of syscall activity over time, grouped into logical classes such as \texttt{read}, \texttt{write}, \texttt{ioctl}, Binder events, and network operations. The timeline supports zooming, panning, and detailed inspection via hover tooltips, allowing investigators to pinpoint unusual spikes, suspicious sequences, or gaps in expected process behaviour.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{system_events_timeline.png}
-\caption{Interactive event timeline displaying categorized syscall activity over time. Users can zoom, filter by PID and device, and focus on specific syscall types.}
+\caption{Interactive event timeline showing syscall activity split into categories with intuitive zoom and hover inspection tools.}
 \label{fig:event_timeline}
 \end{figure}
+
+Complementary to the timeline is the Device and Event Statistics panel (Figure~\ref{fig:device_event_statistics}). On the left, a pie chart and table break down which hardware devices were accessed during the trace period, highlighting the top devices by event count. On the right, the system shows the proportion of syscall event types (e.g., \texttt{ioctl\_probe}, \texttt{read\_probe}), their absolute counts, and percentage shares. This dual view helps analysts understand which resources and syscall classes dominate the workload, which is often critical for detecting outlier device usage or unexpected access patterns.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{device_event_statistics.png}
-\caption{Aggregate statistics panel showing device usage and syscall distribution. The interface displays counts and percentages, updating dynamically as filters are applied.}
-\label{fig:statistics_view}
+\caption{Device and event statistics: left pane shows device usage distribution and top devices; right pane displays breakdown of syscall event types.}
+\label{fig:device_event_statistics}
 \end{figure}
+
+Figure~\ref{fig:analytics_panel} presents the Advanced Analytics module. This section displays high-level metrics including total event count, unique processes and devices, trace duration, and calculated event throughput in events per second. Below these KPIs, the Behaviour Timeline plots activity windows for categories like Camera, TCP, Bluetooth, SMS, and other sensitive subsystems. This windowed view helps correlate spikes in device behaviour with specific time windows, enabling fine-grained behavioural profiling.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{analytics_panel.png}
+\caption{Advanced Analytics: high-level metrics and the Behaviour Timeline, offering windowed insight into sensitive categories such as network and peripheral usage.}
+\label{fig:analytics_panel}
+\end{figure}
+
+For focused inspection of network behaviour, the Network Analysis module (Figure~\ref{fig:network_view}) visualises the distribution of TCP and UDP events, socket operations, and the protocols in use. A graph-based Communication Flow diagram depicts the relationships between processes and external endpoints. Such visual context allows the investigator to detect unexpected data transfers or suspicious inter-process communication pathways.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{network_view.png}
+\caption{Network Analysis: Communication Flow diagram, protocol distribution pie chart, and connection statistics for tracking network behaviour and potential exfiltration vectors.}
+\label{fig:network_view}
+\end{figure}
+
+Process genealogy is equally crucial. Figure~\ref{fig:process_tree} illustrates how the system reconstructs the parent-child process tree, showing process activity summaries including PIDs, event counts, and suspicious patterns (highlighted below the tree). Here, anomalies such as excessive file accesses or unexpected forks can be quickly identified and traced back to their origin.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{process_tree.png}
+\caption{Process Analysis: dynamic genealogy tree with activity summary and detected suspicious patterns, such as high file access counts.}
+\label{fig:process_tree}
+\end{figure}
+
+Finally, Figure~\ref{fig:security_overview} shows the dashboard’s integrated security summary. This view aggregates risk scores, highlights privilege escalation attempts, debugging traces, or policy violations, and provides contextual recommendations for remediation. By centralising these indicators, analysts can prioritise threats and document findings more effectively.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{security_overview.png}
+\caption{Security Overview: centralised display of detected risks, privilege escalation attempts, and recommended actions for the analyst.}
+\label{fig:security_overview}
+\end{figure}
+
+In summary, the combined views — including the timeline, device and event statistics, advanced analytics, network and process modules, and security overlays — converge in a comprehensive summary dashboard (Figure~\ref{fig:summary_dashboard}). This final snapshot condenses category distribution, TCP state transitions, top device usage, and most active processes into a single, intuitive screen, offering a clear, actionable overview for immediate security insight and reporting.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{security_overview-2.png.png}
+\caption{Comprehensive Summary Dashboard: unified visual of event categories, TCP states, device usage, and active process distribution for rapid situational awareness.}
+\label{fig:summary_dashboard}
+\end{figure}
+
+Technically, all dynamic charts are rendered using \texttt{D3.js}, and the responsive UI is built with \texttt{Bootstrap}. A collapsible sidebar, integrated help tooltips, and live system health checks ensure usability and reliability throughout long-duration trace analysis sessions.
 
 \subsubsection{Pipeline Summary}
 
