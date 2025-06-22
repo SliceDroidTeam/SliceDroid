@@ -1238,29 +1238,37 @@ function renderNetworkAnalysis(data) {
         } else {
             setTimeout(() => renderNetworkFlowChart(data.network_analysis), 500);
         }
+        
+        // Render network communication heatmap
+        if (document.getElementById('network-heatmap-chart') && 
+            document.getElementById('network-heatmap-chart').offsetWidth > 0) {
+            renderNetworkHeatmap(data.network_analysis);
+        } else {
+            setTimeout(() => renderNetworkHeatmap(data.network_analysis), 500);
+        }
 
-        // Render protocol distribution with container check
-        if (document.getElementById('protocol-distribution-chart') && 
-            document.getElementById('protocol-distribution-chart').offsetWidth > 0) {
-            renderProtocolDistribution(data.network_analysis);
+        // Render MB sent per protocol pie chart
+        if (document.getElementById('mb-sent-per-protocol-chart') && 
+            document.getElementById('mb-sent-per-protocol-chart').offsetWidth > 0) {
+            renderMBSentPerProtocolChart(data.network_analysis);
         } else {
-            setTimeout(() => renderProtocolDistribution(data.network_analysis), 500);
+            setTimeout(() => renderMBSentPerProtocolChart(data.network_analysis), 500);
         }
         
-        // Render data transfer chart
-        if (document.getElementById('data-transfer-chart') && 
-            document.getElementById('data-transfer-chart').offsetWidth > 0) {
-            renderDataTransferChart(data.network_analysis);
+        // Render MB transferred per protocol chart
+        if (document.getElementById('mb-per-protocol-chart') && 
+            document.getElementById('mb-per-protocol-chart').offsetWidth > 0) {
+            renderMBPerProtocolChart(data.network_analysis);
         } else {
-            setTimeout(() => renderDataTransferChart(data.network_analysis), 500);
+            setTimeout(() => renderMBPerProtocolChart(data.network_analysis), 500);
         }
         
-        // Render socket distribution chart
-        if (document.getElementById('socket-distribution-chart') && 
-            document.getElementById('socket-distribution-chart').offsetWidth > 0) {
-            renderSocketDistributionChart(data.network_analysis);
+        // Render MB received per protocol chart
+        if (document.getElementById('mb-received-per-protocol-chart') && 
+            document.getElementById('mb-received-per-protocol-chart').offsetWidth > 0) {
+            renderMbReceivedPerProtocolChart(data.network_analysis);
         } else {
-            setTimeout(() => renderSocketDistributionChart(data.network_analysis), 500);
+            setTimeout(() => renderMbReceivedPerProtocolChart(data.network_analysis), 500);
         }
 
         // Render connection tables
@@ -1621,53 +1629,60 @@ function renderNetworkFlowChart(networkAnalysis) {
     }
 }
 
-function renderProtocolDistribution(networkAnalysis) {
-    if (!networkAnalysis || !networkAnalysis.summary) {
-        $('#protocol-distribution-chart').html('<div class="alert alert-info">No protocol data available</div>');
+function renderMBSentPerProtocolChart(networkAnalysis) {
+    if (!networkAnalysis) {
+        $('#mb-sent-per-protocol-chart').html('<div class="alert alert-info">No network analysis data available</div>');
         return;
     }
-
-    const summary = networkAnalysis.summary;
-    const protocols = summary.active_protocols || [];
     
-    if (protocols.length === 0) {
-        $('#protocol-distribution-chart').html('<div class="alert alert-info">No protocols detected</div>');
-        return;
-    }
-
-    // Create protocol distribution with counts
+    // Calculate data transfer from network events
+    const data = calculateDataTransfer(networkAnalysis);
+    
+    // Create protocol distribution with MB sent
     const protocolData = [];
     
-    if (summary.total_tcp_events > 0) {
-        protocolData.push({name: 'TCP', count: summary.total_tcp_events, color: '#007bff'});
+    if (data.tcp && data.tcp.sent_mb > 0) {
+        protocolData.push({name: 'TCP', value: data.tcp.sent_mb, color: '#007bff'});
     }
-    if (summary.total_udp_events > 0) {
-        protocolData.push({name: 'UDP', count: summary.total_udp_events, color: '#28a745'});
+    if (data.udp && data.udp.sent_mb > 0) {
+        protocolData.push({name: 'UDP', value: data.udp.sent_mb, color: '#28a745'});
     }
-    if (summary.total_unix_stream_events > 0) {
-        protocolData.push({name: 'Unix Stream', count: summary.total_unix_stream_events, color: '#ffc107'});
+    if (data.unix_stream && data.unix_stream.sent_mb > 0) {
+        protocolData.push({name: 'Unix Stream', value: data.unix_stream.sent_mb, color: '#ffc107'});
     }
-    if (summary.total_unix_dgram_events > 0) {
-        protocolData.push({name: 'Unix Datagram', count: summary.total_unix_dgram_events, color: '#dc3545'});
+    if (data.unix_dgram && data.unix_dgram.sent_mb > 0) {
+        protocolData.push({name: 'Unix Dgram', value: data.unix_dgram.sent_mb, color: '#dc3545'});
     }
-    if (summary.total_bluetooth_events > 0) {
-        protocolData.push({name: 'Bluetooth', count: summary.total_bluetooth_events, color: '#6f42c1'});
+    if (data.bluetooth && data.bluetooth.sent_mb > 0) {
+        protocolData.push({name: 'Bluetooth', value: data.bluetooth.sent_mb, color: '#6f42c1'});
     }
 
+    // If no data or all values are 0, show a message
     if (protocolData.length === 0) {
-        $('#protocol-distribution-chart').html('<div class="alert alert-info">No protocol activity detected</div>');
+        // Check if we have any network events at all
+        if (networkAnalysis.summary && 
+            (networkAnalysis.summary.total_tcp_events > 0 || 
+             networkAnalysis.summary.total_udp_events > 0 || 
+             networkAnalysis.summary.total_unix_stream_events > 0 ||
+             networkAnalysis.summary.total_unix_dgram_events > 0)) {
+            // We have events but no calculated data transfer
+            $('#mb-sent-per-protocol-chart').html('<div class="alert alert-info">Network activity detected but no data size information available</div>');
+        } else {
+            // No events at all
+            $('#mb-sent-per-protocol-chart').html('<div class="alert alert-info">No network data sent detected</div>');
+        }
         return;
     }
 
     // Clear previous chart
-    d3.select('#protocol-distribution-chart').html('');
+    d3.select('#mb-sent-per-protocol-chart').html('');
 
     // Create pie chart
     const width = 280;
     const height = 280;
     const radius = Math.min(width, height) / 2;
 
-    const svg = d3.select('#protocol-distribution-chart')
+    const svg = d3.select('#mb-sent-per-protocol-chart')
         .append('svg')
         .attr('width', width)
         .attr('height', height)
@@ -1675,7 +1690,7 @@ function renderProtocolDistribution(networkAnalysis) {
         .attr('transform', `translate(${width/2},${height/2})`);
 
     const pie = d3.pie()
-        .value(d => d.count)
+        .value(d => d.value)
         .sort(null);
 
     const arc = d3.arc()
@@ -1704,11 +1719,12 @@ function renderProtocolDistribution(networkAnalysis) {
                 .style('pointer-events', 'none')
                 .style('z-index', '1000');
 
-            const percentage = ((d.data.count / d3.sum(protocolData, d => d.count)) * 100).toFixed(1);
+            const totalMB = d3.sum(protocolData, d => d.value);
+            const percentage = ((d.data.value / totalMB) * 100).toFixed(1);
             
             tooltip.html(`
                 <strong>${d.data.name}</strong><br>
-                Events: ${d.data.count}<br>
+                MB Sent: ${d.data.value.toFixed(2)} MB<br>
                 Percentage: ${percentage}%
             `)
             .style('left', (event.pageX + 10) + 'px')
@@ -1725,21 +1741,22 @@ function renderProtocolDistribution(networkAnalysis) {
         .attr('font-size', '12px')
         .attr('font-weight', 'bold')
         .attr('fill', 'white')
-        .text(d => d.data.count > 0 ? d.data.name : '');
+        .text(d => d.data.value > 0 ? d.data.name : '');
 }
 
-function renderDataTransferChart(networkAnalysis) {
-    const container = d3.select('#data-transfer-chart');
+function renderMBPerProtocolChart(networkAnalysis) {
+    const container = d3.select('#mb-per-protocol-chart');
     container.selectAll('*').remove();
     
-    if (!networkAnalysis || !networkAnalysis.data_transfer) {
+    if (!networkAnalysis) {
         container.append('div')
             .attr('class', 'alert alert-info')
-            .text('No data transfer information available');
+            .text('No network analysis data available');
         return;
     }
     
-    const data = networkAnalysis.data_transfer;
+    // Calculate data transfer from network events
+    const data = calculateDataTransfer(networkAnalysis);
     const margin = {top: 20, right: 30, bottom: 40, left: 50};
     const width = 400 - margin.left - margin.right;
     const height = 280 - margin.top - margin.bottom;
@@ -1751,42 +1768,159 @@ function renderDataTransferChart(networkAnalysis) {
     const g = svg.append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
     
-    // Prepare data for chart
-    const chartData = [
-        {protocol: 'TCP Sent', value: data.tcp?.sent_mb || 0, color: '#007bff'},
-        {protocol: 'TCP Received', value: data.tcp?.received_mb || 0, color: '#17a2b8'},
-        {protocol: 'UDP Sent', value: data.udp?.sent_mb || 0, color: '#28a745'},
-        {protocol: 'UDP Received', value: data.udp?.received_mb || 0, color: '#6c757d'}
-    ];
+    // Prepare data for chart - group by protocol instead of sent/received
+    const chartData = [];
     
-    const maxValue = d3.max(chartData, d => d.value) || 1;
+    // Add TCP data if available
+    if (data.tcp) {
+        chartData.push({
+            protocol: 'TCP', 
+            sent: data.tcp.sent_mb || 0, 
+            received: data.tcp.received_mb || 0,
+            total: (data.tcp.sent_mb || 0) + (data.tcp.received_mb || 0),
+            color: '#007bff'
+        });
+    }
+    
+    // Add UDP data if available
+    if (data.udp) {
+        chartData.push({
+            protocol: 'UDP', 
+            sent: data.udp.sent_mb || 0, 
+            received: data.udp.received_mb || 0,
+            total: (data.udp.sent_mb || 0) + (data.udp.received_mb || 0),
+            color: '#28a745'
+        });
+    }
+    
+    // Add Unix Stream data if available
+    if (data.unix_stream) {
+        chartData.push({
+            protocol: 'Unix Stream', 
+            sent: data.unix_stream.sent_mb || 0, 
+            received: data.unix_stream.received_mb || 0,
+            total: (data.unix_stream.sent_mb || 0) + (data.unix_stream.received_mb || 0),
+            color: '#ffc107'
+        });
+    }
+    
+    // Add Unix Datagram data if available
+    if (data.unix_dgram) {
+        chartData.push({
+            protocol: 'Unix Dgram', 
+            sent: data.unix_dgram.sent_mb || 0, 
+            received: data.unix_dgram.received_mb || 0,
+            total: (data.unix_dgram.sent_mb || 0) + (data.unix_dgram.received_mb || 0),
+            color: '#dc3545'
+        });
+    }
+    
+    // Add Bluetooth data if available
+    if (data.bluetooth) {
+        chartData.push({
+            protocol: 'Bluetooth', 
+            sent: data.bluetooth.sent_mb || 0, 
+            received: data.bluetooth.received_mb || 0,
+            total: (data.bluetooth.sent_mb || 0) + (data.bluetooth.received_mb || 0),
+            color: '#6f42c1'
+        });
+    }
+    
+    if (chartData.length === 0) {
+        // Check if we have any network events at all
+        if (networkAnalysis.summary && 
+            (networkAnalysis.summary.total_tcp_events > 0 || 
+             networkAnalysis.summary.total_udp_events > 0 || 
+             networkAnalysis.summary.total_unix_stream_events > 0 ||
+             networkAnalysis.summary.total_unix_dgram_events > 0)) {
+            // We have events but no calculated data transfer
+            container.append('div')
+                .attr('class', 'alert alert-info')
+                .text('Network activity detected but no data size information available');
+        } else {
+            // No events at all
+            container.append('div')
+                .attr('class', 'alert alert-info')
+                .text('No protocol data transfer detected');
+        }
+        return;
+    }
+    
+    // Sort by total MB transferred
+    chartData.sort((a, b) => b.total - a.total);
+    
+    const maxValue = d3.max(chartData, d => Math.max(d.sent, d.received)) || 1;
     
     const xScale = d3.scaleBand()
         .domain(chartData.map(d => d.protocol))
         .range([0, width])
-        .padding(0.1);
+        .padding(0.2);
         
     const yScale = d3.scaleLinear()
         .domain([0, maxValue])
         .range([height, 0]);
     
-    // Add bars
-    g.selectAll('.bar')
+    // Create a grouped bar chart
+    const subgroups = ['sent', 'received'];
+    const xSubgroup = d3.scaleBand()
+        .domain(subgroups)
+        .range([0, xScale.bandwidth()])
+        .padding(0.05);
+    
+    const colors = {
+        sent: '#007bff',
+        received: '#17a2b8'
+    };
+    
+    // Add grouped bars
+    g.selectAll('.protocol-group')
         .data(chartData)
-        .enter().append('rect')
-        .attr('class', 'bar')
-        .attr('x', d => xScale(d.protocol))
-        .attr('width', xScale.bandwidth())
+        .enter()
+        .append('g')
+        .attr('class', 'protocol-group')
+        .attr('transform', d => `translate(${xScale(d.protocol)},0)`)
+        .selectAll('rect')
+        .data(d => subgroups.map(key => ({key: key, value: d[key], protocol: d.protocol})))
+        .enter()
+        .append('rect')
+        .attr('x', d => xSubgroup(d.key))
         .attr('y', d => yScale(d.value))
+        .attr('width', xSubgroup.bandwidth())
         .attr('height', d => height - yScale(d.value))
-        .attr('fill', d => d.color);
+        .attr('fill', d => colors[d.key])
+        .on('mouseover', function(event, d) {
+            const tooltip = d3.select('body').append('div')
+                .attr('class', 'protocol-tooltip')
+                .style('position', 'absolute')
+                .style('background', 'rgba(0,0,0,0.8)')
+                .style('color', 'white')
+                .style('padding', '8px')
+                .style('border-radius', '4px')
+                .style('font-size', '12px')
+                .style('pointer-events', 'none')
+                .style('z-index', '1000');
+            
+            tooltip.html(`
+                <strong>${d.protocol}</strong><br>
+                ${d.key === 'sent' ? 'Sent' : 'Received'}: ${d.value.toFixed(2)} MB
+            `)
+            .style('left', (event.pageX + 10) + 'px')
+            .style('top', (event.pageY - 10) + 'px');
+        })
+        .on('mouseout', function() {
+            d3.selectAll('.protocol-tooltip').remove();
+        });
     
     // Add x axis
     g.append('g')
         .attr('transform', `translate(0,${height})`)
         .call(d3.axisBottom(xScale))
         .selectAll('text')
-        .style('font-size', '10px');
+        .style('font-size', '10px')
+        .style('text-anchor', 'end')
+        .attr('dx', '-.8em')
+        .attr('dy', '.15em')
+        .attr('transform', 'rotate(-25)');
     
     // Add y axis
     g.append('g')
@@ -1803,101 +1937,254 @@ function renderDataTransferChart(networkAnalysis) {
         .style('text-anchor', 'middle')
         .style('font-size', '12px')
         .text('Data (MB)');
+    
+    // Add legend
+    const legend = svg.append('g')
+        .attr('transform', `translate(${width - 80}, 10)`);
+    
+    const legendItems = [
+        {label: 'Sent', color: colors.sent},
+        {label: 'Received', color: colors.received}
+    ];
+    
+    legendItems.forEach((item, i) => {
+        const legendRow = legend.append('g')
+            .attr('transform', `translate(0, ${i * 20})`);
+        
+        legendRow.append('rect')
+            .attr('width', 10)
+            .attr('height', 10)
+            .attr('fill', item.color);
+        
+        legendRow.append('text')
+            .attr('x', 15)
+            .attr('y', 10)
+            .attr('text-anchor', 'start')
+            .style('font-size', '12px')
+            .text(item.label);
+    });
 }
 
-function renderSocketDistributionChart(networkAnalysis) {
-    const container = d3.select('#socket-distribution-chart');
+// Calculate data transfer from network events
+function calculateDataTransfer(networkAnalysis) {
+    const result = {
+        tcp: { sent_mb: 0, received_mb: 0 },
+        udp: { sent_mb: 0, received_mb: 0 },
+        unix_stream: { sent_mb: 0, received_mb: 0 },
+        unix_dgram: { sent_mb: 0, received_mb: 0 },
+        bluetooth: { sent_mb: 0, received_mb: 0 }
+    };
+    
+    // Process TCP connections
+    if (networkAnalysis.tcp_connections && networkAnalysis.tcp_connections.length > 0) {
+        networkAnalysis.tcp_connections.forEach(conn => {
+            // For TCP send events, use the 'size' field
+            if (conn.direction === 'send') {
+                // Convert bytes to MB
+                const sizeMB = conn.size ? parseFloat(conn.size) / (1024 * 1024) : 0;
+                result.tcp.sent_mb += sizeMB;
+            } 
+            // For TCP receive events, use the 'len' field
+            else if (conn.direction === 'receive') {
+                // Convert bytes to MB
+                const sizeMB = conn.len ? parseFloat(conn.len) / (1024 * 1024) : 0;
+                result.tcp.received_mb += sizeMB;
+            }
+        });
+    }
+    
+    // Process UDP communications
+    if (networkAnalysis.udp_communications && networkAnalysis.udp_communications.length > 0) {
+        networkAnalysis.udp_communications.forEach(comm => {
+            // UDP uses 'len' field for both send and receive
+            const sizeMB = comm.len ? parseFloat(comm.len) / (1024 * 1024) : 0;
+            
+            if (comm.direction === 'send') {
+                result.udp.sent_mb += sizeMB;
+            } else if (comm.direction === 'receive') {
+                result.udp.received_mb += sizeMB;
+            }
+        });
+    }
+    
+    // Process Unix stream connections
+    if (networkAnalysis.unix_stream_connections && networkAnalysis.unix_stream_connections.length > 0) {
+        networkAnalysis.unix_stream_connections.forEach(conn => {
+            // Unix stream doesn't have explicit size fields, check in details
+            let sizeMB = 0;
+            if (conn.details && conn.details.size) {
+                sizeMB = parseFloat(conn.details.size) / (1024 * 1024);
+            } else if (conn.details && conn.details.len) {
+                sizeMB = parseFloat(conn.details.len) / (1024 * 1024);
+            }
+            
+            if (conn.direction === 'send') {
+                result.unix_stream.sent_mb += sizeMB;
+            } else if (conn.direction === 'receive') {
+                result.unix_stream.received_mb += sizeMB;
+            }
+        });
+    }
+    
+    // Process Unix datagram communications
+    if (networkAnalysis.unix_dgram_communications && networkAnalysis.unix_dgram_communications.length > 0) {
+        networkAnalysis.unix_dgram_communications.forEach(comm => {
+            // Unix datagram doesn't have explicit size fields, check in details
+            let sizeMB = 0;
+            if (comm.details && comm.details.size) {
+                sizeMB = parseFloat(comm.details.size) / (1024 * 1024);
+            } else if (comm.details && comm.details.len) {
+                sizeMB = parseFloat(comm.details.len) / (1024 * 1024);
+            }
+            
+            if (comm.direction === 'send') {
+                result.unix_dgram.sent_mb += sizeMB;
+            } else if (comm.direction === 'receive') {
+                result.unix_dgram.received_mb += sizeMB;
+            }
+        });
+    }
+    
+    // Process Bluetooth activity if available
+    if (networkAnalysis.bluetooth_activity && networkAnalysis.bluetooth_activity.length > 0) {
+        networkAnalysis.bluetooth_activity.forEach(activity => {
+            // Check for size information in the bluetooth activity
+            let sizeMB = 0;
+            if (activity.details && activity.details.size) {
+                sizeMB = parseFloat(activity.details.size) / (1024 * 1024);
+            } else if (activity.details && activity.details.len) {
+                sizeMB = parseFloat(activity.details.len) / (1024 * 1024);
+            }
+            
+            if (activity.direction === 'send') {
+                result.bluetooth.sent_mb += sizeMB;
+            } else if (activity.direction === 'receive') {
+                result.bluetooth.received_mb += sizeMB;
+            }
+        });
+    }
+    
+    return result;
+}
+
+function renderMbReceivedPerProtocolChart(networkAnalysis) {
+    const container = d3.select('#mb-received-per-protocol-chart');
     container.selectAll('*').remove();
     
-    if (!networkAnalysis || !networkAnalysis.summary) {
+    if (!networkAnalysis) {
         container.append('div')
             .attr('class', 'alert alert-info')
-            .text('No socket distribution data available');
+            .text('No network analysis data available');
         return;
     }
     
-    // Prepare socket type data from network analysis
-    const socketData = [];
-    const summary = networkAnalysis.summary;
+    // Calculate data transfer from network events
+    const data = calculateDataTransfer(networkAnalysis);
     
-    if (summary.tcp_connections > 0) {
-        socketData.push({type: 'TCP', count: summary.tcp_connections, color: '#007bff'});
-    }
-    if (summary.udp_communications > 0) {
-        socketData.push({type: 'UDP', count: summary.udp_communications, color: '#28a745'});
-    }
-    if (summary.unix_stream_connections > 0) {
-        socketData.push({type: 'Unix Stream', count: summary.unix_stream_connections, color: '#17a2b8'});
-    }
-    if (summary.unix_datagram_connections > 0) {
-        socketData.push({type: 'Unix Datagram', count: summary.unix_datagram_connections, color: '#6c757d'});
-    }
+    // Create protocol distribution with MB received
+    const protocolData = [];
     
-    if (socketData.length === 0) {
-        container.append('div')
-            .attr('class', 'alert alert-info')
-            .text('No socket connections found');
+    if (data.tcp && data.tcp.received_mb > 0) {
+        protocolData.push({name: 'TCP', value: data.tcp.received_mb, color: '#007bff'});
+    }
+    if (data.udp && data.udp.received_mb > 0) {
+        protocolData.push({name: 'UDP', value: data.udp.received_mb, color: '#28a745'});
+    }
+    if (data.unix_stream && data.unix_stream.received_mb > 0) {
+        protocolData.push({name: 'Unix Stream', value: data.unix_stream.received_mb, color: '#ffc107'});
+    }
+    if (data.unix_dgram && data.unix_dgram.received_mb > 0) {
+        protocolData.push({name: 'Unix Dgram', value: data.unix_dgram.received_mb, color: '#dc3545'});
+    }
+    if (data.bluetooth && data.bluetooth.received_mb > 0) {
+        protocolData.push({name: 'Bluetooth', value: data.bluetooth.received_mb, color: '#6f42c1'});
+    }
+
+    // If no data or all values are 0, show a message
+    if (protocolData.length === 0) {
+        // Check if we have any network events at all
+        if (networkAnalysis.summary && 
+            (networkAnalysis.summary.total_tcp_events > 0 || 
+             networkAnalysis.summary.total_udp_events > 0 || 
+             networkAnalysis.summary.total_unix_stream_events > 0 ||
+             networkAnalysis.summary.total_unix_dgram_events > 0)) {
+            // We have events but no calculated data transfer
+            container.append('div')
+                .attr('class', 'alert alert-info')
+                .text('Network activity detected but no data size information available');
+        } else {
+            // No events at all
+            container.append('div')
+                .attr('class', 'alert alert-info')
+                .text('No network data received detected');
+        }
         return;
     }
-    
-    const width = 300;
-    const height = 300;
+
+    // Create pie chart
+    const width = 280;
+    const height = 280;
     const radius = Math.min(width, height) / 2;
-    
+
     const svg = container.append('svg')
         .attr('width', width)
-        .attr('height', height);
-        
-    const g = svg.append('g')
-        .attr('transform', `translate(${width/2}, ${height/2})`);
-    
+        .attr('height', height)
+        .append('g')
+        .attr('transform', `translate(${width/2},${height/2})`);
+
     const pie = d3.pie()
-        .value(d => d.count)
+        .value(d => d.value)
         .sort(null);
-        
+
     const arc = d3.arc()
         .innerRadius(0)
         .outerRadius(radius - 10);
-    
-    const arcs = g.selectAll('.arc')
-        .data(pie(socketData))
+
+    const arcs = svg.selectAll('.arc')
+        .data(pie(protocolData))
         .enter().append('g')
         .attr('class', 'arc');
-    
+
     arcs.append('path')
         .attr('d', arc)
         .attr('fill', d => d.data.color)
         .attr('stroke', 'white')
-        .attr('stroke-width', 2);
-    
+        .attr('stroke-width', 2)
+        .on('mouseover', function(event, d) {
+            const tooltip = d3.select('body').append('div')
+                .attr('class', 'protocol-tooltip')
+                .style('position', 'absolute')
+                .style('background', 'rgba(0,0,0,0.8)')
+                .style('color', 'white')
+                .style('padding', '8px')
+                .style('border-radius', '4px')
+                .style('font-size', '12px')
+                .style('pointer-events', 'none')
+                .style('z-index', '1000');
+
+            const totalMB = d3.sum(protocolData, d => d.value);
+            const percentage = ((d.data.value / totalMB) * 100).toFixed(1);
+            
+            tooltip.html(`
+                <strong>${d.data.name}</strong><br>
+                MB Received: ${d.data.value.toFixed(2)} MB<br>
+                Percentage: ${percentage}%
+            `)
+            .style('left', (event.pageX + 10) + 'px')
+            .style('top', (event.pageY - 10) + 'px');
+        })
+        .on('mouseout', function() {
+            d3.selectAll('.protocol-tooltip').remove();
+        });
+
+    // Add labels
     arcs.append('text')
         .attr('transform', d => `translate(${arc.centroid(d)})`)
-        .attr('dy', '0.35em')
-        .style('text-anchor', 'middle')
-        .style('font-size', '12px')
-        .style('fill', 'white')
-        .text(d => d.data.count);
-    
-    // Add legend
-    const legend = svg.append('g')
-        .attr('transform', `translate(10, 10)`);
-    
-    const legendItems = legend.selectAll('.legend')
-        .data(socketData)
-        .enter().append('g')
-        .attr('class', 'legend')
-        .attr('transform', (d, i) => `translate(0, ${i * 20})`);
-    
-    legendItems.append('rect')
-        .attr('width', 15)
-        .attr('height', 15)
-        .attr('fill', d => d.color);
-    
-    legendItems.append('text')
-        .attr('x', 20)
-        .attr('y', 12)
-        .style('font-size', '12px')
-        .text(d => `${d.type} (${d.count})`);
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '12px')
+        .attr('font-weight', 'bold')
+        .attr('fill', 'white')
+        .text(d => d.data.value > 0 ? d.data.name : '');
 }
 
 function renderConnectionTables(networkAnalysis) {
@@ -2097,6 +2384,147 @@ function renderUnixDatagramCommunications(networkAnalysis) {
         $('#unix-datagram-table').html('<div class="alert alert-info">No Unix datagram communications found</div>');
     }
 
+}
+
+function renderNetworkHeatmap(networkAnalysis) {
+    if (!networkAnalysis) {
+        $('#network-heatmap-chart').html('<div class="alert alert-info">No network analysis data available</div>');
+        return;
+    }
+    
+    // Prepare heatmap data from network events
+    const heatmapData = prepareNetworkHeatmapData(networkAnalysis);
+    
+    if (heatmapData.length === 0) {
+        $('#network-heatmap-chart').html('<div class="alert alert-info">No temporal network data available for heatmap</div>');
+        return;
+    }
+    
+    // Create the heatmap visualization
+    createNetworkHeatmap('network-heatmap-chart', { heatmapData });
+}
+
+function prepareNetworkHeatmapData(networkAnalysis) {
+    const heatmapData = [];
+    
+    // Get all network events with timestamps
+    const allEvents = [];
+    
+    // Process TCP events
+    if (networkAnalysis.tcp_connections && networkAnalysis.tcp_connections.length > 0) {
+        networkAnalysis.tcp_connections.forEach(event => {
+            if (event.timestamp) {
+                allEvents.push({
+                    timestamp: event.timestamp,
+                    protocol: 'TCP',
+                    direction: event.direction || 'unknown',
+                    size: event.size || event.len || 0
+                });
+            }
+        });
+    }
+    
+    // Process UDP events
+    if (networkAnalysis.udp_communications && networkAnalysis.udp_communications.length > 0) {
+        networkAnalysis.udp_communications.forEach(event => {
+            if (event.timestamp) {
+                allEvents.push({
+                    timestamp: event.timestamp,
+                    protocol: 'UDP',
+                    direction: event.direction || 'unknown',
+                    size: event.len || 0
+                });
+            }
+        });
+    }
+    
+    // Process Unix Stream events
+    if (networkAnalysis.unix_stream_connections && networkAnalysis.unix_stream_connections.length > 0) {
+        networkAnalysis.unix_stream_connections.forEach(event => {
+            if (event.timestamp) {
+                allEvents.push({
+                    timestamp: event.timestamp,
+                    protocol: 'Unix Stream',
+                    direction: event.direction || 'unknown',
+                    size: (event.details && event.details.size) || 0
+                });
+            }
+        });
+    }
+    
+    // Process Unix Datagram events
+    if (networkAnalysis.unix_dgram_communications && networkAnalysis.unix_dgram_communications.length > 0) {
+        networkAnalysis.unix_dgram_communications.forEach(event => {
+            if (event.timestamp) {
+                allEvents.push({
+                    timestamp: event.timestamp,
+                    protocol: 'Unix Dgram',
+                    direction: event.direction || 'unknown',
+                    size: (event.details && event.details.size) || 0
+                });
+            }
+        });
+    }
+    
+    // If no events with timestamps, return empty array
+    if (allEvents.length === 0) {
+        return [];
+    }
+    
+    // Sort events by timestamp
+    allEvents.sort((a, b) => a.timestamp - b.timestamp);
+    
+    // Get start time (t=0)
+    const startTime = allEvents[0].timestamp;
+    
+    // Group events by protocol and time buckets (1 second intervals)
+    const timeGroups = {};
+    const protocols = ['TCP', 'UDP', 'Unix Stream', 'Unix Dgram'];
+    
+    allEvents.forEach(event => {
+        // Calculate time index (seconds from start)
+        const timeIndex = Math.floor(event.timestamp - startTime);
+        const timeKey = `${timeIndex}`;
+        
+        if (!timeGroups[timeKey]) {
+            timeGroups[timeKey] = {
+                'TCP': { count: 0, size: 0 },
+                'UDP': { count: 0, size: 0 },
+                'Unix Stream': { count: 0, size: 0 },
+                'Unix Dgram': { count: 0, size: 0 }
+            };
+        }
+        
+        // Increment count and add size for this protocol and time bucket
+        timeGroups[timeKey][event.protocol].count++;
+        timeGroups[timeKey][event.protocol].size += parseFloat(event.size) || 0;
+    });
+    
+    // Convert grouped data to heatmap format
+    Object.keys(timeGroups).forEach(timeKey => {
+        const timeIndex = parseInt(timeKey);
+        
+        protocols.forEach(protocol => {
+            const count = timeGroups[timeKey][protocol].count;
+            if (count > 0) {
+                // Calculate intensity based on event count and data size
+                const size = timeGroups[timeKey][protocol].size;
+                // Normalize intensity: log scale to handle wide range of values
+                const intensity = count > 0 ? Math.log10(count + 1) : 0;
+                
+                heatmapData.push({
+                    timeIndex: timeIndex,
+                    timeFormatted: `t=${timeIndex}s`,
+                    protocol: protocol,
+                    count: count,
+                    size: size,
+                    intensity: intensity
+                });
+            }
+        });
+    });
+    
+    return heatmapData;
 }
 
 function showNetworkError(error) {

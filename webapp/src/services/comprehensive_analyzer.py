@@ -101,7 +101,7 @@ class ComprehensiveAnalyzer:
         
         return logger
     
-    def slice_events(self, events, t_pid, asynchronous=False):
+    def slice_events(self, events, t_pid, asynchronous=True):
         """
         Advanced bidirectional event slicing algorithm
         Tracks process relationships through IPC mechanisms
@@ -163,8 +163,9 @@ class ComprehensiveAnalyzer:
                     else:
                         unix_dgrams[e['details']['inode']] = sources
                     unix_dgrams_waiting.remove(tid)
-                elif ((event == 'write_probe' and e['details'].get('pathname', 'null') != 'null') or 
-                      (event == 'ioctl_probe') or (event == 'inet_sock_set_state')):
+                elif ((event == 'write_probe' and e['details'].get('pathname', 'null') != 'null') or \
+                      (event == 'ioctl_probe') or (event == 'inet_sock_set_state') or \
+                      (event == 'tcp_sendmsg') or (event == 'udp_sendmsg')):
                     # Add event as output event for this instance
                     out_flows_slice.append(e_index)
             
@@ -236,7 +237,8 @@ class ComprehensiveAnalyzer:
                         unix_dgrams[e['details']['inode']] = unix_dgrams[e['details']['inode']].union(sources)
                     else:
                         unix_dgrams[e['details']['inode']] = sources
-                elif (event == 'read_probe' or event == 'ioctl_probe' or (event == 'inet_sock_set_state')):
+                elif (event == 'read_probe' or event == 'ioctl_probe' or (event == 'inet_sock_set_state') or \
+                      (event == 'tcp_recvmsg') or (event == 'udp_recvmsg')):
                     # Add event as input event for this instance
                     in_flows_slice.append(e_index)
             
@@ -266,7 +268,6 @@ class ComprehensiveAnalyzer:
                     tgid2source_tids[tgid] = unix_dgrams[e['details']['inode']]
             
             e_index -= 1
-        
         # Merge everything to one sequence
         merged = []
         i = 0

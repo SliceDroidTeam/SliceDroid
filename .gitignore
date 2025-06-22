@@ -38,5 +38,7 @@ trace.trace
 trace.trace.gz
 data
 pixel_data
-evaluate.py
 RQ1_evaluation
+stored_traces
+# pid changes from application selection
+scripts/tracer/config_files/pid_targets.txt 
