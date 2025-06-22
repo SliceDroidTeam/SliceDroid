@@ -30,6 +30,7 @@
 \usepackage{booktabs}
 \usepackage{paralist}
 \usepackage{enumitem}
+\usepackage{multirow}
 
 % ---------------------------------------------------------
 % symbols for ✓ / ✗
@@ -1544,9 +1545,61 @@ newer Signal in several hardening metrics. Regardless of pedigree, however,
 all three projects need continuous dynamic testing and refactoring to curb the
 security drag that inevitably accompanies growth over time.
 
-% Dynamic Analysis Results
+% ------------------------------------------
 \section{Dynamic Analysis Results}
 \subsection{Scope and Dataset Overview}
+
+The dynamic analysis was systematically conducted on three widely used messaging
+applications—\textit{Messenger}, \textit{Signal}, and \textit{Telegram}—capturing
+their runtime behaviour under the exact usage scenarios previously defined and
+executed in Section~4.3.4 \textit{Workload Design and Usage Scenarios}.
+As described in that section, each application was exercised in a controlled
+environment for approximately $30 \pm 1$ seconds per run, under four distinct
+operational modes: running in the background with full operational permissions
+(\texttt{full\_background}), actively used in the foreground with full permissions
+(\texttt{full\_foreground}), background execution with minimal resource activity
+(\texttt{none\_background}), and foreground usage with reduced permissions (\texttt{none\_foreground}).
+This workload configuration ensures behavioural consistency and repeatability across all test runs.
+The resulting dataset comprises twelve trace files, each clearly named to encode the specific
+application, scenario, and recording duration, providing full traceability and alignment with the workload structure.
+Observed file sizes demonstrate an expected trend: foreground traces under full permissions exhibit significantly larger
+footprints due to richer event flows from user interactions and multimedia activities, while background and
+constrained scenarios yield notably smaller trace volumes, reflecting lower runtime resource engagement.
+For instance, \textit{Messenger} generated a 117~KB trace in the full foreground scenario compared to a 16~KB
+trace in the none background condition. This structured dataset reflects the defined workload scenarios
+and provides a reliable basis for comparing application behaviour, resource usage, and runtime characteristics
+under consistent operating conditions.
+
+
+\begin{table}[h!]
+    \centering
+    \caption{Grouped Overview of Trace Durations and File Sizes}
+    \label{tab:dynamic_traces_grouped}
+    \begin{tabular}{|c|c|c|c|c|}
+        \hline
+        \textbf{Scenario Type} & \textbf{Context} & \textbf{Application} & \textbf{Duration (sec)} & \textbf{Size (KB)} \\
+        \hline
+        \multirow{6}{*}{Full}
+        & \multirow{3}{*}{Background} & Messenger & 30.01 & 15.286 \\
+        & & Signal & 29.57 & 15.155 \\
+        & & Telegram & 29.83 & 15.670 \\
+        & \multirow{3}{*}{Foreground} & Messenger & 30.13 & 117.109 \\
+        & & Signal & 29.01 & 87.952 \\
+        & & Telegram & 29.48 & 115.274 \\
+        \hline
+        \multirow{6}{*}{None}
+        & \multirow{3}{*}{Background} & Messenger & 29.00 & 16.319 \\
+        & & Signal & 29.46 & 16.376 \\
+        & & Telegram & 30.39 & 16.547 \\
+        & \multirow{3}{*}{Foreground} & Messenger & 30.35 & 72.231 \\
+        & & Signal & 30.46 & 66.798 \\
+        & & Telegram & 30.19 & 75.101 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+
+
 \subsection{Statistical Summaries}
 \subsection{Behavioural Patterns Observed}
 \subsection{Visualisations}
