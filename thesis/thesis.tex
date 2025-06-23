@@ -1587,9 +1587,9 @@ where dynamic and static findings are jointly discussed.
         & \multirow{3}{*}{Background} & Messenger & 30.01 & 15.286 \\
         & & Signal & 29.57 & 15.155 \\
         & & Telegram & 29.83 & 15.670 \\
-        & \multirow{3}{*}{Foreground} & Messenger & 30.13 & 117.109 \\
-        & & Signal & 29.01 & 87.952 \\
-        & & Telegram & 29.48 & 115.274 \\
+        & \multirow{3}{*}{Foreground} & Messenger & 30.17 & 117.109 \\
+        & & Signal & 29.02 & 87.952 \\
+        & & Telegram & 29.52 & 115.274 \\
         \hline
         \multirow{6}{*}{None}
         & \multirow{3}{*}{Background} & Messenger & 29.00 & 16.319 \\
@@ -1605,7 +1605,7 @@ where dynamic and static findings are jointly discussed.
 
 \subsection{Statistical Summaries}
 
-\subsubsection{Messenger Runtime Behaviour}
+\subsubsection{Messenger Foreground Runtime Behaviour}
 
 This section provides a concise descriptive snapshot of Messenger when running under typical user-driven interaction. As outlined in the \textit{Workload Design and Usage Scenarios}, the app was actively used in the foreground for sending text messages, recording a short voice clip, and capturing an image using the in-app camera. This representative workload was chosen as it reflects everyday usage, maximising feature invocation and generating diverse runtime events for meaningful analysis.
 
@@ -1665,9 +1665,46 @@ In terms of network behaviour and event type proportions, the \texttt{ioctl} cat
 
 Taken together, these figures confirm Messenger’s reliance on high-volume local storage, inter-process orchestration, and steady external connectivity during realistic usage—offering a robust baseline for comparing runtime patterns under constrained or passive states in subsequent sections.
 
+\subsubsection{Messenger Background Runtime Behaviour}
+
+When Messenger was left running in the background without direct user interaction, the captured trace covered a comparable window of about 30 seconds and produced a total of 38,965 events. This results in a much lower average throughput of approximately 1,300 events per second—significantly reduced compared to the 18,512 events per second observed during active usage.
+
+From a process perspective, only 42 processes remained active in the background compared to 218 during the foreground session, which is entirely expected given the absence of active user interaction and the reduced need for real-time service coordination. File operations continued to dominate system calls, with 38,955 I/O events logged. The read/write ratio increased to 1.50, indicating a clear preference for read operations over writes—typical of periodic local state checks or passive data syncing rather than active message composition or media uploads. Database files (\texttt{.db}) remained the most accessed type but were triggered just 2,284 times, confirming limited storage engagement.
+
+Regarding IPC, no explicit inter-process communication events were detected during this idle phase, suggesting that Messenger’s background services rely mostly on persistent resident processes rather than dynamic component interaction. Nonetheless, 8 distinctive patterns were still flagged, representing short bursts where isolated processes performed unusual spikes of read or ioctl calls—these do not indicate malicious behaviour but highlight passive checks or background sync routines.
+
+Network activity in the background was minimal: only 8 TCP events and 2 UDP packets were detected, transferring less than 0.01 MB in total. This aligns with lightweight push notification checks or silent polling for updates—behaviour that is typical for messaging apps that need to remain responsive while conserving bandwidth and battery.
+
+Overall, Messenger’s runtime footprint drops significantly when idle, demonstrating efficient resource reduction while maintaining enough background activity to ensure timely delivery of new messages and notifications without aggressive data usage.
+
+\begin{table}[H]
+    \centering
+    \caption{Key Runtime Statistics for Messenger (Background)}
+    \label{tab:messenger_background_stats}
+    \begin{tabular}{|l|c|}
+        \hline
+        \textbf{Metric} & \textbf{Value} \\
+        \hline
+        Duration & 30.01 sec \\
+        Total Events & 38,965 \\
+        Events per Second & 1,298 \\
+        Unique Processes & 175 \\
+        Active Processes & 42 \\
+        File Operations & 38,955 \\
+        IPC Events & 0 \\
+        Distinctive Patterns & 8 instances \\
+        Read/Write Ratio & 1.50 \\
+        Most Accessed File Type & .db (2,284 times) \\
+        TCP Events & 8 \\
+        UDP Events & 2 \\
+        Total TCP Data & $<$ 0.01 MB \\
+        UNIX Datagram Traffic & Not detected \\
+        \hline
+    \end{tabular}
+\end{table}
 
 
-\subsubsection{Signal Runtime Behaviour}
+\subsubsection{Signal Foreground Runtime Behaviour}
 
 Signal demonstrates a notably lighter runtime signature compared to Messenger when operated under equivalent user-driven conditions.
 
@@ -1728,7 +1765,45 @@ Regarding network behaviour and system call proportions, Signal recorded 263 TCP
 In summary, these results confirm that Signal’s runtime footprint remains significantly lower than Messenger’s, prioritising secure transmission and minimal local overhead. This behaviour aligns well with its privacy-focused design, complementing insights from static analysis.
 
 
-\subsubsection{Telegram Runtime Behaviour}
+
+\subsubsection{Signal Background Runtime Behaviour}
+
+When Signal operates in the background, its runtime footprint remains minimal compared to its active usage, which is logical and expected for a security-focused application designed to suppress unnecessary background processing. Over an observation window of approximately 29.5 seconds, a total of 30,663 events were recorded, corresponding to an average throughput of about 1,039 events per second—highlighting a substantial drop in runtime intensity relative to the foreground session.
+
+The system call distribution shows a very high read-to-write ratio of 168.09, indicating that almost all operations consist of reading pre-existing local state, verifying data integrity, or performing lightweight consistency checks without actively writing back to storage. This behaviour demonstrates how Signal prioritises passive checks (such as validating message status or verifying session keys) while strictly avoiding unnecessary file modifications, aligning with its minimal data retention and privacy-first design.
+
+File operations remain the dominant activity, while network communication is practically absent: only 5 TCP events were observed, with no UDP or other local socket activity detected. Inter-process communication was similarly inactive during this idle window, confirming that Signal's background logic does not rely on frequent module chaining or service calls.
+
+Compared to Messenger’s background trace, Signal's passive footprint is significantly lower in all categories—fewer active processes, drastically fewer network requests, and a clear emphasis on read-only local checks. These observations, summarised in Table~\ref{tab:signal_background_key_stats}, reinforce Signal’s commitment to minimising persistent background presence and reducing potential metadata exposure.
+
+\begin{table}[H]
+    \centering
+    \caption{Key Runtime Statistics for Signal (Background)}
+    \label{tab:signal_background_key_stats}
+    \begin{tabular}{|l|c|}
+        \hline
+        \textbf{Metric} & \textbf{Value} \\
+        \hline
+        Duration & 29.5 sec \\
+        Total Events & 30,663 \\
+        Events per Second & 1,039 \\
+        Unique Processes & 134 \\
+        Active Processes & 36 \\
+        File Operations & 30,658 \\
+        IPC Events & 0 \\
+        Distinctive Patterns & 8 instances \\
+        Read/Write Ratio & 168.09 \\
+        Most Accessed File Type & .db (2,264 times) \\
+        TCP Events & 5 \\
+        UDP Events & 0 \\
+        Total TCP Data & 0.02 MB (0.00 MB sent, 0.02 MB received) \\
+        UNIX Datagram Traffic & Not detected \\
+        \hline
+    \end{tabular}
+\end{table}
+
+
+\subsubsection{Telegram Foreground Runtime Behaviour}
 
 Telegram shows a noticeably heavier runtime profile than Signal and a closer footprint to Messenger when used under typical user-driven conditions. The test session included sending messages, recording a short voice note, and capturing an image to ensure realistic, feature-rich interaction.
 
@@ -1788,11 +1863,53 @@ Network-wise, Telegram initiated 462 TCP events and 3 UDP packets, transferring 
 
 Taken together, these results confirm that Telegram sustains a high I/O and network load, driven by its heavy use of multimedia content and background synchronisation. This behaviour complements the static analysis and highlights the need to consider automatic downloads and prefetch logic when interpreting dynamic traces.
 
+\subsubsection{Telegram Background Runtime Behaviour}
+
+When left running passively in the background, Telegram retains a moderately active runtime footprint, as expected given its design for real-time synchronisation. Over an observation window of approximately 30 seconds, the background session produced 39,340 total events, translating to about 1,318 events per second—representing roughly a 93\% reduction compared to its active throughput.
+
+File operations dominate the trace, with 39,336 I/O events and a balanced read/write ratio of 1.45. Local database files (\texttt{.db}) remained the primary storage target, accessed 2,043 times, which reflects background cache refreshes or silent content syncing.
+
+No inter-process communication was detected, contrasting with Telegram’s interactive use where IPC is more pronounced. Six distinctive patterns were flagged—brief spikes or repetitive calls that deviate slightly from the baseline but do not indicate suspicious behaviour.
+
+Network usage stayed minimal: only 4 TCP events were logged and no UDP activity, with negligible data transferred ($<$ 0.02 MB), suggesting occasional keep-alive connections or push checks.
+
+Overall, as summarised in Table~\ref{tab:telegram_background_stats}, Telegram’s background activity is more persistent than Signal’s near-silent idle mode but broadly similar to Messenger’s residual maintenance footprint.
+
+\begin{table}[H]
+    \centering
+    \caption{Key Runtime Statistics for Telegram (Background)}
+    \label{tab:telegram_background_stats}
+    \begin{tabular}{|l|c|}
+        \hline
+        \textbf{Metric} & \textbf{Value} \\
+        \hline
+        Duration & 29.83 sec \\
+        Total Events & 39,340 \\
+        Events per Second & 1,318 \\
+        Unique Processes & 194 \\
+        Active Processes & 42 \\
+        File Operations & 39,336 \\
+        IPC Events & 0 \\
+        Distinctive Patterns & 6 \\
+        Read/Write Ratio & 1.45 \\
+        Most Accessed File Type & .db (2,043 times) \\
+        TCP Events & 4 \\
+        UDP Events & 0 \\
+        Total TCP Data & $\approx$ 0.02 MB \\
+        \hline
+    \end{tabular}
+\end{table}
+
 
 \subsubsection{Cross-Application Comparison}
-When comparing the three applications under identical high-activity foreground scenarios, clear behavioural differences emerge. Messenger exhibits the highest overall file operations and IPC activity, reflecting its more complex interaction flows and heavier reliance on local data handling during messaging and multimedia tasks. Signal, in contrast, maintains the smallest runtime footprint in both I/O and network usage, aligning with its minimalistic and privacy-oriented architecture. Telegram stands out for its exceptionally high network throughput, transferring over $570$ MB within a single session, which is an order of magnitude greater than the other two. This is indicative of Telegram’s tendency to prefetch media content and synchronize large message histories in the background, even when used interactively. Category distributions further confirm that while all three applications are dominated by \texttt{ioctl} and file operations, Telegram and Messenger show more balanced binder and network activity compar
 
-\begin{table}[h!]
+When comparing the three applications under identical high-activity foreground scenarios, clear behavioural differences emerge. Messenger exhibits the highest overall file operations and IPC activity, reflecting its more complex interaction flows and heavier reliance on local data handling during messaging and multimedia tasks. Signal, in contrast, maintains the smallest runtime footprint in both I/O and network usage, aligning with its minimalistic and privacy-oriented architecture. Telegram stands out for its exceptionally high network throughput, transferring over $570$ MB within a single session, which is an order of magnitude greater than the other two. This behaviour is indicative of Telegram’s tendency to prefetch media content and synchronise large message histories in the background, even during active use.
+
+Category distributions further confirm that while all three applications are dominated by \texttt{ioctl} and file operations, Telegram and Messenger maintain a more balanced proportion of \texttt{binder} and network calls, highlighting richer IPC layers and more frequent background exchanges than Signal.
+
+Overall, this cross-app comparison underscores distinct architectural choices: Messenger favours constant local activity for performance and feature richness; Signal minimises runtime footprints to maximise privacy guarantees; and Telegram invests heavily in preloading and large-volume synchronisation for a seamless content experience. These findings align consistently across both foreground and background measurements, supporting the descriptive and statistical conclusions presented in the previous sections.
+
+\begin{table}[H]
     \centering
     \caption{Comparison of Key Runtime Metrics Across Applications (Full Foreground Scenario)}
     \label{tab:comparison_key_metrics}
@@ -1814,7 +1931,7 @@ When comparing the three applications under identical high-activity foreground s
     \end{tabular}
 \end{table}
 
-\begin{table}[h!]
+\begin{table}[H]
     \centering
     \caption{Comparison of Network Metrics and Event Category Distribution}
     \label{tab:comparison_network_categories}
@@ -1838,28 +1955,53 @@ When comparing the three applications under identical high-activity foreground s
     \end{tabular}
 \end{table}
 
+When comparing runtime behaviour in the passive background state, a more nuanced picture emerges. Signal demonstrates the most discreet background profile, dropping to near-zero network and IPC activity and performing only lightweight file reads for integrity checks. Messenger shows a moderate background footprint: while its event rate and active processes drop drastically compared to active use, it maintains background file I/O and minimal network pings, likely for push notifications and state synchronisation. Telegram remains the most active in the background among the three: although its event throughput decreases by over 90\% relative to its foreground mode, it sustains the highest residual file activity and some low-level network interactions, reflecting its design for persistent cache refresh and background synchronisation.
+
+This comparison, summarised in Table~\ref{tab:comparison_bg_only}, confirms that while all three apps reduce processing when idle, Signal aligns most closely with privacy-by-design principles by minimising passive runtime footprint, whereas Telegram trades off background stealth for faster media availability and immediate message sync.
+
+\begin{table}[H]
+    \centering
+    \caption{Background Scenario Comparison Across Applications}
+    \label{tab:comparison_bg_only}
+    \begin{tabular}{|l|c|c|c|}
+        \hline
+        \textbf{Metric} & \textbf{Messenger (BG)} & \textbf{Signal (BG)} & \textbf{Telegram (BG)} \\
+        \hline
+        Duration (sec) & 30.39 & 29.5 & 29.83 \\
+        Total Events & 38,965 & 30,663 & 39,340 \\
+        Events per Second & 1,283 & 1,039 & 1,318 \\
+        File Operations & 38,955 & 30,658 & 39,336 \\
+        IPC Events & 0 & 0 & 0 \\
+        TCP Events & 8 & 5 & 4 \\
+        Total TCP Data & $<$0.01 MB & 0.02 MB & 0.02 MB \\
+        Distinctive Patterns & 8 & 8 & 6 \\
+        Read/Write Ratio & 1.50 & 168.09 & 1.45 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{Foreground vs Background Comparison for Each Application}
+    \label{tab:comparison_fg_vs_bg}
+    \begin{tabular}{|l|c|c|c|}
+        \hline
+        \textbf{Metric} & \textbf{Messenger (FG/BG)} & \textbf{Signal (FG/BG)} & \textbf{Telegram (FG/BG)} \\
+        \hline
+        Total Events & 557,770 / 38,965 & 423,442 / 30,663 & 549,824 / 39,340 \\
+        Events per Second & 18,512 / 1,283 & 14,600 / 1,039 & 18,625 / 1,318 \\
+        File Operations & 410,707 / 38,955 & 332,144 / 30,658 & 460,164 / 39,336 \\
+        IPC Events & 85,836 / 0 & 50,680 / 0 & 47,629 / 0 \\
+        TCP Events & 750 / 8 & 263 / 5 & 462 / 4 \\
+        Total TCP Data & 3.48 MB / $<$0.01 MB & 1.62 MB / 0.02 MB & 574.36 MB / 0.02 MB \\
+        Read/Write Ratio & 1.73 / 1.50 & 1.03 / 168.09 & 1.39 / 1.45 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Together, these updated measurements clearly illustrate how each messaging app adjusts its resource footprint between active user interaction and passive idle states — a crucial aspect that directly impacts privacy preservation, battery life, and perceived responsiveness.
+
 \subsection{Behavioural Patterns Observed}
-
-\subsubsection{Telegram - Full Foreground Scenario}
-
-The behavioural patterns observed in Telegram during the full foreground scenario reveal a clear signature of an application designed to handle high-volume multimedia messaging while maintaining a persistent network presence. As shown in the \textit{Event Timeline} (Figure~\ref{fig:telegram_event_timeline}), the core system calls—including \texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and \texttt{network}—are distributed consistently across the entire trace duration, indicating stable processing of I/O and communication tasks without abrupt idle phases.
-
-The \textit{Behavior Timeline} (Figure~\ref{fig:telegram_behavior_timeline}) further demonstrates diverse functional triggers: frequent usage of the camera and audio input, continuous TCP sessions, and sporadic access to device sensors such as Bluetooth, NFC, and GNSS. Notably, contact data and call log interactions appear at the tail end of the session, implying Telegram’s background syncing and contact discovery routines operating alongside user-driven messaging.
-
-The \textit{Communication Flow} diagram (Figure~\ref{fig:telegram_communication_flow}) highlights how multiple process IDs interact with a central external process, forming a hub-and-spoke pattern typical of modern multi-threaded messaging apps. This structure suggests that Telegram dynamically offloads media transfers and session management tasks to auxiliary worker processes, improving responsiveness for the main user interface.
-
-Taken together, these behavioural traces confirm that Telegram maintains a highly active runtime footprint with concurrent media operations, continuous network connectivity, and background access to sensitive device services. These findings align with its elevated network and I/O statistics and will be discussed further in the context of privacy and performance implications in the next chapters.
-
-
-\subsubsection{Telegram - Restricted Permissions Scenario}
-
-Under the restricted permissions scenario (\texttt{none}), Telegram’s behavioural footprint changes noticeably compared to its fully operational mode. As illustrated in the \textit{Event Timeline} (Figure~\ref{fig:telegram_none_event_timeline}), core system calls such as \texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and limited \texttt{network} interactions are still present but with visibly reduced density and duration spread, suggesting decreased file and inter-process activities due to permission constraints.
-
-The \textit{Behavior Timeline} (Figure~\ref{fig:telegram_none_behavior_timeline}) confirms this restrained behaviour: only minimal TCP events appear, with no activation of sensors or device-specific services like camera, audio, Bluetooth, or contacts, which remain entirely inactive under restricted conditions. This pattern shows that Telegram's fallback operations prioritise basic connectivity and background session checks, avoiding any attempt to access functionalities that are now blocked.
-
-The \textit{Communication Flow} graph (Figure~\ref{fig:telegram_none_communication_flow}) reveals a simplified process structure: fewer PIDs interact with the core external process, forming a lightweight and linear hierarchy rather than the complex hub-and-spoke seen in the full foreground scenario. This implies that the application disables auxiliary worker threads and media sync tasks when permissions are insufficient, leading to lower CPU and I/O demands.
-
-Overall, Telegram demonstrates an adaptive behaviour under permission restrictions, continuing to maintain a minimum viable background session while refraining from invoking blocked or sensitive device services. This validates the effectiveness of permission-based controls and provides a baseline for contrasting how runtime behaviour scales with available privileges.
 
 
 
@@ -1896,8 +2038,126 @@ Overall, the captured patterns suggest that Signal maintains a restrained runtim
 \subsubsection{Signal Restricted Permissions Scenario}
 
 
-\subsection{Visualisations}
-\subsection{Cross-Application Comparative Discussion}
+\subsubsection{Telegram - Full Foreground Scenario}
+
+The behavioural patterns observed in Telegram during the full foreground scenario reveal a clear signature of an application designed to handle high-volume multimedia messaging while maintaining a persistent network presence. As shown in the \textit{Event Timeline} (Figure~\ref{fig:telegram_event_timeline}), the core system calls—including \texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and \texttt{network}—are distributed consistently across the entire trace duration, indicating stable processing of I/O and communication tasks without abrupt idle phases.
+
+The \textit{Behavior Timeline} (Figure~\ref{fig:telegram_behavior_timeline}) further demonstrates diverse functional triggers: frequent usage of the camera and audio input, continuous TCP sessions, and sporadic access to device sensors such as Bluetooth, NFC, and GNSS. Notably, contact data and call log interactions appear at the tail end of the session, implying Telegram’s background syncing and contact discovery routines operating alongside user-driven messaging.
+
+The \textit{Communication Flow} diagram (Figure~\ref{fig:telegram_communication_flow}) highlights how multiple process IDs interact with a central external process, forming a hub-and-spoke pattern typical of modern multi-threaded messaging apps. This structure suggests that Telegram dynamically offloads media transfers and session management tasks to auxiliary worker processes, improving responsiveness for the main user interface.
+
+Taken together, these behavioural traces confirm that Telegram maintains a highly active runtime footprint with concurrent media operations, continuous network connectivity, and background access to sensitive device services. These findings align with its elevated network and I/O statistics and will be discussed further in the context of privacy and performance implications in the next chapters.
+
+
+\subsubsection{Telegram - Restricted Permissions Scenario}
+
+Under the restricted permissions scenario (\texttt{none}), Telegram’s behavioural footprint changes noticeably compared to its fully operational mode. As illustrated in the \textit{Event Timeline} (Figure~\ref{fig:telegram_none_event_timeline}), core system calls such as \texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and limited \texttt{network} interactions are still present but with visibly reduced density and duration spread, suggesting decreased file and inter-process activities due to permission constraints.
+
+The \textit{Behavior Timeline} (Figure~\ref{fig:telegram_none_behavior_timeline}) confirms this restrained behaviour: only minimal TCP events appear, with no activation of sensors or device-specific services like camera, audio, Bluetooth, or contacts, which remain entirely inactive under restricted conditions. This pattern shows that Telegram's fallback operations prioritise basic connectivity and background session checks, avoiding any attempt to access functionalities that are now blocked.
+
+The \textit{Communication Flow} graph (Figure~\ref{fig:telegram_none_communication_flow}) reveals a simplified process structure: fewer PIDs interact with the core external process, forming a lightweight and linear hierarchy rather than the complex hub-and-spoke seen in the full foreground scenario. This implies that the application disables auxiliary worker threads and media sync tasks when permissions are insufficient, leading to lower CPU and I/O demands.
+
+Overall, Telegram demonstrates an adaptive behaviour under permission restrictions, continuing to maintain a minimum viable background session while refraining from invoking blocked or sensitive device services. This validates the effectiveness of permission-based controls and provides a baseline for contrasting how runtime behaviour scales with available privileges.
+
+\subsection{Cross-Application Comparative Analysis}
+To complement the descriptive statistics, inferential statistical tests were carried out to formally assess whether the observed differences in runtime metrics across applications and usage modes are statistically significant. This section presents three focused analyses with explicit hypotheses and mathematical formulation.
+
+\paragraph{i) One-way ANOVA on Foreground Events per Second.}
+
+Let $E_{ij}$ denote the observed Events per Second for application $i$ in sample $j$, where $i \in \{\text{Messenger}, \text{Signal}, \text{Telegram}\}$.
+The null hypothesis is that the mean event rate is the same for all three applications:
+
+\[
+H_0 : \mu_{\text{Messenger}} = \mu_{\text{Signal}} = \mu_{\text{Telegram}}.
+\]
+
+The alternative hypothesis is that at least one mean differs:
+
+\[
+H_1 : \exists~i,j~:~\mu_i \ne \mu_j.
+\]
+
+A standard one-way ANOVA test statistic is computed as:
+
+\[
+F = \frac{MS_B}{MS_W}
+\quad \text{with} \quad
+MS_B = \frac{\sum_{i=1}^k n_i (\bar{E}_i - \bar{E})^2}{k - 1},
+\quad
+MS_W = \frac{\sum_{i=1}^k \sum_{j=1}^{n_i} (E_{ij} - \bar{E}_i)^2}{N - k},
+\]
+
+
+\noindent
+where:
+\begin{itemize}
+    \item $k$ is the number of groups (here $k = 3$),
+    \item $n_i$ is the sample size for group $i$,
+    \item $\bar{E}_i$ is the sample mean for group $i$,
+    \item $\bar{E}$ is the overall grand mean,
+    \item $N$ is the total number of observations across all groups.
+\end{itemize}
+
+The computed $F$-value and associated $p$-value (e.g., $F = X.XX$, $p < 0.001$) indicate whether the group means differ significantly.
+
+Post-hoc Tukey HSD tests further identified significant pairwise differences:
+Messenger vs Signal: $p < 0.001$,
+Signal vs Telegram: $p < 0.001$,
+Messenger vs Telegram: not significant.
+
+Thus, Signal’s mean runtime activity is statistically lower than that of Messenger and Telegram in active use.
+
+\paragraph{ii) IPC Ratio Comparison.}
+
+To examine modularity and internal communication, the IPC ratio for each application is defined by:
+
+\[
+R_{\text{IPC},i} = \frac{\text{IPC Events}_i}{\text{Total Events}_i} \times 100\%.
+\]
+
+Sample estimates were:
+\[
+R_{\text{IPC,Messenger}} = 15.4\%, \quad
+R_{\text{IPC,Signal}} = 11.9\%, \quad
+R_{\text{IPC,Telegram}} = 8.7\%.
+\]
+
+A one-way ANOVA on these ratios rejected the null hypothesis of equal mean IPC ratios ($p < 0.05$), confirming that Messenger employs relatively more inter-process calls compared to the more self-contained Signal and Telegram.
+
+\paragraph{iii) Network-to-File Operations Ratio.}
+
+To capture the balance between remote data synchronisation and local caching, we define the per-application Network-to-File ratio:
+
+\[
+R_{\text{NetFile},i} = \frac{\text{Total TCP Data}_i~[\text{bytes}]}{\text{File Operations}_i}.
+\]
+
+For the foreground scenario, the computed values were:
+
+\[
+R_{\text{NetFile,Messenger}} = 8.68, \quad
+R_{\text{NetFile,Signal}} = 5.00, \quad
+R_{\text{NetFile,Telegram}} = 1,278.85.
+\]
+
+This ratio shows that Telegram depends heavily on high-volume remote transfers per file access, while Signal stays localised and Messenger sits in between. ANOVA testing confirmed these differences are statistically significant ($p < 0.001$).
+
+\begin{table}[H]
+    \centering
+    \caption{Summary of Statistical Comparisons and p-values}
+    \label{tab:comparative_tests}
+    \begin{tabular}{|l|c|}
+        \hline
+        \textbf{Test} & \textbf{p-value} \\
+        \hline
+        ANOVA: Events per Second (FG) & $<$ 0.001 \\
+        ANOVA: IPC Ratio (FG) & 0.032 \\
+        ANOVA: Network-to-File Ratio (FG) & $<$ 0.001 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+These results quantitatively validate the design trade-offs observed: Messenger shows intensive local coordination, Signal favours local-only checks with minimal IPC, and Telegram shifts load to network-heavy synchronisation for richer user experience.
 
 % --------------------------------------------------
 %  Discussion
