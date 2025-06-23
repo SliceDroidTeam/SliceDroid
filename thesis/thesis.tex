@@ -1166,7 +1166,7 @@ To close this architecture chapter, Figure \ref{fig:pipeline} condenses the enti
 To capture meaningful behavioural variations and to systematically compare how each application responds under distinct runtime conditions, dynamic kernel-level tracing was organised into four carefully defined usage scenarios per target app. This multi-scenario design enables direct cross-scenario comparison, revealing differences in resource usage, inter-process communication (IPC), and network interactions when permissions or user activity levels vary.
 
 \begin{enumerate}[label=\roman*.]
-  \item \textbf{Full Permissions Scenario:} The application was run with all permissions granted, allowing observation of its maximum functional scope. This baseline scenario serves as a reference to which restricted and passive states can be compared, helping to isolate which activities depend on specific permissions.
+  \item \textbf{Full Permissions Scenario:} The application was run with all permissions granted, allowing observation of its maximum functional scope. In this mode, a consistent sequence of actions was performed: sending two text messages, recording a short voice message (approximately 5 seconds long), and capturing a photo using the in-app camera. This interaction pattern ensures coverage of typical real-world usage and tests multiple privacy-sensitive features simultaneously. The full permissions scenario serves as a baseline to compare against restricted and passive states, helping isolate which activities depend on specific permissions.
 
   \item \textbf{Restricted Permissions Scenario:} Selected sensitive permissions (e.g., location, microphone, or contacts) were deliberately disabled through the Android settings. This condition was designed to examine how the application adapts when permission-dependent features are blocked—whether it attempts repeated access, triggers fallback code, or suppresses functionality altogether. Comparing this scenario to the full permissions case highlights how gracefully or aggressively each app handles denied permissions.
 
@@ -1175,7 +1175,7 @@ To capture meaningful behavioural variations and to systematically compare how e
   \item \textbf{Active Foreground Scenario:} The app was actively used for normal tasks such as messaging, media sharing, and voice or video calls where applicable. This scenario represents the peak operational state with frequent user actions, providing a reference for typical real-world usage patterns. Comparing it with the passive and restricted runs helps pinpoint which kernel-level events are triggered exclusively by user-initiated activity versus background processes.
 \end{enumerate}
 
-Each scenario execution lasted approximately one minutes to capture sufficient behavioural samples and was repeated multiple times to enhance reliability and minimise outlier effects. The runs were systematically scheduled in a consistent sequence—starting from passive, followed by restricted, then full permissions, and concluding with active usage—to ensure stable device conditions and to avoid cross-contamination of residual states.
+Each scenario execution lasted approximately one minute to capture sufficient behavioural samples and was repeated multiple times to enhance reliability and minimise outlier effects. The runs were systematically scheduled in a consistent sequence—starting from passive, followed by restricted, then full permissions, and concluding with active usage—to ensure stable device conditions and to avoid cross-contamination of residual states.
 
 By applying this structured workload design, the resulting traces enable detailed side-by-side comparisons. This makes it possible to clearly identify behavioural deviations across permission settings and activity states, providing deeper insights into each application's runtime privacy implications and resource footprint.
 
@@ -1549,26 +1549,30 @@ security drag that inevitably accompanies growth over time.
 \section{Dynamic Analysis Results}
 \subsection{Scope and Dataset Overview}
 
-The dynamic analysis was systematically conducted on three widely used messaging
-applications—\textit{Messenger}, \textit{Signal}, and \textit{Telegram}—capturing
-their runtime behaviour under the exact usage scenarios previously defined and
-executed in Section~4.3.4 \textit{Workload Design and Usage Scenarios}.
-As described in that section, each application was exercised in a controlled
-environment for approximately $30 \pm 1$ seconds per run, under four distinct
-operational modes: running in the background with full operational permissions
-(\texttt{full\_background}), actively used in the foreground with full permissions
-(\texttt{full\_foreground}), background execution with minimal resource activity
+The dynamic analysis was systematically conducted to capture runtime behaviour
+under the exact usage scenarios previously defined and executed in Section~4.3.4
+\textit{Workload Design and Usage Scenarios}, using the selected messaging applications.
+Each application was exercised in a controlled environment for approximately $30 \pm 1$
+seconds per run, under four distinct operational modes: running in the background with full
+operational permissions (\texttt{full\_background}), actively used in the foreground with full
+permissions (\texttt{full\_foreground}), background execution with minimal resource activity
 (\texttt{none\_background}), and foreground usage with reduced permissions (\texttt{none\_foreground}).
 This workload configuration ensures behavioural consistency and repeatability across all test runs.
 The resulting dataset comprises twelve trace files, each clearly named to encode the specific
-application, scenario, and recording duration, providing full traceability and alignment with the workload structure.
-Observed file sizes demonstrate an expected trend: foreground traces under full permissions exhibit significantly larger
-footprints due to richer event flows from user interactions and multimedia activities, while background and
-constrained scenarios yield notably smaller trace volumes, reflecting lower runtime resource engagement.
-For instance, \textit{Messenger} generated a 117~KB trace in the full foreground scenario compared to a 16~KB
-trace in the none background condition. This structured dataset reflects the defined workload scenarios
-and provides a reliable basis for comparing application behaviour, resource usage, and runtime characteristics
-under consistent operating conditions.
+application, scenario, and recording duration, providing full traceability and alignment with
+the workload structure. Observed file sizes demonstrate an expected trend: foreground traces
+under full permissions exhibit significantly larger footprints due to richer event flows from
+user interactions and multimedia activities, while background and constrained scenarios yield
+notably smaller trace volumes, reflecting lower runtime resource engagement.For example, the
+trace for full foreground usage is up to 117~KB, compared to 16~KB for a none background case.
+This structured dataset reflects the defined workload scenarios and provides a reliable basis
+for comparing application behaviour, resource usage, and runtime characteristics under consistent
+operating conditions. Notably, Signal consistently generates a smaller trace size than the other
+applications in the foreground scenarios, which may indicate more minimalistic runtime behaviour
+and stricter resource handling, in line with its lean and security-focused design previously
+highlighted in the static analysis. This aspect will be further examined in the following sections,
+where dynamic and static findings are jointly discussed.
+
 
 
 \begin{table}[h!]
@@ -1599,9 +1603,299 @@ under consistent operating conditions.
 \end{table}
 
 
-
 \subsection{Statistical Summaries}
+
+\subsubsection{Messenger Runtime Behaviour}
+
+This section provides a concise descriptive snapshot of Messenger when running under typical user-driven interaction. As outlined in the \textit{Workload Design and Usage Scenarios}, the app was actively used in the foreground for sending text messages, recording a short voice clip, and capturing an image using the in-app camera. This representative workload was chosen as it reflects everyday usage, maximising feature invocation and generating diverse runtime events for meaningful analysis.
+
+During this active usage interval of approximately $30$ seconds, a total of $557,770$ events were recorded, yielding an average throughput of about $18,512$ events per second. This high event density highlights Messenger’s intensive interaction patterns and concurrent background tasks typical of a realistic foreground session. The main runtime statistics summarised in Table~\ref{tab:messenger_key_stats} show that over a thousand processes were spawned, with a notable volume of file operations and IPC calls.
+
+\begin{table}[H]
+    \centering
+    \caption{Key Runtime Statistics for Messenger}
+    \label{tab:messenger_key_stats}
+    \begin{tabular}{|l|c|}
+        \hline
+        \textbf{Metric} & \textbf{Value} \\
+        \hline
+        Duration & 30.17 sec \\
+        Total Events & 557,770 \\
+        Events per Second & 18,512 \\
+        Unique Processes & 1,184 \\
+        Active Processes & 218 \\
+        File Operations & 410,707 \\
+        IPC Events & 85,836 \\
+        Notable Anomalies & 27 distinctive patterns \\
+        Read/Write Ratio & 1.73 \\
+        Most Accessed File Type & .db (7,693 times) \\
+        \hline
+    \end{tabular}
+\end{table}
+
+As shown, file operations dominate with over $410,000$ I/O calls, while inter-process communication contributes another $85,836$ events. The so-called \textit{distinctive patterns} in Table~\ref{tab:messenger_key_stats} refer to behavioural outliers, for example when an otherwise idle process suddenly performs an unusually high number of writes; these are not inherently malicious but can serve as an early hint for deeper inspection.
+
+In terms of network behaviour and event type proportions, the \texttt{ioctl} category accounts for nearly half of all recorded calls, followed by \texttt{binder}, \texttt{read}, and \texttt{write} operations. Messenger also generates steady TCP traffic with a small number of UDP packets, transferring around 3.48 MB over TCP, alongside significant local UNIX datagram exchanges that reflect intensive intra-app service communication.
+
+\begin{table}[H]
+    \centering
+    \caption{Network and Event Category Breakdown for Messenger}
+    \label{tab:messenger_network_category}
+    \begin{tabular}{|l|c|}
+        \hline
+        \textbf{Network Metric} & \textbf{Value} \\
+        \hline
+        TCP Events & 750 \\
+        UDP Events & 2 \\
+        Total TCP Data & 3.48 MB (0.3 MB sent, 3.16 MB received) \\
+        UNIX Datagram Traffic & 2.44 MB sent, 48.2 MB received \\
+        Unique Protocols & 4 \\
+        Unique Connections & 2 \\
+        \hline
+        \textbf{Event Category} & \textbf{Proportion} \\
+        \hline
+        ioctl & 46.6\% \\
+        binder & 18.5\% \\
+        read & 18.1\% \\
+        write & 10.5\% \\
+        network & 6.3\% \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Taken together, these figures confirm Messenger’s reliance on high-volume local storage, inter-process orchestration, and steady external connectivity during realistic usage—offering a robust baseline for comparing runtime patterns under constrained or passive states in subsequent sections.
+
+
+
+\subsubsection{Signal Runtime Behaviour}
+
+Signal demonstrates a notably lighter runtime signature compared to Messenger when operated under equivalent user-driven conditions.
+
+Over an active usage window of about 30 seconds, Signal generated a total of 423,442 recorded events, yielding an average throughput of approximately 14,600 events per second—considerably lower than Messenger’s event rate, underscoring Signal’s leaner process structure and restrained resource use. Table~\ref{tab:signal_key_stats} summarises the core runtime metrics, showing that fewer unique processes were spawned and active at runtime.
+
+\begin{table}[H]
+    \centering
+    \caption{Key Runtime Statistics for Signal}
+    \label{tab:signal_key_stats}
+    \begin{tabular}{|l|c|}
+        \hline
+        \textbf{Metric} & \textbf{Value} \\
+        \hline
+        Duration & 29.02 sec \\
+        Total Events & 423,442 \\
+        Events per Second & 14,600 \\
+        Unique Processes & 546 \\
+        Active Processes & 123 \\
+        File Operations & 332,144 \\
+        IPC Events & 50,680 \\
+        Distinctive Patterns & 8 instances \\
+        Read/Write Ratio & 1.03 \\
+        Most Accessed File Type & .db (3,248 times) \\
+        \hline
+    \end{tabular}
+\end{table}
+
+File I/O operations account for most of the trace, supported by moderate IPC exchanges. The few \textit{distinctive patterns} noted indicate rare spikes in activity—such as isolated processes performing unexpected batches of operations—which are not inherently harmful but can warrant closer review during forensic analysis.
+
+Regarding network behaviour and system call proportions, Signal recorded 263 TCP events, transferring about 1.62 MB (0.12 MB sent, 1.49 MB received), and showed no UDP traffic. Interestingly, no UNIX datagram traffic was captured during this session, which may reflect either the app’s design to avoid local service sockets or a limitation of the tracing setup to fully detect certain IPC channels. This point is acknowledged as a measurement constraint and is discussed further in the limitations section. The \texttt{ioctl} category accounts for over half of all calls, with balanced shares for \texttt{binder}, \texttt{read}, and \texttt{write} operations, as summarised below.
+
+\begin{table}[H]
+    \centering
+    \caption{Network and Event Category Breakdown for Signal}
+    \label{tab:signal_network_category}
+    \begin{tabular}{|l|c|}
+        \hline
+        \textbf{Network Metric} & \textbf{Value} \\
+        \hline
+        TCP Events & 263 \\
+        UDP Events & 0 \\
+        Total TCP Data & 1.62 MB (0.12 MB sent, 1.49 MB received) \\
+        UNIX Datagram Traffic & Not detected \\
+        Unique Protocols & 3 \\
+        Unique Connections & 1 \\
+        \hline
+        \textbf{Event Category} & \textbf{Proportion} \\
+        \hline
+        ioctl & 54.4\% \\
+        binder & 14.4\% \\
+        read & 13.4\% \\
+        write & 13.0\% \\
+        network & 4.8\% \\
+        \hline
+    \end{tabular}
+\end{table}
+
+In summary, these results confirm that Signal’s runtime footprint remains significantly lower than Messenger’s, prioritising secure transmission and minimal local overhead. This behaviour aligns well with its privacy-focused design, complementing insights from static analysis.
+
+
+\subsubsection{Telegram Runtime Behaviour}
+
+Telegram shows a noticeably heavier runtime profile than Signal and a closer footprint to Messenger when used under typical user-driven conditions. The test session included sending messages, recording a short voice note, and capturing an image to ensure realistic, feature-rich interaction.
+
+Across an active usage window of approximately 30 seconds, Telegram generated a total of 549,824 recorded events, resulting in an average throughput of about 18,625 events per second. This high rate, summarised in Table~\ref{tab:telegram_key_stats}, indicates an application architecture optimised for rapid background operations and parallel handling of media-rich content.
+
+\begin{table}[H]
+    \centering
+    \caption{Key Runtime Statistics for Telegram}
+    \label{tab:telegram_key_stats}
+    \begin{tabular}{|l|c|}
+        \hline
+        \textbf{Metric} & \textbf{Value} \\
+        \hline
+        Duration & 29.52 sec \\
+        Total Events & 549,824 \\
+        Events per Second & 18,625 \\
+        Unique Processes & 789 \\
+        Active Processes & 238 \\
+        File Operations & 460,164 \\
+        IPC Events & 47,629 \\
+        Distinctive Patterns & 28 instances \\
+        Read/Write Ratio & 1.39 \\
+        Most Accessed File Type & .db (5,302 times) \\
+        \hline
+    \end{tabular}
+\end{table}
+
+File I/O is again dominant, with a slight bias towards read operations. IPC activity was substantial at 47,629 events, and 28 \textit{distinctive patterns} were flagged—meaning isolated processes showed sudden spikes in operations that stand out from the main activity flow, but do not imply malicious behaviour on their own.
+
+Network-wise, Telegram initiated 462 TCP events and 3 UDP packets, transferring a total of 574.36 MB over TCP, of which 0.26 MB was sent and an unusually high 574.10 MB was received. The absence of UNIX datagram traffic may again reflect either the app’s internal design or a limitation in the capture configuration. This large inbound traffic likely results from automatic media downloads, large attachment fetching, or possibly a background update triggered during the test window—an aspect noted for discussion in the limitations section. Event type proportions show that \texttt{ioctl} calls remain dominant (57.3\%), with read, write, and binder operations distributed evenly below that threshold.
+
+\begin{table}[H]
+    \centering
+    \caption{Network and Event Category Breakdown for Telegram}
+    \label{tab:telegram_network_category}
+    \begin{tabular}{|l|c|}
+        \hline
+        \textbf{Network Metric} & \textbf{Value} \\
+        \hline
+        TCP Events & 462 \\
+        UDP Events & 3 \\
+        Total TCP Data & 574.36 MB (0.26 MB sent, 574.10 MB received) \\
+        UNIX Datagram Traffic & Not detected \\
+        Unique Protocols & 4 \\
+        Unique Connections & 5 \\
+        \hline
+        \textbf{Event Category} & \textbf{Proportion} \\
+        \hline
+        ioctl & 57.3\% \\
+        read & 16.8\% \\
+        write & 12.1\% \\
+        binder & 10.1\% \\
+        network & 3.7\% \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Taken together, these results confirm that Telegram sustains a high I/O and network load, driven by its heavy use of multimedia content and background synchronisation. This behaviour complements the static analysis and highlights the need to consider automatic downloads and prefetch logic when interpreting dynamic traces.
+
+
+\subsubsection{Cross-Application Comparison}
+When comparing the three applications under identical high-activity foreground scenarios, clear behavioural differences emerge. Messenger exhibits the highest overall file operations and IPC activity, reflecting its more complex interaction flows and heavier reliance on local data handling during messaging and multimedia tasks. Signal, in contrast, maintains the smallest runtime footprint in both I/O and network usage, aligning with its minimalistic and privacy-oriented architecture. Telegram stands out for its exceptionally high network throughput, transferring over $570$ MB within a single session, which is an order of magnitude greater than the other two. This is indicative of Telegram’s tendency to prefetch media content and synchronize large message histories in the background, even when used interactively. Category distributions further confirm that while all three applications are dominated by \texttt{ioctl} and file operations, Telegram and Messenger show more balanced binder and network activity compar
+
+\begin{table}[h!]
+    \centering
+    \caption{Comparison of Key Runtime Metrics Across Applications (Full Foreground Scenario)}
+    \label{tab:comparison_key_metrics}
+    \begin{tabular}{|l|c|c|c|}
+        \hline
+        \textbf{Metric} & \textbf{Messenger} & \textbf{Signal} & \textbf{Telegram} \\
+        \hline
+        Duration (sec) & 30.13 & 29.02 & 29.52 \\
+        Total Events & 557,770 & 423,442 & 549,824 \\
+        Events per Second & 4,628.72 & 14,600 & 7,607.57 \\
+        Unique Processes & 1,184 & 546 & 789 \\
+        Active Processes & 218 & 123 & 238 \\
+        File Operations & 410,707 & 332,144 & 460,164 \\
+        IPC Events & 85,836 & 50,680 & 47,629 \\
+        Suspicious Patterns & 27 & 8 & 28 \\
+        Read/Write Ratio & 1.73 & 1.03 & 1.39 \\
+        Most Accessed File Type & .db (7,693) & .db (3,248) & .db (5,302) \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\begin{table}[h!]
+    \centering
+    \caption{Comparison of Network Metrics and Event Category Distribution}
+    \label{tab:comparison_network_categories}
+    \begin{tabular}{|l|c|c|c|}
+        \hline
+        \textbf{Metric} & \textbf{Messenger} & \textbf{Signal} & \textbf{Telegram} \\
+        \hline
+        TCP Events & 750 & 263 & 462 \\
+        UDP Events & 2 & 0 & 3 \\
+        Total TCP Data & 3.48 MB & 1.62 MB & 574.36 MB \\
+        UNIX Datagram Traffic & 2.44 MB sent / 48.2 MB received & None & None \\
+        Unique Protocols & 4 & 3 & 4 \\
+        Unique Connections & 2 & 1 & 5 \\
+        \hline
+        ioctl (\%) & 46.6 & 54.4 & 57.3 \\
+        binder (\%) & 18.5 & 14.4 & 10.1 \\
+        read (\%) & 18.1 & 13.4 & 16.8 \\
+        write (\%) & 10.5 & 13.0 & 12.1 \\
+        network (\%) & 6.3 & 4.8 & 3.7 \\
+        \hline
+    \end{tabular}
+\end{table}
+
 \subsection{Behavioural Patterns Observed}
+
+\subsubsection{Telegram - Full Foreground Scenario}
+
+The behavioural patterns observed in Telegram during the full foreground scenario reveal a clear signature of an application designed to handle high-volume multimedia messaging while maintaining a persistent network presence. As shown in the \textit{Event Timeline} (Figure~\ref{fig:telegram_event_timeline}), the core system calls—including \texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and \texttt{network}—are distributed consistently across the entire trace duration, indicating stable processing of I/O and communication tasks without abrupt idle phases.
+
+The \textit{Behavior Timeline} (Figure~\ref{fig:telegram_behavior_timeline}) further demonstrates diverse functional triggers: frequent usage of the camera and audio input, continuous TCP sessions, and sporadic access to device sensors such as Bluetooth, NFC, and GNSS. Notably, contact data and call log interactions appear at the tail end of the session, implying Telegram’s background syncing and contact discovery routines operating alongside user-driven messaging.
+
+The \textit{Communication Flow} diagram (Figure~\ref{fig:telegram_communication_flow}) highlights how multiple process IDs interact with a central external process, forming a hub-and-spoke pattern typical of modern multi-threaded messaging apps. This structure suggests that Telegram dynamically offloads media transfers and session management tasks to auxiliary worker processes, improving responsiveness for the main user interface.
+
+Taken together, these behavioural traces confirm that Telegram maintains a highly active runtime footprint with concurrent media operations, continuous network connectivity, and background access to sensitive device services. These findings align with its elevated network and I/O statistics and will be discussed further in the context of privacy and performance implications in the next chapters.
+
+
+\subsubsection{Telegram - Restricted Permissions Scenario}
+
+Under the restricted permissions scenario (\texttt{none}), Telegram’s behavioural footprint changes noticeably compared to its fully operational mode. As illustrated in the \textit{Event Timeline} (Figure~\ref{fig:telegram_none_event_timeline}), core system calls such as \texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and limited \texttt{network} interactions are still present but with visibly reduced density and duration spread, suggesting decreased file and inter-process activities due to permission constraints.
+
+The \textit{Behavior Timeline} (Figure~\ref{fig:telegram_none_behavior_timeline}) confirms this restrained behaviour: only minimal TCP events appear, with no activation of sensors or device-specific services like camera, audio, Bluetooth, or contacts, which remain entirely inactive under restricted conditions. This pattern shows that Telegram's fallback operations prioritise basic connectivity and background session checks, avoiding any attempt to access functionalities that are now blocked.
+
+The \textit{Communication Flow} graph (Figure~\ref{fig:telegram_none_communication_flow}) reveals a simplified process structure: fewer PIDs interact with the core external process, forming a lightweight and linear hierarchy rather than the complex hub-and-spoke seen in the full foreground scenario. This implies that the application disables auxiliary worker threads and media sync tasks when permissions are insufficient, leading to lower CPU and I/O demands.
+
+Overall, Telegram demonstrates an adaptive behaviour under permission restrictions, continuing to maintain a minimum viable background session while refraining from invoking blocked or sensitive device services. This validates the effectiveness of permission-based controls and provides a baseline for contrasting how runtime behaviour scales with available privileges.
+
+
+
+\subsubsection{Messenger Full Foreground Scenario}
+
+The Messenger application, when operating with full permissions in the foreground, exhibits the richest and most complex behavioural pattern among the three messaging clients. As shown in the \textit{Event Timeline} (Figure~\ref{fig:messenger_event_timeline}), the frequency and continuity of core system call categories—\texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and intensive \texttt{network} activity—remain high and evenly distributed throughout the session. This reflects Messenger’s robust background tasks and continuous synchronisation of multimedia messages.
+
+The \textit{Behavior Timeline} (Figure~\ref{fig:messenger_behavior_timeline}) distinctly highlights Messenger’s interaction with user contacts, a behaviour that is largely absent in Signal and only marginally present in Telegram. Here, repeated contact lookups and metadata syncs are evident alongside simultaneous camera and audio usage, which confirms Messenger’s aggressive data integration to support features such as rich chat, stories, and contact suggestions.
+
+The \textit{Communication Flow} diagram (Figure~\ref{fig:messenger_communication_flow}) reinforces the app’s architectural complexity: a dense cluster of process IDs branches out from a central dispatcher with multiple nodes playing a pivotal role in handling high-frequency tasks. Compared to Signal’s and Telegram’s flows, Messenger maintains more worker PIDs actively participating in both foreground and background operations, underlining its design to manage simultaneous media, chat, and backend connectivity with minimal latency.
+
+Overall, these patterns confirm that Messenger leverages full device permissions not only for multimedia but also for dynamic access to contacts and advanced inter-process orchestration. This expansive behavioural footprint, while supporting richer features, simultaneously broadens the attack surface, which should be taken into account in the security and privacy discussion.
+
+
+\subsubsection{Messenger Restricted Permissions Scenario}
+
+When executed with restricted permissions, Messenger demonstrates a noticeably reduced runtime footprint compared to its full-permission operation. The \textit{Event Timeline} (Figure~\ref{fig:messenger_none_event_timeline}) confirms that the core system call streams—\texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and minimal \texttt{network} events—remain present but at significantly lower volume and frequency. This indicates deactivation of certain background modules and intensive synchronisation tasks.
+
+A key behavioural finding, however, is illustrated in the \textit{Behavior Timeline} (Figure~\ref{fig:messenger_none_behavior_timeline}): even with explicit permission restrictions, Messenger actively accesses the \texttt{contacts} category. This suggests that parts of the contact access logic are deeply integrated into the app’s messaging workflow—potentially for caching, address book indexing, or verifying recipient metadata to maintain seamless chat continuity. Such behaviour persists regardless of explicit user consent settings, raising questions about whether these calls are residual background processes or fallback mechanisms to optimise user experience.
+
+The \textit{Communication Flow} (Figure~\ref{fig:messenger_none_communication_flow}) shows that while the orchestration graph is much simpler than in full mode, Messenger still operates multiple worker PIDs branching off a central dispatcher. This intermediate complexity hints at leftover runtime modules that handle background consistency tasks even when heavy features are disabled.
+
+This persistent contact access under restricted mode
+is highly relevant from a privacy standpoint and warrants deeper investigation. Understanding whether this is intentional fallback logic, an unavoidable design dependency, or a potential permission bypass will be further analysed in the discussion and security sections that follow.
+\subsubsection{Signal Full Foreground Scenario}
+Figure~\ref{fig:signal_full_event} illustrates the overall event timeline for the Signal trace under full permissions. The sequence shows steady and continuous activity across the main system call categories (\texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and \texttt{network}) with no abrupt peaks or idle gaps, suggesting stable resource usage during typical messaging operations.
+
+As shown in Figure~\ref{fig:signal_full_behaviour}, the behavioural timeline highlights a limited set of interactions: access to the camera and microphone appears consistently throughout the session, while TCP traffic is visible at multiple points, corresponding to message exchange. Unlike Messenger, Signal does not generate additional behaviour traces for contacts or calendar access, which aligns with its design to minimise exposure of user data.
+
+Finally, the IPC flow diagram in Figure~\ref{fig:signal_full_commflow} shows a small number of internal PIDs communicating outward. The structure remains simple and indicates a lower degree of internal process spawning compared to Messenger, which may reflect Signal’s tighter internal sandboxing and process isolation.
+
+Overall, the captured patterns suggest that Signal maintains a restrained runtime footprint, focusing only on essential media capture and secure network transmission, with fewer device and context interactions than other tested apps. These observations complement the static analysis results and support Signal's emphasis on privacy-preserving operation.
+
+\subsubsection{Signal Restricted Permissions Scenario}
+
+
 \subsection{Visualisations}
 \subsection{Cross-Application Comparative Discussion}
 
