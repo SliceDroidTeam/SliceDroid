@@ -897,7 +897,7 @@ def analyze_app():
             return jsonify({'error': 'No app specified'}), 400
 
         # Check if trace file exists
-        trace_file = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
+        trace_file = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'uploaded_trace.trace'
         if not trace_file.exists():
             return jsonify({'error': 'No trace file found. Please upload a trace file first.'}), 400
 
