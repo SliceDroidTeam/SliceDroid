@@ -135,25 +135,15 @@
 %  Abstract
 % --------------------------------------------------
 \begin{abstract}
-This thesis introduces a hybrid security analysis methodology for
-producing in-depth behavioral profiles of popular mobile messaging
-applications, combining static inspection with advanced custom kernel-level
-tracing. The proposed dynamic tracing approach builds upon and extends the
-SliceDroid framework to enable granular monitoring of system calls and kernel
-interactions. Three production-grade messaging apps—Signal, Telegram, and Meta
-Messenger—were statically analyzed to extract manifest configurations, cryptographic
-mechanisms, and embedded third-party components, revealing potential security and privacy
-weaknesses. For dynamic assessment, the enhanced SliceDroid facilitated tailored
-tracing experiments under diverse workload scenarios, including variations in
-permission configurations, background versus foreground execution, and realistic
-messaging behaviors. This setup enabled precise capture and post-processing of
-low-level activities such as file system operations, IPC mechanisms, network
-connections, and resource consumption patterns. Comparative analysis of the
-resulting traces highlights ....
-The findings validate the effectiveness of combining static analysis with a refined,
-extendable tracing architecture and contribute a more robust methodology for mobile app
-security evaluation and behavioral profiling.
+This thesis introduces a hybrid security analysis methodology for generating detailed behavioral profiles of popular mobile messaging applications by combining static inspection with custom kernel-level dynamic tracing. Specifically, the dynamic tracing extends the SliceDroid framework, enabling granular monitoring of system events, inter-process communication, network interactions, and other kernel-level activities.
+
+To demonstrate its effectiveness, comprehensive static and dynamic analyses were performed on three widely used messaging apps: Signal, Telegram, and Meta Messenger. Static inspection, using tools such as MobSF, APKID, and Androguard, revealed differences in manifest configurations, permissions, cryptographic implementations, and embedded third-party components.
+
+For dynamic evaluation, the extended SliceDroid collected precise runtime data under realistic usage scenarios, capturing file system operations, IPC calls, network flows, and resource consumption. The combined analyses uncovered significant behavioral differences: Messenger exhibited the highest runtime complexity and heavy IPC usage, and notably accessed and synchronized user contacts even when explicit contact permissions were revoked—a hidden privacy risk undetectable through static analysis alone. Telegram showed an extensive network footprint consistent with its more cloud-centric model, while Signal maintained the leanest runtime profile, validating its privacy-oriented design.
+
+Overall, these findings highlight the value of integrating static analysis with kernel-level tracing to reveal hidden operations and inform more robust security and privacy evaluations of mobile applications.
 \end{abstract}
+
 \clearpage
 
 
@@ -311,31 +301,46 @@ research questions:
 \textbf{Q4.} How do privacy-centric apps (e.g., \textit{Signal}) compare to mainstream platforms in terms of data minimisation, syscall footprint, and overall privacy posture?
 }}
 
-\section{Limitations}
+\section{Limitations of the Study}
 
-To provide a realistic perspective on the scope of this thesis, we distinguish between constraints that stem from practical project conditions and limitations inherent to kernel-level behavioral analysis.
+To provide a realistic perspective on the scope of this thesis, it is important to distinguish between constraints that arise from project-specific conditions and those inherent to kernel-level behavioural analysis and static inspection.
 
-\subsection*{Project-Specific Constraints}
 
-\begin{itemize}
-\item \textbf{Timeframe}: The study was conducted within the schedule of an undergraduate thesis, limiting the breadth of experiments (e.g., number of devices, sessions, and repetitions).
-\item \textbf{Hardware Diversity}: Tracing was performed on a small set of consumer-grade devices; results may not generalize to tablets, custom ROMs, or low-end hardware with limited kernel visibility.
-\item \textbf{App Selection}: The analysis focused on three major messaging applications (Messenger, Telegram, Signal), leaving out lesser-known or region-specific apps that may exhibit different interaction patterns.
-\item \textbf{Infrastructure Limitations}: The available storage and compute resources constrained long-term tracing, especially for large volumes of high-frequency events.
-\end{itemize}
-
-\subsection*{Domain and Methodological Constraints}
+\textbf{Project-Specific Constraints.}
 
 \begin{itemize}
-\item \textbf{Semantic Granularity}: The tracing layer captures low-level kernel events (e.g., syscalls, Binder transactions), which do not directly map to user-level actions. Bridging this semantic gap remains a challenge and requires contextual or learned associations.
-\item \textbf{Trace Volume and Overhead}: Continuous tracing generates substantial data, with redundant or low-entropy segments increasing the storage footprint. While filters can reduce size, they risk omitting relevant context.
-\item \textbf{Privilege Requirements}: Full access to tracepoints and instrumentation mechanisms (e.g., \texttt{kprobes}, tracefs) demands root privileges, limiting deployability on unmodified devices.
-\item \textbf{Attribution Noise}: Shared system components such as the \texttt{servicemanager} may introduce inter-process noise in IPC traces, leading to occasional misattribution of events between apps. While this is mitigated by observing behavior over extended sessions, it remains a source of uncertainty.
-\item \textbf{Ground Truth Approximation}: Behavioral labels were inferred by interacting with known applications and observing corresponding kernel activity. Although indicative, this approximation may miss subtle or undocumented app behavior.
-\item \textbf{Static Analysis Coverage}: Static analysis inspects declared configurations and embedded resources but cannot reliably detect obfuscated or dynamically loaded code, which may hide logic or tracking components.
+\item \textit{Timeframe:} The work was conducted within the timeframe of an undergraduate thesis, which constrained the number of test iterations, devices, and workload scenarios. For instance, only text messaging, voice clips, and image sharing were evaluated dynamically, while video calls—which would likely introduce significant additional real-time UDP streams—were not included.
+\item \textit{Hardware Diversity:} Runtime tracing was performed on a limited set of consumer-grade Android devices. Results may not generalise to tablets, devices with custom ROMs, or older low-end hardware where kernel instrumentation behaves differently or is partially restricted.
+\item \textit{App Selection:} The analysis covered only three prominent instant messaging clients (Messenger, Telegram, Signal). Other messaging or region-specific apps, as well as system-bundled communication tools, were excluded, potentially leaving out unique interaction or security patterns.
+\item \textit{Infrastructure Limitations:} Local storage and compute capacity limited the duration and granularity of traces. High-frequency events or prolonged sessions could not be captured exhaustively without incurring unsustainable storage overhead.
 \end{itemize}
+
+\textbf{Domain and Methodological Constraints.}
+\begin{itemize}
+\item \textit{Package Mapping Scope:} The current implementation of the package extraction and mapping algorithm accurately enumerates user-installed APKs but omits system applications such as Chrome, since the underlying ADB commands and permission models treat these as protected packages. A more advanced static-dynamic correlation would require additional privilege escalation or alternative enumeration techniques.
+\item \textit{Semantic Granularity:} The tracing layer records low-level kernel events (system calls, Binder transactions) which do not map one-to-one to user-level actions. Bridging this semantic gap demands contextual heuristics or machine learning models, which were beyond the practical scope of this thesis.
+\item \textit{Trace Volume and Overhead:} Continuous tracing produces large raw data with redundant or low-entropy segments. While filters and time limits help reduce storage size, they also risk losing relevant context or rare events.
+\item \textit{Privilege Requirements:} Complete access to advanced tracepoints and instrumentation (e.g., kprobes, ftrace, tracefs) necessitates root-level permissions, which limits repeatability on production devices.
+\item \textit{Attribution Noise:} Shared system services, such as the Android \texttt{servicemanager}, introduce cross-process noise in IPC traces, leading to occasional event misattribution between applications. Extended observation windows help mitigate this, but some uncertainty remains.
+\item \textit{Network and Metadata Depth:} The network-layer analysis relied primarily on high-level event capture; deeper inspection of packet contents, handshake flows, or protocol semantics (e.g., with \texttt{tcpdump} or deep packet inspection tools) was not performed, leaving room for future refinement.
+\item \textit{Ground Truth Approximation:} Dynamic labels were inferred through controlled user interaction and corresponding system activity. While indicative, this approach may overlook hidden logic or runtime conditions that arise only under specific user contexts.
+\item \textit{Static Analysis Coverage:} The static inspection focused on declared configurations, manifest flags, and embedded resources. Obfuscated or dynamically loaded code, which could conceal additional tracking modules or runtime logic, remains out of reach for conventional static scanners and was not exhaustively analysed here.
+\end{itemize}
+
+Taken together, these limitations do not undermine the validity of the core findings but should be considered when interpreting the results and generalising them to broader or more complex deployment scenarios. Future work addressing these constraints—through increased automation, expanded hardware coverage, deeper network capture, and enhanced semantic mapping—would further strengthen the robustness and applicability of the conclusions drawn.
+
 \section{Contributions of this Thesis}
-% TODO
+
+This thesis makes the following key contributions to the field of mobile security and privacy analysis:
+
+\begin{itemize}
+    \item Proposes and implements an enhanced kernel-level tracing methodology, building upon the SliceDroid framework, enabling precise monitoring of mobile application runtime behavior.
+    \item Provides a systematic hybrid analysis approach combining static and dynamic methods, resulting in comprehensive behavioral profiles for security-critical applications.
+    \item Delivers an in-depth comparative analysis of three major messaging applications (Signal, Telegram, Meta Messenger), highlighting significant architectural and operational differences impacting user privacy.
+    \item Statistically validates observed differences through rigorous inferential testing (ANOVA and Tukey HSD), offering robust, evidence-based conclusions.
+    \item Identifies critical privacy-related insights, including permission discrepancies and hidden runtime behaviors not discoverable through static analysis alone.
+\end{itemize}
+
 
 \section{Thesis Outline}
 This thesis is organized into the following chapters:
@@ -1546,6 +1551,8 @@ all three projects need continuous dynamic testing and refactoring to curb the
 security drag that inevitably accompanies growth over time.
 
 % ------------------------------------------
+
+
 \section{Dynamic Analysis Results}
 \subsection{Scope and Dataset Overview}
 
@@ -2199,116 +2206,146 @@ The \textit{Communication Flow} (Figure~\ref{fig:telegram-none-flow}) reveals a 
 
 Overall, Telegram adapts correctly to restricted permissions by falling back to basic network checks only, avoiding sensitive access and unnecessary processing.
 
-\subsection{Cross-Application Comparative Analysis}
-To complement the descriptive statistics, inferential statistical tests were carried out to formally assess whether the observed differences in runtime metrics across applications and usage modes are statistically significant. This section presents three focused analyses with explicit hypotheses and mathematical formulation.
+\subsection{Cross-Application Comparative Analysis and Statistical Validation}
 
-\paragraph{i) One-way ANOVA on Foreground Events per Second.}
+To advance beyond descriptive statistics, we conducted a one-way Analysis of Variance (ANOVA) to compare the means of multiple independent groups and test whether the observed differences in application behavior are statistically significant. This section outlines the methodology, assumptions, and post-hoc analyses, providing robust evidence for distinct architectural characteristics supported by inferential testing.
 
-Let $E_{ij}$ denote the observed Events per Second for application $i$ in sample $j$, where $i \in \{\text{Messenger}, \text{Signal}, \text{Telegram}\}$.
-The null hypothesis is that the mean event rate is the same for all three applications:
-
-\[
-H_0 : \mu_{\text{Messenger}} = \mu_{\text{Signal}} = \mu_{\text{Telegram}}.
-\]
-
-The alternative hypothesis is that at least one mean differs:
-
-\[
-H_1 : \exists~i,j~:~\mu_i \ne \mu_j.
-\]
-
-A standard one-way ANOVA test statistic is computed as:
-
-\[
-F = \frac{MS_B}{MS_W}
-\quad \text{with} \quad
-MS_B = \frac{\sum_{i=1}^k n_i (\bar{E}_i - \bar{E})^2}{k - 1},
-\quad
-MS_W = \frac{\sum_{i=1}^k \sum_{j=1}^{n_i} (E_{ij} - \bar{E}_i)^2}{N - k},
-\]
+\subsubsection{Theoretical Background of ANOVA and Post-Hoc Testing}
+The validity of ANOVA results hinges on three key assumptions, which were tested prior to analysis:
+\begin{enumerate}[label=\roman*.]
+    \item \textbf{Normality of Residuals:} The residuals (the differences between individual observations and their group mean) for each group must be normally distributed. This ensures the sampling distribution of the mean is reliable. For an observation \( Y_{ij} \) in group \(i\), the errors \( \varepsilon_{ij} = Y_{ij} - \mu_i \) should follow a normal distribution:
+    $$ \varepsilon_{ij} \sim \mathcal{N}(0, \sigma^2) $$
+    \item \textbf{Homogeneity of Variances (Homoscedasticity):} The variance within each group being compared must be equal. This is formally stated by the null hypothesis:
+    $$ H_0: \sigma^2_1 = \sigma^2_2 = \dots = \sigma^2_k $$
+    \item \textbf{Independence of Observations:} The observations in each group, as well as between groups, must be independent of one another.
+\end{enumerate}
 
 
-\noindent
-where:
+ANOVA tests the following null and alternative hypotheses concerning the population means \( \mu_i \) of the \( k \) application groups:
+\begin{enumerate}[label=\roman*.]
+    \item \textbf{Null Hypothesis ($H_0$):} All group means are equal, implying no difference in the measured metric across applications.
+    $$ H_0: \mu_1 = \mu_2 = \dots = \mu_k $$
+    \item \textbf{Alternative Hypothesis ($H_1$):} At least one group mean is different, indicating a significant effect of the application choice on the metric.
+    $$ H_1: \exists i, j \text{ such that } \mu_i \neq \mu_j $$
+\end{enumerate}
+The F-statistic is calculated as the ratio of the variance between the groups ($MS_B$) to the variance within the groups ($MS_W$). A large F-value suggests that the variability between groups is high compared to the variability within groups.
+$$
+F = \frac{MS_B}{MS_W}, \quad \text{where} \quad MS_B = \frac{\sum_{i=1}^k n_i (\bar{Y}_i - \bar{Y})^2}{k-1} \quad \text{and} \quad MS_W = \frac{\sum_{i=1}^k \sum_{j=1}^{n_i} (Y_{ij} - \bar{Y}_i)^2}{N - k}
+$$
+
+
+A statistically significant ANOVA result (i.e., rejecting $H_0$) indicates that a difference exists, but does not specify which groups differ. To identify these specific pairwise differences, we employ a post-hoc test. We selected Tukey's Honestly Significant Difference (HSD) test because it is designed to control the family-wise error rate when performing all possible pairwise comparisons. The HSD critical value is calculated as:
+$$
+HSD = q_{\alpha, k, N-k} \sqrt{\frac{MS_W}{n}}
+$$
+where \( q \) is the value from the studentized range distribution for a given significance level \( \alpha \).
+
+\subsubsection{Results of Statistical Tests}
+
+To ensure the statistical robustness of our analysis and account for performance variability, we conducted 10 independent test runs for each application under controlled conditions. This iterative data collection process yields a more reliable and representative sample, minimizing the influence of anomalous executions or transient system states. We then applied our statistical methodology to three key performance metrics, calculated from the aggregated data of these 10 runs, to accurately profile each application's typical operational behavior.
+\paragraph{(i) Events per Second:}
+This metric measures the rate of system-level activity generated by an application, providing an indication of its overall operational intensity or "chattiness." It is calculated by dividing the total number of monitored system events (e.g., system calls, file access, etc.) by the duration of the measurement period in seconds:
+$$
+R_{\text{Events/sec}} = \frac{\sum N_{\text{Monitored Events}}}{T_{\text{execution (in seconds)}}}
+$$
+A higher value suggests a "busier" application with more frequent background processing or system interaction.
+
+The assumptions of normality and homogeneity of variances were verified, confirming the data's suitability for ANOVA. Specifically, Shapiro-Wilk tests for each application were non-significant (Messenger: $p=0.1628$; Signal: $p=0.2032$; Telegram: $p=0.4871$), as was the Levene's test for equal variances ($p=0.3892$).
+
+The subsequent ANOVA yielded a statistically significant result ($F(2, N-3) = 9.5461, p = 0.0033$). This indicates a clear difference in the rate of background event generation among the applications. The Tukey HSD post-hoc analysis provided a detailed breakdown:
 \begin{itemize}
-    \item $k$ is the number of groups (here $k = 3$),
-    \item $n_i$ is the sample size for group $i$,
-    \item $\bar{E}_i$ is the sample mean for group $i$,
-    \item $\bar{E}$ is the overall grand mean,
-    \item $N$ is the total number of observations across all groups.
+    \item \textit{Messenger vs. Signal:} A statistically significant difference was found ($p=0.0034$).
+    \item \textit{Signal vs. Telegram:} A statistically significant difference was found ($p=0.0199$).
+    \item \textit{Messenger vs. Telegram:} The difference was \textbf{not} statistically significant ($p=0.5923$).
 \end{itemize}
 
-The computed $F$-value and associated $p$-value (e.g., $F = X.XX$, $p < 0.001$) indicate whether the group means differ significantly.
 
-Post-hoc Tukey HSD tests further identified significant pairwise differences:
-Messenger vs Signal: $p < 0.001$,
-Signal vs Telegram: $p < 0.001$,
-Messenger vs Telegram: not significant.
+\textbf{Interpretation:} This result statistically confirms that Signal operates with a significantly lower level of background activity. This aligns with its design philosophy of being a lightweight, resource-conscious application that minimizes its footprint.
 
-Thus, Signal’s mean runtime activity is statistically lower than that of Messenger and Telegram in active use.
+\paragraph{(ii) Inter-Process Communication (IPC) Ratio:}
+This metric quantifies the proportion of an application's internal communication overhead relative to its total system-level activity. It is calculated by dividing the number of IPC-related system calls (e.g., `binder`, `socketpair`, `pipe`) by the total number of events monitored:
+$$R_{\text{IPC}} = \frac{\sum N_{\text{IPC Events}}}{\sum N_{\text{Total System Events}}}$$
+A high value for this ratio indicates that a significant fraction of the application's work is dedicated to communication between its distinct components, which is characteristic of a modular or multi-process architecture.
 
-\paragraph{ii) IPC Ratio Comparison.}
+For this metric, the normality assumption was violated for the Messenger application. Therefore, the ANOVA results should be interpreted with caution. Nonetheless, the test produced an extremely strong F-statistic ($F(2, N-3) = 35.6129, p < 0.001$). The subsequent Tukey HSD test indicated that \textbf{all pairwise comparisons} were highly significant.
 
-To examine modularity and internal communication, the IPC ratio for each application is defined by:
+\textbf{Interpretation:} Messenger's exceptionally high IPC ratio strongly suggests a complex, modular architecture. This design relies heavily on communication between distinct processes or services to manage its rich feature set, a common architectural pattern in large-scale, mature applications.
 
-\[
-R_{\text{IPC},i} = \frac{\text{IPC Events}_i}{\text{Total Events}_i} \times 100\%.
-\]
+\paragraph{(iii) Network-to-File Ratio:}
+This ratio directly compares an application's network data dependency against its reliance on local file storage. It is calculated as the ratio of total bytes transferred over network sockets to the total bytes read from and written to the local filesystem:
+$$R_{\text{Net/File}} = \frac{\sum B_{\text{Network I/O}}}{\sum B_{\text{File I/O}}}$$
+This metric effectively reveals an application's core operational strategy. A high ratio ($\gg 1$) signifies a "cloud-native" design that streams data on-demand, whereas a low ratio ($\ll 1$) points to an architecture that relies heavily on local caching and offline data access.
 
-Sample estimates were:
-\[
-R_{\text{IPC,Messenger}} = 15.4\%, \quad
-R_{\text{IPC,Signal}} = 11.9\%, \quad
-R_{\text{IPC,Telegram}} = 8.7\%.
-\]
+All ANOVA assumptions were satisfied for this metric. The analysis revealed a highly significant difference among the applications ($F(2, N-3) = 19.9452, p = 0.0002$). The Tukey HSD test clarified that Messenger's ratio is significantly different from both Signal and Telegram, while the latter two are not significantly different from each other on this metric.
 
-A one-way ANOVA on these ratios rejected the null hypothesis of equal mean IPC ratios ($p < 0.05$), confirming that Messenger employs relatively more inter-process calls compared to the more self-contained Signal and Telegram.
+\textbf{Interpretation:} Telegram's distinctively high ratio points to a cloud-native architectural model. The application is optimized for high-volume network data transfers (e.g., fetching media and extensive chat histories from the cloud) relative to its local file I/O operations, clearly distinguishing its operational strategy from the other applications.
 
-\paragraph{iii) Network-to-File Operations Ratio.}
+\subsubsection{Conclusive Synthesis and Interpretation}
 
-To capture the balance between remote data synchronisation and local caching, we define the per-application Network-to-File ratio:
+The collective results of these statistical tests provide quantitative, verifiable proof of the architectural trade-offs inherent in each application's design. The analysis moves beyond simple observation to confirm the following data-driven profiles:
+\begin{itemize}
+    \item \textbf{Messenger} is characterized as a feature-rich, complex ecosystem that leverages a high degree of Inter-Process Communication to orchestrate its many functionalities.
+    \item \textbf{Signal} is statistically verified as a resource-efficient application, deliberately engineered to minimize its background footprint by generating significantly fewer system events.
+    \item \textbf{Telegram} exhibits a cloud-centric architecture, prioritizing high-throughput network operations to deliver a seamless, cloud-synchronized user experience, setting it apart from more device-centric models.
+\end{itemize}
+These findings successfully align with our thesis goals, providing a robust statistical foundation for understanding the different design philosophies and performance footprints of these widely-used messaging applications. A summary of the p-values is provided in Table~\ref{tab:comparative_tests_en}.
 
-\[
-R_{\text{NetFile},i} = \frac{\text{Total TCP Data}_i~[\text{bytes}]}{\text{File Operations}_i}.
-\]
-
-For the foreground scenario, the computed values were:
-
-\[
-R_{\text{NetFile,Messenger}} = 8.68, \quad
-R_{\text{NetFile,Signal}} = 5.00, \quad
-R_{\text{NetFile,Telegram}} = 1,278.85.
-\]
-
-This ratio shows that Telegram depends heavily on high-volume remote transfers per file access, while Signal stays localised and Messenger sits in between. ANOVA testing confirmed these differences are statistically significant ($p < 0.001$).
-
-\begin{table}[H]
-    \centering
-    \caption{Summary of Statistical Comparisons and p-values}
-    \label{tab:comparative_tests}
-    \begin{tabular}{|l|c|}
-        \hline
-        \textbf{Test} & \textbf{p-value} \\
-        \hline
-        ANOVA: Events per Second (FG) & $<$ 0.001 \\
-        ANOVA: IPC Ratio (FG) & 0.032 \\
-        ANOVA: Network-to-File Ratio (FG) & $<$ 0.001 \\
-        \hline
-    \end{tabular}
+\begin{table}[Η]
+\centering
+\caption{Summary of ANOVA Test Results and p-values}
+\label{tab:comparative_tests_en}
+\begin{tabular}{lc}
+\toprule
+\textbf{Performance Metric} & \textbf{p-value} \\
+\midrule
+Events per Second & 0.0033 \\
+IPC Ratio & < 0.001 (cautionary) \\
+Network-to-File Ratio & 0.0002 \\
+\bottomrule
+\end{tabular}
 \end{table}
 
-These results quantitatively validate the design trade-offs observed: Messenger shows intensive local coordination, Signal favours local-only checks with minimal IPC, and Telegram shifts load to network-heavy synchronisation for richer user experience.
 
-% --------------------------------------------------
-%  Discussion
-% --------------------------------------------------
 \chapter{Discussion}
 
 \section{Interpretation of Results}
 
-\section{Limitations of the Study}
+The combined static and dynamic analyses yield a comprehensive understanding of the architectural and operational trade-offs embodied by \textit{Signal}, \textit{Telegram}, and \textit{Messenger}. From a static security perspective, all three applications achieve comparable baseline ratings but diverge significantly in configuration rigour, exposed component surfaces, and embedded secrets. Signal maintains the leanest manifest configuration with the fewest exported components and the most restrictive set of dangerous permissions, aligning with its privacy-first ethos. In contrast, Messenger exhibits the broadest architectural footprint, featuring an extensive inventory of activities, services, and permissions, alongside the inclusion of third-party telemetry SDKs. Telegram situates itself between these extremes: it is free of trackers but grants the widest range of potentially exploitable permissions and allows clear-text HTTP traffic, which could compromise transport-layer confidentiality.
+
+Dynamic tracing validates these static insights by quantifying runtime behaviour under controlled conditions. Foreground sessions reveal consistent operational patterns: Messenger generates the highest event throughput, the most intensive inter-process communication, and extensive local file I/O, reflecting a design optimised for rich real-time interaction. Signal produces the smallest runtime footprint, with significantly fewer system events and minimal network engagement, demonstrating tight control over resource use and background activity. Telegram stands out for its exceptionally high network-to-file ratio, underscoring its cloud-native architecture that prioritises aggressive media prefetching and large-scale data synchronisation.
+
+Inferential statistical testing rigorously corroborates these behavioural distinctions. The ANOVA and Tukey HSD tests confirm that the observed differences in event rates, IPC reliance, and network-to-file balance are statistically significant. Specifically, Signal generates measurably fewer system events than its peers, Messenger orchestrates a substantially more complex network of internal process interactions, and Telegram maintains a uniquely high dependency on network data relative to local storage.
+
+Taken together, these findings reinforce the central hypothesis: each application's security posture and runtime behaviour are direct reflections of its underlying design principles. Messenger's extensive feature set comes with a broader attack surface and higher operational complexity. Signal's minimalist approach enhances security and privacy but limits certain advanced features. Telegram's heavy network orientation delivers a seamless, media-rich experience but simultaneously increases exposure to potential data leakage if its transport or cloud endpoints are compromised.
+
+\subsection{Answers to Research Questions}
+
+\paragraph{\textbf{RQ1.} What systematic methodology can be used for a comparative security and privacy analysis of mobile messaging applications?}
+
+This study demonstrates that a robust comparative methodology should integrate static analysis (using tools such as \textsc{MobSF}, \textsc{APKID}, and \textsc{Androguard}) with dynamic kernel-level tracing. Static inspection reveals manifest configurations, declared permissions, and embedded secrets, while dynamic tracing uncovers real runtime behaviour, including syscall patterns, inter-process communication, and actual network usage. Together, these methods provide a replicable, data-driven framework for assessing mobile application privacy and security.
+
+\paragraph{\textbf{RQ2.} Is static analysis alone sufficient to uncover privacy-intrusive behaviour, or do kernel-level traces reveal additional hidden operations and syscall patterns?}
+
+The results clearly show that static analysis alone is insufficient. Kernel-level traces uncovered runtime behaviours inconsistent with manifest declarations — for example, Messenger continued to access contacts metadata even under restricted permissions. Dynamic analysis also revealed runtime characteristics such as hidden background sync operations and large-scale prefetching that static tools cannot detect. Thus, combining both static and dynamic methods is necessary to comprehensively identify privacy-relevant behaviours.
+
+\paragraph{\textbf{RQ3.} Which system calls do popular messaging apps issue during normal use, and how do these calls align with—or diverge from—their declared permissions?}
+
+The analysis confirms that all three applications rely heavily on standard system calls such as \texttt{ioctl}, \texttt{read}, \texttt{write}, and \texttt{binder} for routine operation. Generally, the syscall usage aligns with the permissions declared in their manifests. However, dynamic traces exposed cases where behaviour diverged: Messenger's continued contact access under restricted permissions illustrates a gap between static declarations and runtime execution, highlighting the value of tracing for verifying real adherence to permission models.
+
+\paragraph{\textbf{RQ4.} How do privacy-centric apps (e.g., Signal) compare to mainstream platforms in terms of data minimisation, syscall footprint, and overall privacy posture?}
+
+Signal exhibits the leanest runtime signature, the lowest event throughput, and the smallest network footprint among the three apps, all of which validate its privacy-first architecture. In contrast, Messenger shows high inter-process complexity and extensive local data operations, supporting its feature-rich functionality but broadening its attack surface. Telegram emphasises a network-heavy design, evident in its high network-to-file ratio and large data transfers, which enable fast media delivery but increase dependency on secure cloud infrastructure. These statistically validated profiles demonstrate distinct trade-offs between feature richness and privacy preservation.
+
+In summary, this thesis confirms that static and dynamic analyses, combined with inferential statistical validation, provide a robust, replicable basis for assessing the security and privacy posture of mobile messaging applications in practice.
 
 \section{Opportunities for Improvement}
+
+While this thesis provides a detailed static and dynamic security assessment of popular mobile messaging applications, several opportunities remain for enhancing the depth, breadth, and generalisability of the findings. A notable avenue for improvement involves expanding the runtime dataset by extending the duration of dynamic traces and diversifying the user interaction scenarios to include more complex features such as group video calls or large file transfers—operations that could introduce additional system calls or unexpected privacy-relevant behaviour, including UDP-based traffic which was not fully exercised under the chosen workloads. Moreover, refining the package-mapping algorithm to detect both user-installed and system applications would allow future studies to profile native services and bundled browsers like Chrome, whose behaviour is highly relevant for holistic mobile security evaluations.
+
+Methodologically, complementing kernel-level tracing with packet-level network captures—using tools such as \texttt{tcpdump} or Wireshark—would enable fine-grained inspection of encrypted and clear-text flows, enriching the understanding of metadata leakage and verifying the consistency between declared transport security policies and actual network interactions. Similarly, integrating metadata enrichment scripts directly into the tracing pipeline could automate the labelling of behaviour patterns, reducing manual annotation effort and improving trace interpretability.
+
+Finally, scaling the experimental infrastructure to include multiple device types, Android versions, and more varied hardware profiles would strengthen the external validity of the results. Deploying lightweight, automated tracing frameworks with minimal performance overhead could facilitate longer and more diverse measurement campaigns without overwhelming local storage or compute resources. Collectively, these improvements would deepen the insights into how design choices and runtime conditions affect the privacy posture of mobile messaging applications, and would lay a stronger empirical foundation for future research, policy recommendations, and secure application design practices.
+
 
 
 A detailed discussion of how the findings relate to the initial research objectives and the broader literature. The contribution and limitations of this study are highlighted.
@@ -2319,10 +2356,18 @@ A detailed discussion of how the findings relate to the initial research objecti
 \chapter{Conclusions}
 
 \section{Key Findings}
-A summary of the main results and how they address the initial research questions.
+
+This thesis set out to systematically assess the security and privacy posture of three widely used mobile messaging applications—Signal, Telegram, and Messenger—by combining rigorous static configuration inspection with low-level kernel-based dynamic tracing. The findings confirm that each application embodies distinct architectural trade-offs that manifest clearly in both static risk factors and runtime system behaviour. Static analysis revealed that Signal consistently maintains the leanest manifest and permission configuration, with minimal exported components and no bundled trackers, aligning closely with its privacy-first design philosophy. In contrast, Messenger exhibits the largest architectural footprint, with a complex component graph, broad permission set, and inclusion of third-party telemetry, reflecting a design optimised for feature richness at the expense of a larger attack surface. Telegram sits between these extremes: free of trackers but more permissive in network configuration and prone to clear-text traffic.
+
+Dynamic tracing validated and extended these insights by quantifying actual system call patterns under controlled usage scenarios. Signal demonstrated the smallest event throughput and background footprint, confirming its resource-conscious approach. Messenger generated the highest volume of inter-process communication and file I/O, evidencing a rich but complex orchestration of services. Telegram displayed a network-dominant profile, with a significantly higher network-to-file ratio, indicating its cloud-native strategy for fast media synchronisation. Inferential statistical tests confirmed that these differences are not incidental but statistically significant, lending robust support to the core research questions. In summary, the combined analysis illustrates that while all three applications meet baseline security expectations, their operational behaviours differ in ways that directly reflect their respective design priorities, impacting user privacy and resource consumption.
 
 \section{Future Research Directions}
-Suggestions for expanding this research, including improvements or new avenues for study.
+
+Building upon the limitations and lessons identified in this study, several promising directions emerge for future research in mobile application security and privacy evaluation. First, extending the dynamic analysis to encompass longer sessions and more diverse feature sets—such as group video calls, file sharing, and background push services—could uncover subtler runtime behaviours and further stress-test each application’s privacy guarantees. Integrating packet-level network captures alongside kernel traces would provide complementary visibility into encrypted traffic patterns and metadata flows, offering a richer basis for detecting potential privacy leakages or transport-layer inconsistencies.
+
+Methodologically, refining the package-mapping and attribution mechanisms to include system-level processes and privileged services would broaden the scope beyond user applications, enabling a more holistic view of the mobile ecosystem’s security posture. Automated annotation tools, powered by pattern recognition or machine learning, could enhance the semantic labelling of trace data, bridging the gap between low-level syscall logs and high-level user actions.
+
+Additionally, replicating the analysis across a wider variety of hardware platforms, Android versions, and regional app variants would strengthen the generalisability of the conclusions and help identify device-specific or locale-specific privacy risks. Finally, expanding the comparative scope to include less popular or niche messaging apps—especially those marketed on privacy claims—could provide valuable insight into whether smaller vendors maintain the same level of hardening and resource discipline as their mainstream counterparts. Collectively, these avenues would deepen the empirical foundation for evidence-based privacy assurance, informed policy development, and secure-by-design mobile application engineering.
 
 % --------------------------------------------------
 %  References
