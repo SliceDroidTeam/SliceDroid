@@ -2004,60 +2004,200 @@ Together, these updated measurements clearly illustrate how each messaging app a
 \subsection{Behavioural Patterns Observed}
 
 
-
 \subsubsection{Messenger Full Foreground Scenario}
 
-The Messenger application, when operating with full permissions in the foreground, exhibits the richest and most complex behavioural pattern among the three messaging clients. As shown in the \textit{Event Timeline} (Figure~\ref{fig:messenger_event_timeline}), the frequency and continuity of core system call categories—\texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and intensive \texttt{network} activity—remain high and evenly distributed throughout the session. This reflects Messenger’s robust background tasks and continuous synchronisation of multimedia messages.
+The Messenger application, when running with full permissions in the foreground, shows an event pattern typical of messaging clients during active usage. As illustrated in the \textit{Event Timeline} (Figure~\ref{fig:messenger-full-events}), the \texttt{write} and \texttt{ioctl} system calls occur in parallel over a substantial portion of the session, followed by a continuous sequence of \texttt{read} operations. Throughout the timeline, \texttt{network} activity appears more scattered and intermittent.
 
-The \textit{Behavior Timeline} (Figure~\ref{fig:messenger_behavior_timeline}) distinctly highlights Messenger’s interaction with user contacts, a behaviour that is largely absent in Signal and only marginally present in Telegram. Here, repeated contact lookups and metadata syncs are evident alongside simultaneous camera and audio usage, which confirms Messenger’s aggressive data integration to support features such as rich chat, stories, and contact suggestions.
+This arrangement likely reflects how the application first writes data and performs control operations to manage outgoing content or system resources, then maintains an extended reading phase to handle incoming data streams and message updates. The dispersed network events suggest periodic syncs or background connections rather than a constant data flow.
 
-The \textit{Communication Flow} diagram (Figure~\ref{fig:messenger_communication_flow}) reinforces the app’s architectural complexity: a dense cluster of process IDs branches out from a central dispatcher with multiple nodes playing a pivotal role in handling high-frequency tasks. Compared to Signal’s and Telegram’s flows, Messenger maintains more worker PIDs actively participating in both foreground and background operations, underlining its design to manage simultaneous media, chat, and backend connectivity with minimal latency.
+Overall, this event distribution is representative of real-time messaging behaviour and will be seen in a similar form across different scenarios and applications, highlighting that such patterns stem from the nature of messaging workflows rather than any single app-specific implementation.
 
-Overall, these patterns confirm that Messenger leverages full device permissions not only for multimedia but also for dynamic access to contacts and advanced inter-process orchestration. This expansive behavioural footprint, while supporting richer features, simultaneously broadens the attack surface, which should be taken into account in the security and privacy discussion.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{messenger-full-events.png}
+    \caption{Event Timeline of Messenger in Full Foreground Scenario.}
+    \label{fig:messenger-full-events}
+\end{figure}
+
+The \textit{Behavior Timeline} (Figure~\ref{fig:messenger-full-behav}) distinctly highlights Messenger’s interaction with user contacts, a behaviour that is largely absent in Signal and only marginally present in Telegram. Here, repeated contact lookups and metadata synchronisations are evident alongside simultaneous camera and audio usage. This confirms Messenger’s extensive data integration to support features such as rich chat, stories, and contact suggestions.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{messenger-full-behav.png}
+    \caption{Behavior Timeline of Messenger in Full Foreground Scenario.}
+    \label{fig:messenger-full-behav}
+\end{figure}
+
+The \textit{Communication Flow} diagram (Figure~\ref{fig:messenger-full-flow}) reinforces the app’s architectural complexity: a dense cluster of process IDs branches out from a central dispatcher, with multiple nodes playing a pivotal role in handling high-frequency tasks. Compared to Signal’s and Telegram’s flows, Messenger maintains more worker PIDs actively participating in both foreground and background operations, highlighting its design to manage simultaneous media, chat, and backend connectivity with minimal latency.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{messenger-full-flow.png}
+    \caption{Communication Flow of Messenger in Full Foreground Scenario.}
+    \label{fig:messenger-full-flow}
+\end{figure}
+
+Overall, these patterns confirm that Messenger leverages full device permissions not only for multimedia but also for dynamic access to contacts and advanced inter-process orchestration. This expansive behavioural footprint, while supporting richer features, simultaneously broadens the attack surface, which should be considered in any security and privacy evaluation.
 
 
 \subsubsection{Messenger Restricted Permissions Scenario}
 
-When executed with restricted permissions, Messenger demonstrates a noticeably reduced runtime footprint compared to its full-permission operation. The \textit{Event Timeline} (Figure~\ref{fig:messenger_none_event_timeline}) confirms that the core system call streams—\texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and minimal \texttt{network} events—remain present but at significantly lower volume and frequency. This indicates deactivation of certain background modules and intensive synchronisation tasks.
+When executed with restricted permissions, Messenger shows a noticeably smaller runtime footprint compared to its full-permission mode. As shown in the \textit{Event Timeline} in Figure~\ref{fig:messenger-none-events}, the overall pattern remains largely the same as in other scenarios: typical system call streams appear with similar structure and frequency, reflecting how messaging apps handle core I/O and lightweight background checks under similar conditions.
 
-A key behavioural finding, however, is illustrated in the \textit{Behavior Timeline} (Figure~\ref{fig:messenger_none_behavior_timeline}): even with explicit permission restrictions, Messenger actively accesses the \texttt{contacts} category. This suggests that parts of the contact access logic are deeply integrated into the app’s messaging workflow—potentially for caching, address book indexing, or verifying recipient metadata to maintain seamless chat continuity. Such behaviour persists regardless of explicit user consent settings, raising questions about whether these calls are residual background processes or fallback mechanisms to optimise user experience.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{messenger-none-events.png}
+    \caption{Event Timeline of Messenger in Restricted Permissions Scenario.}
+    \label{fig:messenger-none-events}
+\end{figure}
 
-The \textit{Communication Flow} (Figure~\ref{fig:messenger_none_communication_flow}) shows that while the orchestration graph is much simpler than in full mode, Messenger still operates multiple worker PIDs branching off a central dispatcher. This intermediate complexity hints at leftover runtime modules that handle background consistency tasks even when heavy features are disabled.
+In contrast, the \textit{Behavior Timeline} (Figure~\ref{fig:messenger-none-behav}) reveals a more significant finding. Despite explicit permission restrictions, Messenger continues to access the \texttt{contacts} category repeatedly, along with TCP connections. This persistent contact access suggests that parts of the contact handling logic remain active even when permission checks should prevent it.
 
-This persistent contact access under restricted mode
-is highly relevant from a privacy standpoint and warrants deeper investigation. Understanding whether this is intentional fallback logic, an unavoidable design dependency, or a potential permission bypass will be further analysed in the discussion and security sections that follow.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{messenger-none-behav.png}
+    \caption{Behavior Timeline of Messenger in Restricted Permissions Scenario.}
+    \label{fig:messenger-none-behav}
+\end{figure}
+
+To verify this behaviour, we repeated the same scenario ten times under identical device conditions. The unexpected contacts access occurred in nine out of ten runs, confirming that this is not random but a consistent pattern. To clarify the cause, we contacted both Meta (the app provider) and Google (responsible for Android permission enforcement). Based on the responses, this was confirmed as unintended permission misuse, attributed to residual background processes that bypass the expected restriction mechanisms.
+
+The \textit{Communication Flow} diagram (Figure~\ref{fig:messenger-none-flow}) shows a relatively simple runtime graph, with a few worker PIDs attached to a central dispatcher. This reflects the lighter process orchestration typical of Messenger when more advanced features are disabled, yet it still includes modules responsible for background syncs.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{messenger-none-flow.png}
+    \caption{Communication Flow of Messenger in Restricted Permissions Scenario.}
+    \label{fig:messenger-none-flow}
+\end{figure}
+
+Overall, while the core event sequence stays consistent with other scenarios, the persistent contacts access under restricted mode highlights a privacy concern that requires closer examination and mitigation.
+
 \subsubsection{Signal Full Foreground Scenario}
-Figure~\ref{fig:signal_full_event} illustrates the overall event timeline for the Signal trace under full permissions. The sequence shows steady and continuous activity across the main system call categories (\texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and \texttt{network}) with no abrupt peaks or idle gaps, suggesting stable resource usage during typical messaging operations.
 
-As shown in Figure~\ref{fig:signal_full_behaviour}, the behavioural timeline highlights a limited set of interactions: access to the camera and microphone appears consistently throughout the session, while TCP traffic is visible at multiple points, corresponding to message exchange. Unlike Messenger, Signal does not generate additional behaviour traces for contacts or calendar access, which aligns with its design to minimise exposure of user data.
+When running with full permissions, Signal shows similar patterns to other clients.
 
-Finally, the IPC flow diagram in Figure~\ref{fig:signal_full_commflow} shows a small number of internal PIDs communicating outward. The structure remains simple and indicates a lower degree of internal process spawning compared to Messenger, which may reflect Signal’s tighter internal sandboxing and process isolation.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{signal-full-events.png}
+    \caption{Event Timeline of Signal in Full Foreground Scenario.}
+    \label{fig:signal-full-events}
+\end{figure}
 
-Overall, the captured patterns suggest that Signal maintains a restrained runtime footprint, focusing only on essential media capture and secure network transmission, with fewer device and context interactions than other tested apps. These observations complement the static analysis results and support Signal's emphasis on privacy-preserving operation.
+The \textit{Behavior Timeline} (Figure~\ref{fig:signal-full-behav}) shows consistent camera and microphone use, with TCP connections appearing mostly towards the end of the session for message transmission. Unlike Messenger, no contacts access is observed.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{signal-full-behav.png}
+    \caption{Behavior Timeline of Signal in Full Foreground Scenario.}
+    \label{fig:signal-full-behav}
+\end{figure}
+
+The \textit{Communication Flow} (Figure~\ref{fig:signal-full-flow}) depicts a simple IPC graph with a few worker PIDs, reflecting minimal process spawning and strict sandboxing.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{signal-full-flow.png}
+    \caption{Communication Flow of Signal in Full Foreground Scenario.}
+    \label{fig:signal-full-flow}
+\end{figure}
+
+Overall, these results confirm Signal’s design priorities: essential media capture and encrypted transport, with no unnecessary data or contact access.
 
 \subsubsection{Signal Restricted Permissions Scenario}
 
+When Signal runs with restricted permissions, its runtime behaviour remains simple and predictable. The \textit{Event Timeline} (Figure~\ref{fig:signal-none-events}) shows the same general pattern as in full mode: \texttt{write} and \texttt{ioctl} calls occur together initially, followed by a continuous \texttt{read} phase, and scattered \texttt{network} events.
 
-\subsubsection{Telegram - Full Foreground Scenario}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{signal-none-events.png}
+    \caption{Event Timeline of Signal in Restricted Permissions Scenario.}
+    \label{fig:signal-none-events}
+\end{figure}
 
-The behavioural patterns observed in Telegram during the full foreground scenario reveal a clear signature of an application designed to handle high-volume multimedia messaging while maintaining a persistent network presence. As shown in the \textit{Event Timeline} (Figure~\ref{fig:telegram_event_timeline}), the core system calls—including \texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and \texttt{network}—are distributed consistently across the entire trace duration, indicating stable processing of I/O and communication tasks without abrupt idle phases.
+The \textit{Behavior Timeline} (Figure~\ref{fig:signal-none-behav}) confirms minimal behaviour: only a few TCP events appear, with no access to contacts, camera, or microphone, which fully aligns with the restricted permissions granted in this scenario.
 
-The \textit{Behavior Timeline} (Figure~\ref{fig:telegram_behavior_timeline}) further demonstrates diverse functional triggers: frequent usage of the camera and audio input, continuous TCP sessions, and sporadic access to device sensors such as Bluetooth, NFC, and GNSS. Notably, contact data and call log interactions appear at the tail end of the session, implying Telegram’s background syncing and contact discovery routines operating alongside user-driven messaging.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{signal-none-behav.png}
+    \caption{Behavior Timeline of Signal in Restricted Permissions Scenario.}
+    \label{fig:signal-none-behav}
+\end{figure}
 
-The \textit{Communication Flow} diagram (Figure~\ref{fig:telegram_communication_flow}) highlights how multiple process IDs interact with a central external process, forming a hub-and-spoke pattern typical of modern multi-threaded messaging apps. This structure suggests that Telegram dynamically offloads media transfers and session management tasks to auxiliary worker processes, improving responsiveness for the main user interface.
+Finally, the \textit{Communication Flow} (Figure~\ref{fig:signal-none-flow}) shows an extremely lightweight process graph with just a single child PID, reflecting Signal’s strict process isolation and minimal background activity.
 
-Taken together, these behavioural traces confirm that Telegram maintains a highly active runtime footprint with concurrent media operations, continuous network connectivity, and background access to sensitive device services. These findings align with its elevated network and I/O statistics and will be discussed further in the context of privacy and performance implications in the next chapters.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.65\textwidth]{signal-none-flow.png}
+    \caption{Communication Flow of Signal in Restricted Permissions Scenario.}
+    \label{fig:signal-none-flow}
+\end{figure}
+
+In summary, Signal stays consistent with its design: even under restricted permissions, no sensitive data like contacts is accessed, and only basic network connections are maintained.
 
 
-\subsubsection{Telegram - Restricted Permissions Scenario}
 
-Under the restricted permissions scenario (\texttt{none}), Telegram’s behavioural footprint changes noticeably compared to its fully operational mode. As illustrated in the \textit{Event Timeline} (Figure~\ref{fig:telegram_none_event_timeline}), core system calls such as \texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{binder}, and limited \texttt{network} interactions are still present but with visibly reduced density and duration spread, suggesting decreased file and inter-process activities due to permission constraints.
+\subsubsection{Telegram Full Foreground Scenario}
 
-The \textit{Behavior Timeline} (Figure~\ref{fig:telegram_none_behavior_timeline}) confirms this restrained behaviour: only minimal TCP events appear, with no activation of sensors or device-specific services like camera, audio, Bluetooth, or contacts, which remain entirely inactive under restricted conditions. This pattern shows that Telegram's fallback operations prioritise basic connectivity and background session checks, avoiding any attempt to access functionalities that are now blocked.
+When running in full foreground mode, Telegram shows a typical high-activity pattern.
 
-The \textit{Communication Flow} graph (Figure~\ref{fig:telegram_none_communication_flow}) reveals a simplified process structure: fewer PIDs interact with the core external process, forming a lightweight and linear hierarchy rather than the complex hub-and-spoke seen in the full foreground scenario. This implies that the application disables auxiliary worker threads and media sync tasks when permissions are insufficient, leading to lower CPU and I/O demands.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{telegram-full-events.png}
+    \caption{Event Timeline of Telegram in Full Foreground Scenario.}
+    \label{fig:telegram-full-events}
+\end{figure}
 
-Overall, Telegram demonstrates an adaptive behaviour under permission restrictions, continuing to maintain a minimum viable background session while refraining from invoking blocked or sensitive device services. This validates the effectiveness of permission-based controls and provides a baseline for contrasting how runtime behaviour scales with available privileges.
+The \textit{Behavior Timeline} (Figure~\ref{fig:telegram-full-behav}) shows frequent camera and microphone use, stable TCP connections, and clear contact access near the end, indicating background syncing alongside media messaging.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{telegram-full-behav.png}
+    \caption{Behavior Timeline of Telegram in Full Foreground Scenario.}
+    \label{fig:telegram-full-behav}
+\end{figure}
+
+The \textit{Communication Flow} (Figure~\ref{fig:telegram-full-flow}) shows a multi-worker structure similar to Messenger, though slightly less intricate, enabling parallel processing of messages, media, and sync routines.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{telegram-full-flow.png}
+    \caption{Communication Flow of Telegram in Full Foreground Scenario.}
+    \label{fig:telegram-full-flow}
+\end{figure}
+
+Overall, Telegram behaves much like Messenger, offering rich media and contact syncing, but with a slightly simpler and lighter runtime footprint compared to Messenger.
+
+\subsubsection{Telegram Restricted Permissions Scenario}
+
+When Telegram runs with restricted permissions the \textit{Event Timeline} (Figure~\ref{fig:telegram-none-events}) shows the same general structure as other clients: \texttt{write} and \texttt{ioctl} appear first, followed by continuous \texttt{read} and scattered \texttt{network} calls — but all with lower density due to disabled features.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{telegram-none-events.png}
+    \caption{Event Timeline of Telegram in Restricted Permissions Scenario.}
+    \label{fig:telegram-none-events}
+\end{figure}
+
+The \textit{Behavior Timeline} (Figure~\ref{fig:telegram-none-behav}) confirms minimal behaviour: only a few TCP events are recorded, while camera, microphone, and contacts remain inactive — fully consistent with the blocked permissions.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{telegram-none-behav.png}
+    \caption{Behavior Timeline of Telegram in Restricted Permissions Scenario.}
+    \label{fig:telegram-none-behav}
+\end{figure}
+
+The \textit{Communication Flow} (Figure~\ref{fig:telegram-none-flow}) reveals a simple process tree with very few worker PIDs, showing that background media and sync threads are inactive under permission constraints.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.65\textwidth]{telegram-none-flow.png}
+    \caption{Communication Flow of Telegram in Restricted Permissions Scenario.}
+    \label{fig:telegram-none-flow}
+\end{figure}
+
+Overall, Telegram adapts correctly to restricted permissions by falling back to basic network checks only, avoiding sensitive access and unnecessary processing.
 
 \subsection{Cross-Application Comparative Analysis}
 To complement the descriptive statistics, inferential statistical tests were carried out to formally assess whether the observed differences in runtime metrics across applications and usage modes are statistically significant. This section presents three focused analyses with explicit hypotheses and mathematical formulation.
