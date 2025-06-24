@@ -38,6 +38,7 @@
 \newcommand{\cmark}{\ding{51}} % ✓
 \newcommand{\xmark}{\ding{55}} % ✗
 
+\usepackage{acronym}
 % tikz
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shadows.blur}
@@ -112,8 +113,7 @@
         {\large Department of Management Science and Technology}\\[1.5cm]
 
         {\Huge \textbf{Undergraduate Thesis}}\\[1.2cm]
-        {\Large \textbf{Hybrid Behavioral Profiling of Popular Messaging Apps
-       via Custom Kernel-Level Tracing}}\\[2cm]
+        {\Large \textbf{The Kernel Never Lies: A Hybrid Security Analysis of Evasive Behaviors in Messaging Apps}}\\[2cm]
         \textbf{Student:}\\
         Foivos - Timotheos Proestakis\\
         Student ID: 8210126\\[1.5cm]
@@ -154,9 +154,8 @@ Overall, these findings highlight the value of integrating static analysis with 
 \chapter*{Acknowledgments}
 \addcontentsline{toc}{chapter}{Acknowledgments}
 
-I would like to express my gratitude to my supervisors, Prof. Diomidis Spinellis
-and Dr. Nikolaos Alexopoulos, for their invaluable guidance, insightful feedback,
-and continuous support throughout the duration of this thesis. Their expertise and
+I would like to express my gratitude to Dr. Nikolaos Alexopoulos, for his invaluable guidance, insightful feedback,
+and continuous support throughout the duration of this thesis. His expertise and
 encouragement were instrumental in the successful completion of this work.
 
 I would also like to sincerely thank my exceptional fellow students, Vangelis Talos
@@ -167,6 +166,10 @@ A special thanks goes to my family, whose unwavering support, both emotional and
 made this endeavor not only possible but also deeply meaningful. Their presence and
 encouragement were a constant source of strength.
 
+\vspace{1cm}
+\noindent
+[\today] \hfill [Foivos - Timotheos Proestakis]
+
 \clearpage
 % --------------------------------------------------
 %  Table of Contents
@@ -174,6 +177,60 @@ encouragement were a constant source of strength.
 
 \tableofcontents
 \clearpage
+
+
+% ==================================================
+%  List of Acronyms
+% ==================================================
+\chapter*{List of Acronyms}
+\addcontentsline{toc}{chapter}{List of Acronyms}
+\begin{acronym}[GDPR] % The longest acronym for alignment purposes
+    \acro{ADB}{Android Debug Bridge}
+    \acro{AMS}{ActivityManagerService}
+    \acro{ANOVA}{Analysis of Variance}
+    \acro{AOT}{Ahead-Of-Time}
+    \acro{API}{Application Programming Interface}
+    \acro{APK}{Android Package Kit}
+    \acro{ART}{Android Runtime}
+    \acro{DBI}{Dynamic Binary Instrumentation}
+    \acro{DEX}{Dalvik Executable}
+    \acro{E2EE}{End-to-End Encryption}
+    \acro{eBPF}{extended Berkeley Packet Filter}
+    \acro{FCM}{Firebase Cloud Messaging}
+    \acro{GDPR}{General Data Protection Regulation}
+    \acro{GID}{Group ID}
+    \acro{GKI}{Generic Kernel Image}
+    \acro{HAL}{Hardware Abstraction Layer}
+    \acro{HSD}{Honestly Significant Difference}
+    \acro{ICC}{Inter-Component Communication}
+    \acro{IPC}{Inter-Process Communication}
+    \acro{JIT}{Just-In-Time}
+    \acro{JNI}{Java Native Interface}
+    \acro{JSON}{JavaScript Object Notation}
+    \acro{MAC}{Mandatory Access Control}
+    \acro{MobSF}{Mobile Security Framework}
+    \acro{NX}{Non-Executable Stack}
+    \acro{OTA}{Over-The-Air}
+    \acro{PIE}{Position-Independent Executable}
+    \acro{PII}{Personally Identifiable Information}
+    \acro{PMS}{PackageManagerService}
+    \acro{PRNG}{Pseudo-Random Number Generator}
+    \acro{RELRO}{Relocation Read-Only}
+    \acro{SDK}{Software Development Kit}
+    \acro{SELinux}{Security-Enhanced Linux}
+    \acro{SQL}{Structured Query Language}
+    \acro{SSL}{Secure Sockets Layer}
+    \acro{TCP}{Transmission Control Protocol}
+    \acro{TLS}{Transport Layer Security}
+    \acro{UDP}{User Datagram Protocol}
+    \acro{UID}{User ID}
+    \acro{UI}{User Interface}
+    \acro{WAL}{Write-Ahead Logging}
+    \acro{WSL}{Windows Subsystem for Linux}
+    \acro{XMPP}{Extensible Messaging and Presence Protocol}
+\end{acronym}
+\clearpage
+
 
 % --------------------------------------------------
 %  Introduction
@@ -189,8 +246,7 @@ flexibility, and widespread adoption have cultivated a vast ecosystem of
 applications that enhance user productivity and social interaction across
 various domains.
 
-Among these applications, messaging platforms such as Telegram,
-Facebook Messenger, and Signal have gained significant popularity, playing a
+Among these applications, messaging platforms such as Telegram, Messenger, and Signal have gained significant popularity, playing a
 central role in both personal and professional communication. However, the
 ubiquitous use of smartphones for such purposes has led to the accumulation of
 sensitive personal data on user devices, including photos, contact lists,
@@ -365,10 +421,7 @@ This thesis is organized into the following chapters:
 \textbf{Chapter 7 – Conclusions:} Recaps contributions, emphasises the value of combining static inspection with kernel-level tracing for privacy audits, and proposes future work (more apps, automated behaviour classification, multi-layer tracing).
 
 \vspace{0.4em}
-\textbf{Appendix A – Additional Data Tables:} Supplementary tables and charts supporting Chapter 5.
-
-\vspace{0.4em}
-\textbf{Appendix B – Code:} Selected scripts and configuration files used for static analysis, tracing, and post-processing.
+\textbf{Appendix A – Code:} Selected scripts and configuration files used for static analysis, tracing, and post-processing.
 
 % --------------------------------------------------
 %  Chapter 2 – Related Work
@@ -2601,10 +2654,7 @@ A.P. Felt et al., \textit{Android Permissions Demystified}, Proceedings of the 1
 % --------------------------------------------------
 \appendix
 
-\chapter{Appendix A: Additional Data Tables}
-Any further data tables, graphics, or supplementary material.
-
-\chapter{Appendix B: Code}
+\chapter{Appendix A: Code}
 Source code or additional scripts too extensive to include in the main chapters.
 
 \end{document}
