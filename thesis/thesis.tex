@@ -137,9 +137,9 @@
 \begin{abstract}
 This thesis introduces a hybrid security analysis methodology for generating detailed behavioral profiles of popular mobile messaging applications by combining static inspection with custom kernel-level dynamic tracing. Specifically, the dynamic tracing extends the SliceDroid framework, enabling granular monitoring of system events, inter-process communication, network interactions, and other kernel-level activities.
 
-To demonstrate its effectiveness, comprehensive static and dynamic analyses were performed on three widely used messaging apps: Signal, Telegram, and Meta Messenger. Static inspection, using tools such as MobSF, APKID, and Androguard, revealed differences in manifest configurations, permissions, cryptographic implementations, and embedded third-party components.
+To demonstrate its effectiveness, comprehensive static and dynamic analyses were performed on three widely used messaging apps: Signal, Telegram, and Meta Messenger. The static inspection, conducted with tools such as MobSF, APKID, and Androguard, highlighted distinct differences in manifest configurations, permission scopes, cryptographic implementations, and third-party integrations — notably, Messenger was found to request and utilize broader contact and storage permissions compared to the more privacy-restrictive Signal.
 
-For dynamic evaluation, the extended SliceDroid collected precise runtime data under realistic usage scenarios, capturing file system operations, IPC calls, network flows, and resource consumption. The combined analyses uncovered significant behavioral differences: Messenger exhibited the highest runtime complexity and heavy IPC usage, and notably accessed and synchronized user contacts even when explicit contact permissions were revoked—a hidden privacy risk undetectable through static analysis alone. Telegram showed an extensive network footprint consistent with its more cloud-centric model, while Signal maintained the leanest runtime profile, validating its privacy-oriented design.
+For dynamic evaluation, the extended SliceDroid collected precise runtime data under realistic usage scenarios, capturing file system operations, IPC calls and network flows. The combined analyses uncovered significant behavioral differences: Messenger exhibited the highest runtime complexity and heavy IPC usage, and notably, it was observed accessing and synchronizing user contacts even when explicit contact permissions were revoked, indicating a potential violation of user privacy that static analysis alone could not reveal.
 
 Overall, these findings highlight the value of integrating static analysis with kernel-level tracing to reveal hidden operations and inform more robust security and privacy evaluations of mobile applications.
 \end{abstract}
@@ -315,31 +315,30 @@ To provide a realistic perspective on the scope of this thesis, it is important 
 \item \textit{Infrastructure Limitations:} Local storage and compute capacity limited the duration and granularity of traces. High-frequency events or prolonged sessions could not be captured exhaustively without incurring unsustainable storage overhead.
 \end{itemize}
 
+
+
 \textbf{Domain and Methodological Constraints.}
 \begin{itemize}
-\item \textit{Package Mapping Scope:} The current implementation of the package extraction and mapping algorithm accurately enumerates user-installed APKs but omits system applications such as Chrome, since the underlying ADB commands and permission models treat these as protected packages. A more advanced static-dynamic correlation would require additional privilege escalation or alternative enumeration techniques.
-\item \textit{Semantic Granularity:} The tracing layer records low-level kernel events (system calls, Binder transactions) which do not map one-to-one to user-level actions. Bridging this semantic gap demands contextual heuristics or machine learning models, which were beyond the practical scope of this thesis.
-\item \textit{Trace Volume and Overhead:} Continuous tracing produces large raw data with redundant or low-entropy segments. While filters and time limits help reduce storage size, they also risk losing relevant context or rare events.
-\item \textit{Privilege Requirements:} Complete access to advanced tracepoints and instrumentation (e.g., kprobes, ftrace, tracefs) necessitates root-level permissions, which limits repeatability on production devices.
-\item \textit{Attribution Noise:} Shared system services, such as the Android \texttt{servicemanager}, introduce cross-process noise in IPC traces, leading to occasional event misattribution between applications. Extended observation windows help mitigate this, but some uncertainty remains.
-\item \textit{Network and Metadata Depth:} The network-layer analysis relied primarily on high-level event capture; deeper inspection of packet contents, handshake flows, or protocol semantics (e.g., with \texttt{tcpdump} or deep packet inspection tools) was not performed, leaving room for future refinement.
-\item \textit{Ground Truth Approximation:} Dynamic labels were inferred through controlled user interaction and corresponding system activity. While indicative, this approach may overlook hidden logic or runtime conditions that arise only under specific user contexts.
-\item \textit{Static Analysis Coverage:} The static inspection focused on declared configurations, manifest flags, and embedded resources. Obfuscated or dynamically loaded code, which could conceal additional tracking modules or runtime logic, remains out of reach for conventional static scanners and was not exhaustively analysed here.
+\item \textit{Package Scope:} The mapping algorithm reliably lists user-installed APKs but excludes protected system apps like Chrome; full coverage would require elevated privileges or alternative enumeration.
+
+\item \textit{Trace Volume:} Continuous tracing generates large raw data with redundant or low-entropy segments; filters and time limits reduce size but may omit rare behaviors.
+\item \textit{Attribution Noise:} Shared system services (e.g., \texttt{servicemanager}) introduce IPC noise, causing possible cross-app misattribution.
+\item \textit{Network Depth:} The network layer analysis focused on event-level capture without deep packet inspection or full protocol parsing.
 \end{itemize}
 
-Taken together, these limitations do not undermine the validity of the core findings but should be considered when interpreting the results and generalising them to broader or more complex deployment scenarios. Future work addressing these constraints—through increased automation, expanded hardware coverage, deeper network capture, and enhanced semantic mapping—would further strengthen the robustness and applicability of the conclusions drawn.
-
+Overall, these limitations do not compromise the core findings but should be kept in mind when interpreting and generalising the results.
 \section{Contributions of this Thesis}
 
 This thesis makes the following key contributions to the field of mobile security and privacy analysis:
 
-\begin{itemize}
+\begin{enumerate}[label=\roman*.]
     \item Proposes and implements an enhanced kernel-level tracing methodology, building upon the SliceDroid framework, enabling precise monitoring of mobile application runtime behavior.
     \item Provides a systematic hybrid analysis approach combining static and dynamic methods, resulting in comprehensive behavioral profiles for security-critical applications.
+    \item Develops and integrates a custom package-to-process name mapper, allowing accurate identification and attribution of runtime events to the corresponding commercial application, even when system-level identifiers differ.
     \item Delivers an in-depth comparative analysis of three major messaging applications (Signal, Telegram, Meta Messenger), highlighting significant architectural and operational differences impacting user privacy.
     \item Statistically validates observed differences through rigorous inferential testing (ANOVA and Tukey HSD), offering robust, evidence-based conclusions.
     \item Identifies critical privacy-related insights, including permission discrepancies and hidden runtime behaviors not discoverable through static analysis alone.
-\end{itemize}
+\end{enumerate}
 
 
 \section{Thesis Outline}
@@ -2206,7 +2205,7 @@ The \textit{Communication Flow} (Figure~\ref{fig:telegram-none-flow}) reveals a 
 
 Overall, Telegram adapts correctly to restricted permissions by falling back to basic network checks only, avoiding sensitive access and unnecessary processing.
 
-\subsection{Cross-Application Comparative Analysis and Statistical Validation}
+\subsection{Cross-Application Comparative Analysis}
 
 To advance beyond descriptive statistics, we conducted a one-way Analysis of Variance (ANOVA) to compare the means of multiple independent groups and test whether the observed differences in application behavior are statistically significant. This section outlines the methodology, assumptions, and post-hoc analyses, providing robust evidence for distinct architectural characteristics supported by inferential testing.
 
