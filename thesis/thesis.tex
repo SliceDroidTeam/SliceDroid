@@ -1043,7 +1043,7 @@ $M \leftarrow \{\}$
 \end{algorithm}
 \BlankLine
 \BlankLine
-In addition to these streams, a key contribution of this thesis within this layer is the development of a dedicated \emph{App Mapper Module}. The mapper resolves Android package names (e.g., \texttt{com.facebook.orca}) into recognizable commercial application names (e.g., \texttt{Messenger}). It connects to the target device via ADB to enumerate user-installed applications, parses APK metadata through static analysis using the \texttt{androguard} library, and stores the extracted results in a JSON mapping file. This mapping is subsequently utilized by downstream tracing modules and the visualization dashboard, significantly enhancing the interpretability of kernel-level events and collected trace data.
+In addition to these streams, a key contribution of this thesis within this layer is the development of a dedicated \emph{App Mapper Module}. The mapper resolves Android package names (e.g., \texttt{com.facebook.orca}) into recognizable commercial application names (e.g., \texttt{Messenger}). It connects to the target device via ADB to enumerate user-installed applications, parses APK metadata through static analysis using the \texttt{androguard} library, and stores the extracted results in a JSON mapping file. This mapping is subsequently utilized by downstream tracing modules and the visualization dashboard, significantly enhancing the interpretability of kernel-level events and collected trace data (see Appendix~\ref{appendix:app-mapper-code} for implementation details).
 
 
 \subsubsection{Parsing and Pre-Processing}
@@ -2639,7 +2639,53 @@ A.P. Felt et al., \textit{Android Permissions Demystified}, Proceedings of the 1
 % --------------------------------------------------
 \appendix
 
-\chapter{Appendix A: Code}
-Source code or additional scripts too extensive to include in the main chapters.
+\chapter{Appendix: Code}
+\label{appendix:app-mapper-code}
+
+\section*{App Mapping Core Logic}
+
+The following excerpt shows the core logic responsible for generating the app mapping by pulling APKs from a connected Android device and analyzing them to extract commercial names using \texttt{androguard}.
+
+
+\begin{lstlisting}[language=Python]
+def get_app_label(self, package_name: str) -> Optional[str]:
+    if not ANDROGUARD_AVAILABLE:
+        return None
+    try:
+        result = subprocess.run(["adb", "shell", "pm", "path", package_name],
+                                capture_output=True, text=True, timeout=10)
+        for line in result.stdout.splitlines():
+            if line.startswith("package:"):
+                device_apk_path = line.split(":", 1)[1].strip()
+                break
+        temp_apk = tempfile.NamedTemporaryFile(suffix=".apk", delete=False)
+        subprocess.run(["adb", "pull", device_apk_path, temp_apk.name],
+                       capture_output=True, text=True, timeout=30)
+        apk = APK(temp_apk.name)
+        return apk.get_app_name()
+    except Exception:
+        return None
+    finally:
+        if os.path.exists(temp_apk.name):
+            os.unlink(temp_apk.name)
+\end{lstlisting}
+
+
+\newpage
+\begin{lstlisting}[language=Python]
+def create_mapping(self, limit: int = 30, include_system: bool = False) -> Dict[str, Dict]:
+    mapping = {}
+    installed_packages = self.get_installed_packages(user_apps_only=True)
+    for package in installed_packages:
+        name = self.get_app_label(package)
+        if name:
+            mapping[package] = {
+                "package_name": package,
+                "commercial_name": name,
+                "processes": [package[-15:]],
+                "is_running": True
+            }
+    return mapping
+\end{lstlisting}
 
 \end{document}
