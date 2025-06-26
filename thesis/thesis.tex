@@ -934,7 +934,7 @@ Each component of the system—ranging from mobile-side tracing and contextual e
 The codebase is organised into clearly defined top-level components to support trace collection, processing, and interactive exploration. The main elements are outlined below:
 
 \begin{description}
-  \item[\texttt{scripts/}] Contains tracing and resource-mapping scripts. It includes configuration files for enabled events, kprobes, and process filters, as well as helper scripts for resolving device and inode identifiers.
+  \item[\texttt{scripts/}] Contains tracing and resource-mapping scripts. It includes configuration files for enabled events, kprobes, and process filters, helper scripts for resolving device and inode identifiers, as well as the App Mapper script responsible for generating the JSON mapping of Android package names to commercial application names.
 
   \item[\texttt{run\_slicedroid.py}] Entry point for running the customised SliceDroid tracer with the specified settings.
 
