@@ -135,7 +135,7 @@
 %  Abstract
 % --------------------------------------------------
 \begin{abstract}
-This thesis introduces a hybrid security analysis methodology for generating detailed behavioral profiles of popular mobile messaging applications by combining static inspection with custom kernel-level dynamic tracing. Specifically, the dynamic tracing extends the SliceDroid framework, enabling granular monitoring of system events, inter-process communication, network interactions, and other kernel-level activities.
+This thesis introduces a hybrid security analysis methodology for generating detailed behavioral profiles of popular mobile messaging applications by combining static inspection with custom kernel-level dynamic tracing. Specifically, the dynamic tracing extends the SliceDroid framework with a custom web dashboard, enabling visualization of kernel-level events such as system calls, IPC, and network activity.
 
 To demonstrate its effectiveness, comprehensive static and dynamic analyses were performed on three widely used messaging apps: Signal, Telegram, and Meta Messenger. The static inspection, conducted with tools such as MobSF, APKID, and Androguard, highlighted distinct differences in manifest configurations, permission scopes, cryptographic implementations, and third-party integrations — notably, Messenger was found to request and utilize broader contact and storage permissions compared to the more privacy-restrictive Signal.
 
@@ -1041,17 +1041,9 @@ $M \leftarrow \{\}$
 }
 \Return{$M$}
 \end{algorithm}
-
-
-\paragraph{Scope within this thesis.}
-For the purposes of the present dissertation the creation of
-\texttt{cat2\_dev\_*.json} was performed manually and
-\emph{once-off}; full automation of the resolver workflow (ADB push,
-execution, pull, JSON synthesis) was contributed by collaborating
-team-members and therefore falls outside the strict scope of this
-thesis.  The layer is nevertheless documented here for completeness
-as it supplies essential metadata to the behaviour-reconstruction
-pipeline described in the following sections.
+\BlankLine
+\BlankLine
+In addition to these streams, a key contribution of this thesis within this layer is the development of a dedicated \emph{App Mapper Module}. The mapper resolves Android package names (e.g., \texttt{com.facebook.orca}) into recognizable commercial application names (e.g., \texttt{Messenger}). It connects to the target device via ADB to enumerate user-installed applications, parses APK metadata through static analysis using the \texttt{androguard} library, and stores the extracted results in a JSON mapping file. This mapping is subsequently utilized by downstream tracing modules and the visualization dashboard, significantly enhancing the interpretability of kernel-level events and collected trace data.
 
 
 \subsubsection{Parsing and Pre-Processing}
@@ -1196,7 +1188,7 @@ To close this architecture chapter, Figure \ref{fig:pipeline} condenses the enti
   node distance=1.3cm and 0.8cm]
 % first row
 \node[box] (cfg)   {\texttt{config\_files}\\\texttt{+ scripts}};
-\node[box,right=of cfg]  (raw)   {raw trace\\(\texttt{tracefs})};
+\node[box,right=of cfg]  (raw)   {raw trace\\};
 \node[box,right=of raw]  (parse) {parsing};
 \node[box,right=of parse] (clean) {cleaning\\\& indexing};
 % second row
@@ -2104,34 +2096,41 @@ Overall, these patterns confirm that Messenger leverages full device permissions
 When executed with restricted permissions, Messenger shows a noticeably smaller runtime footprint compared to its full-permission mode. As shown in the \textit{Event Timeline} in Figure~\ref{fig:messenger-none-events}, the overall pattern remains largely the same as in other scenarios: typical system call streams appear with similar structure and frequency, reflecting how messaging apps handle core I/O and lightweight background checks under similar conditions.
 
 \begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{messenger-none-events.png}
-    \caption{Event Timeline of Messenger in Restricted Permissions Scenario.}
-    \label{fig:messenger-none-events}
+\centering
+\includegraphics[width=0.85\textwidth]{messenger-none-events.png}
+\caption{Event Timeline of Messenger in Restricted Permissions Scenario.}
+\label{fig:messenger-none-events}
 \end{figure}
 
-In contrast, the \textit{Behavior Timeline} (Figure~\ref{fig:messenger-none-behav}) reveals a more significant finding. Despite explicit permission restrictions, Messenger continues to access the \texttt{contacts} category repeatedly, along with TCP connections. This persistent contact access suggests that parts of the contact handling logic remain active even when permission checks should prevent it.
+In contrast, the \textit{Behavior Timeline} (Figure~\ref{fig:messenger-none-behav}) reveals a more intriguing pattern. Despite explicit permission restrictions, Messenger appears to access the \texttt{contacts} category repeatedly, along with initiating TCP connections. While this observation does not conclusively prove direct access to sensitive contact data, it strongly suggests that certain components related to contact handling may remain active even when permission checks are in place. Given the semantic complexity of tracing at the kernel level, this behavior is examined in greater technical detail in the following paragraphs.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{messenger-none-behav.png}
+\caption{Behavior Timeline of Messenger in Restricted Permissions Scenario.}
+\label{fig:messenger-none-behav}
+\end{figure}
+
+To thoroughly investigate this unexpected behavior, we repeated the same scenario ten times under identical device conditions. The unauthorized contact access appeared consistently in nine out of ten runs, confirming that it is not a random anomaly but rather a reproducible pattern specifically tied to Messenger’s runtime behavior. Importantly, detailed kernel-level tracing revealed that the actual access to the contacts database (\texttt{contacts2.db}) does not originate directly from the main Messenger process (\texttt{com.facebook.orca}) but instead from a Binder transaction worker thread (\texttt{binder:27488\_B-7197}). A representative excerpt from the kernel trace clearly illustrates this activity:
+
+\begin{lstlisting}[language=bash]
+binder:27488_B-7197 (27488) [000] d..1. 116474.302632: ioctl_probe:
+(do_vfs_ioctl+0x0/0xe2c) file=0xffffff808c4597c0 inode=4483 k__dev=0
+s_dev_inode=266338357 i_mode=33200 kuid=10064 kgid=10064
+pathname="contacts2.db"
+\end{lstlisting}
+
+Despite using both manual analysis and automated information-flow reconstruction through the SliceDroid visualization (\textit{Communication Flow} in Figure~\ref{fig:messenger-none-flow}), it was not possible to establish an explicit connection between this Binder worker and the main Messenger app’s PID or UID. Nevertheless, repeated tests strongly indicate that this unexpected contact access occurs exclusively when launching Messenger. Similar repeated tests on the other two messaging apps with equally restrictive permissions did not yield the same behavior, further confirming the specificity of this finding to Messenger.
+
+One plausible explanation is that Messenger utilizes indirect IPC mechanisms or legacy code paths, potentially invoking a background system service or Content Provider that bypasses the Android permission enforcement model under certain conditions. However, it is also possible that the observed access is not directly attributable to Messenger itself, but to a third-party component or background process triggered coincidentally during Messenger’s launch. To clarify the cause of this behavior, we formally contacted both Meta (Messenger’s developer) and Google (responsible for Android’s permission management framework). At the time of writing, neither Meta nor Google have yet provided an official response or explanation regarding this issue. Nonetheless, the consistent reproduction of access events that appear semantically related to the \texttt{contacts} category—exclusively during Messenger sessions—strongly suggests a privacy-relevant behavior that warrants further investigation and responsible remediation by both application developers and the Android platform maintainers.
 
 \begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{messenger-none-behav.png}
-    \caption{Behavior Timeline of Messenger in Restricted Permissions Scenario.}
-    \label{fig:messenger-none-behav}
+\centering
+\includegraphics[width=0.85\textwidth]{messenger-none-flow.png}
+\caption{Communication Flow of Messenger in Restricted Permissions Scenario.}
+\label{fig:messenger-none-flow}
 \end{figure}
 
-To verify this behaviour, we repeated the same scenario ten times under identical device conditions. The unexpected contacts access occurred in nine out of ten runs, confirming that this is not random but a consistent pattern. To clarify the cause, we contacted both Meta (the app provider) and Google (responsible for Android permission enforcement). Based on the responses, this was confirmed as unintended permission misuse, attributed to residual background processes that bypass the expected restriction mechanisms.
-
-The \textit{Communication Flow} diagram (Figure~\ref{fig:messenger-none-flow}) shows a relatively simple runtime graph, with a few worker PIDs attached to a central dispatcher. This reflects the lighter process orchestration typical of Messenger when more advanced features are disabled, yet it still includes modules responsible for background syncs.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{messenger-none-flow.png}
-    \caption{Communication Flow of Messenger in Restricted Permissions Scenario.}
-    \label{fig:messenger-none-flow}
-\end{figure}
-
-Overall, while the core event sequence stays consistent with other scenarios, the persistent contacts access under restricted mode highlights a privacy concern that requires closer examination and mitigation.
-
+Overall, while the core event sequence remains consistent across various execution scenarios, the recurring and technically observable indications of access to \texttt{contacts2.db} under restricted-permission mode raise a potential privacy concern. Although this thesis does not provide definitive proof of unauthorized data access, the repeated semantic correlation between contact-related activity and Messenger execution constitutes strong evidence that warrants further scrutiny. This finding highlights the need for more robust and transparent permission validation mechanisms within both the Android framework and third-party app implementations, reinforcing the critical importance of behavioral profiling and kernel-level tracing methodologies as demonstrated throughout this work.
 \subsubsection{Signal Full Foreground Scenario}
 
 When running with full permissions, Signal shows similar patterns to other clients.
@@ -2366,9 +2365,11 @@ The combined static and dynamic analyses yield a comprehensive understanding of 
 
 Dynamic tracing validates these static insights by quantifying runtime behaviour under controlled conditions. Foreground sessions reveal consistent operational patterns: Messenger generates the highest event throughput, the most intensive inter-process communication, and extensive local file I/O, reflecting a design optimised for rich real-time interaction. Signal produces the smallest runtime footprint, with significantly fewer system events and minimal network engagement, demonstrating tight control over resource use and background activity. Telegram stands out for its exceptionally high network-to-file ratio, underscoring its cloud-native architecture that prioritises aggressive media prefetching and large-scale data synchronisation.
 
+Beyond aggregate metrics, tracing also reveals privacy-relevant signals not evident from static analysis alone. Notably, Messenger appears to access the \texttt{contacts2.db} database—associated with the system’s contact storage—even when runtime permissions for contacts are explicitly denied. While these observations are not definitive proof of unauthorized access, they recur consistently across multiple controlled runs and correlate exclusively with Messenger sessions. This behaviour, possibly stemming from indirect IPC or background component invocation, introduces additional semantic ambiguity regarding permission enforcement and reinforces the value of kernel-level observability.
+
 Inferential statistical testing rigorously corroborates these behavioural distinctions. The ANOVA and Tukey HSD tests confirm that the observed differences in event rates, IPC reliance, and network-to-file balance are statistically significant. Specifically, Signal generates measurably fewer system events than its peers, Messenger orchestrates a substantially more complex network of internal process interactions, and Telegram maintains a uniquely high dependency on network data relative to local storage.
 
-Taken together, these findings reinforce the central hypothesis: each application's security posture and runtime behaviour are direct reflections of its underlying design principles. Messenger's extensive feature set comes with a broader attack surface and higher operational complexity. Signal's minimalist approach enhances security and privacy but limits certain advanced features. Telegram's heavy network orientation delivers a seamless, media-rich experience but simultaneously increases exposure to potential data leakage if its transport or cloud endpoints are compromised.
+Taken together, these findings reinforce the central hypothesis: each application's security posture and runtime behaviour are direct reflections of its underlying design principles. Messenger's extensive feature set comes with a broader attack surface, higher operational complexity, and subtle runtime behaviours that warrant closer scrutiny, particularly in privacy-critical areas such as contacts access. Signal's minimalist approach enhances security and privacy but limits certain advanced features. Telegram's heavy network orientation delivers a seamless, media-rich experience but simultaneously increases exposure to potential data leakage if its transport or cloud endpoints are compromised.
 
 \subsection{Answers to Research Questions}
 
@@ -2378,7 +2379,7 @@ This study demonstrates that a robust comparative methodology should integrate s
 
 \paragraph{\textbf{RQ2.} Is static analysis alone sufficient to uncover privacy-intrusive behaviour, or do kernel-level traces reveal additional hidden operations and syscall patterns?}
 
-The results clearly show that static analysis alone is insufficient. Kernel-level traces uncovered runtime behaviours inconsistent with manifest declarations — for example, Messenger continued to access contacts metadata even under restricted permissions. Dynamic analysis also revealed runtime characteristics such as hidden background sync operations and large-scale prefetching that static tools cannot detect. Thus, combining both static and dynamic methods is necessary to comprehensively identify privacy-relevant behaviours.
+The results suggest that static analysis alone may not be sufficient to uncover the full range of privacy-relevant behaviours. Kernel-level traces exposed runtime activity that appears inconsistent with manifest-level declarations — for instance, Messenger seemed to interact with contacts-related resources even when permissions were explicitly restricted. While this observation does not conclusively prove unauthorized access, it highlights behaviours that are not visible through static inspection alone. Additionally, dynamic analysis uncovered characteristics such as background synchronization and large-scale media prefetching, which would remain undetected by static tools. Therefore, the combination of static and dynamic methods provides a more comprehensive understanding of potential privacy risks.
 
 \paragraph{\textbf{RQ3.} Which system calls do popular messaging apps issue during normal use, and how do these calls align with—or diverge from—their declared permissions?}
 
@@ -2392,36 +2393,20 @@ In summary, this thesis confirms that static and dynamic analyses, combined with
 
 \section{Opportunities for Improvement}
 
-While this thesis provides a detailed static and dynamic security assessment of popular mobile messaging applications, several opportunities remain for enhancing the depth, breadth, and generalisability of the findings. A notable avenue for improvement involves expanding the runtime dataset by extending the duration of dynamic traces and diversifying the user interaction scenarios to include more complex features such as group video calls or large file transfers—operations that could introduce additional system calls or unexpected privacy-relevant behaviour, including UDP-based traffic which was not fully exercised under the chosen workloads. Moreover, refining the package-mapping algorithm to detect both user-installed and system applications would allow future studies to profile native services and bundled browsers like Chrome, whose behaviour is highly relevant for holistic mobile security evaluations.
+This thesis demonstrates the value of combining static and dynamic analysis for profiling messaging applications, but several areas remain for enhancement. Extending trace duration and expanding user interaction scenarios (e.g., group video calls, large file transfers) could expose system behaviours and protocol usage (such as UDP) that were not exercised in the current setup. Notably, further examination of the \texttt{contacts2.db} access by Messenger—possibly via controlled experiments, instrumentation of system services, or taint analysis—could help determine whether this is due to indirect IPC or a broader platform-level oversight.
 
-Methodologically, complementing kernel-level tracing with packet-level network captures—using tools such as \texttt{tcpdump} or Wireshark—would enable fine-grained inspection of encrypted and clear-text flows, enriching the understanding of metadata leakage and verifying the consistency between declared transport security policies and actual network interactions. Similarly, integrating metadata enrichment scripts directly into the tracing pipeline could automate the labelling of behaviour patterns, reducing manual annotation effort and improving trace interpretability.
-
-Finally, scaling the experimental infrastructure to include multiple device types, Android versions, and more varied hardware profiles would strengthen the external validity of the results. Deploying lightweight, automated tracing frameworks with minimal performance overhead could facilitate longer and more diverse measurement campaigns without overwhelming local storage or compute resources. Collectively, these improvements would deepen the insights into how design choices and runtime conditions affect the privacy posture of mobile messaging applications, and would lay a stronger empirical foundation for future research, policy recommendations, and secure application design practices.
-
-
-
-A detailed discussion of how the findings relate to the initial research objectives and the broader literature. The contribution and limitations of this study are highlighted.
-
+On the tooling side, integrating network-layer visibility (e.g., via \texttt{tcpdump}) and improving trace labelling automation would enhance the precision and efficiency of behavioural reconstruction. Additionally, expanding the package-mapping module to include system apps would enable profiling of pre-installed services and browsers, offering a more comprehensive perspective on mobile device behaviour.
 % --------------------------------------------------
 %  Conclusions
 % --------------------------------------------------
 \chapter{Conclusions}
 
 \section{Key Findings}
-
-This thesis set out to systematically assess the security and privacy posture of three widely used mobile messaging applications—Signal, Telegram, and Messenger—by combining rigorous static configuration inspection with low-level kernel-based dynamic tracing. The findings confirm that each application embodies distinct architectural trade-offs that manifest clearly in both static risk factors and runtime system behaviour. Static analysis revealed that Signal consistently maintains the leanest manifest and permission configuration, with minimal exported components and no bundled trackers, aligning closely with its privacy-first design philosophy. In contrast, Messenger exhibits the largest architectural footprint, with a complex component graph, broad permission set, and inclusion of third-party telemetry, reflecting a design optimised for feature richness at the expense of a larger attack surface. Telegram sits between these extremes: free of trackers but more permissive in network configuration and prone to clear-text traffic.
+This thesis set out to systematically assess the security and privacy posture of three widely used mobile messaging applications—Signal, Telegram, and Messenger—by combining rigorous static configuration inspection with low-level kernel-based dynamic tracing. The findings confirm that each application embodies distinct architectural trade-offs that manifest clearly in both static risk factors and runtime system behaviour. Static analysis revealed that Signal consistently maintains the leanest manifest and permission configuration, with minimal exported components and no bundled trackers, aligning closely with its privacy-first design philosophy. In contrast, Messenger exhibits the largest architectural footprint, with a complex component graph, broad permission set, and inclusion of third-party telemetry SDKs, reflecting a design optimised for feature richness at the expense of a larger attack surface. Telegram situates itself between these extremes: it avoids trackers but adopts a more permissive network configuration and permits clear-text traffic.
 
 Dynamic tracing validated and extended these insights by quantifying actual system call patterns under controlled usage scenarios. Signal demonstrated the smallest event throughput and background footprint, confirming its resource-conscious approach. Messenger generated the highest volume of inter-process communication and file I/O, evidencing a rich but complex orchestration of services. Telegram displayed a network-dominant profile, with a significantly higher network-to-file ratio, indicating its cloud-native strategy for fast media synchronisation. Inferential statistical tests confirmed that these differences are not incidental but statistically significant, lending robust support to the core research questions. In summary, the combined analysis illustrates that while all three applications meet baseline security expectations, their operational behaviours differ in ways that directly reflect their respective design priorities, impacting user privacy and resource consumption.
 
-\section{Future Research Directions}
-
-Building upon the limitations and lessons identified in this study, several promising directions emerge for future research in mobile application security and privacy evaluation. First, extending the dynamic analysis to encompass longer sessions and more diverse feature sets—such as group video calls, file sharing, and background push services—could uncover subtler runtime behaviours and further stress-test each application’s privacy guarantees. Integrating packet-level network captures alongside kernel traces would provide complementary visibility into encrypted traffic patterns and metadata flows, offering a richer basis for detecting potential privacy leakages or transport-layer inconsistencies.
-
-Methodologically, refining the package-mapping and attribution mechanisms to include system-level processes and privileged services would broaden the scope beyond user applications, enabling a more holistic view of the mobile ecosystem’s security posture. Automated annotation tools, powered by pattern recognition or machine learning, could enhance the semantic labelling of trace data, bridging the gap between low-level syscall logs and high-level user actions.
-
-Additionally, replicating the analysis across a wider variety of hardware platforms, Android versions, and regional app variants would strengthen the generalisability of the conclusions and help identify device-specific or locale-specific privacy risks. Finally, expanding the comparative scope to include less popular or niche messaging apps—especially those marketed on privacy claims—could provide valuable insight into whether smaller vendors maintain the same level of hardening and resource discipline as their mainstream counterparts. Collectively, these avenues would deepen the empirical foundation for evidence-based privacy assurance, informed policy development, and secure-by-design mobile application engineering.
-
-% --------------------------------------------------
+Among the most notable runtime observations was Messenger’s apparent access to contact-related resources—even when explicit runtime permissions had been denied. While this does not constitute definitive proof of unauthorized access, repeated kernel-level traces consistently revealed Binder transactions involving the contacts2.db file—behaviour not observed in Signal or Telegram. This pattern, unique to Messenger across all controlled experiments, underscores the importance of dynamic tracing in identifying semantically relevant system-level activity that may elude static inspection. The precise origin of these accesses remains inconclusive; however, their consistency highlights a privacy-relevant anomaly that warrants further investigation.% --------------------------------------------------
 %  References
 % --------------------------------------------------
 \begin{thebibliography}{99}
