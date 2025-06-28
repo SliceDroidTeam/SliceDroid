@@ -375,7 +375,7 @@ To provide a realistic perspective on the scope of this thesis, it is important 
 
 \textbf{Domain and Methodological Constraints.}
 \begin{itemize}
-\item \textit{Package Scope:} The mapping algorithm reliably lists user-installed APKs but excludes protected system apps like Chrome; full coverage would require elevated privileges or alternative enumeration.
+\item \textit{Package Scope:} The mapping algorithm reliably lists user-installed APKs but excludes protected system apps like Chrome.
 
 \item \textit{Trace Volume:} Continuous tracing generates large raw data with redundant or low-entropy segments; filters and time limits reduce size but may omit rare behaviors.
 \item \textit{Attribution Noise:} Shared system services (e.g., \texttt{servicemanager}) introduce IPC noise, causing possible cross-app misattribution.
@@ -393,7 +393,7 @@ This thesis makes the following key contributions to the field of mobile securit
     \item Develops and integrates a custom package-to-process name mapper, allowing accurate identification and attribution of runtime events to the corresponding commercial application, even when system-level identifiers differ.
     \item Delivers an in-depth comparative analysis of three major messaging applications (Signal, Telegram, Meta Messenger), highlighting significant architectural and operational differences impacting user privacy.
     \item Statistically validates observed differences through rigorous inferential testing (ANOVA and Tukey HSD), offering robust, evidence-based conclusions.
-    \item Identifies critical privacy-related insights, including permission discrepancies and hidden runtime behaviors not discoverable through static analysis alone.
+    \item Identifies critical privacy-related insights, including permission discrepancies and hidden runtime behaviors.
 \end{enumerate}
 
 
@@ -415,13 +415,14 @@ This thesis is organized into the following chapters:
 \textbf{Chapter 5 – Results:} Presents the outcomes derived from both pipelines: static findings such as manifest structures, permission declarations, and embedded third-party modules, alongside dynamic measurements of syscall distributions, permission–behavior mismatches, and comparative visual summaries of privacy-relevant runtime patterns.
 
 \vspace{0.4em}
-\textbf{Chapter 6 – Discussion:} Relates results to the research questions, examines implications for transparency and metadata leakage, and outlines methodological limitations and suggested improvements.
+\textbf{Chapter 6 – Discussion:} Relates results to the research questions, and outlines methodological limitations and suggested improvements.
 
 \vspace{0.4em}
-\textbf{Chapter 7 – Conclusions:} Recaps contributions, emphasises the value of combining static inspection with kernel-level tracing for privacy audits, and proposes future work (more apps, automated behaviour classification, multi-layer tracing).
+\textbf{Chapter 7 – Conclusions:} Recaps contributions, emphasises the value of combining static inspection with kernel-level tracing for privacy audits.
 
 \vspace{0.4em}
-\textbf{Appendix A – Code:} Selected scripts and configuration files used for static analysis, tracing, and post-processing.
+\textbf{Appendix A – Source Code:} Key implementation scripts supporting the App Mapper functionality.
+
 
 % --------------------------------------------------
 %  Chapter 2 – Related Work
@@ -450,6 +451,9 @@ Reflection, dynamic loading and native libraries obscure control-flow and data t
 
 \paragraph{(iv) Learning-based malware detection.}
 Moving beyond handcrafted rules, \textbf{Drebin} extracts lightweight syntactic features—permissions, intent actions, API calls—and detects malware with 94\,\% accuracy and 1\,\% false positives on 5\,560 samples \cite{arp2014drebin}.  Deep networks now dominate: \textbf{DL-AMDet} combines CNN-BiLSTM embeddings with an auto-encoder to reach 99.9\,\% accuracy on public datasets \cite{nasser2023dlamdet}.  Nonetheless, limited interpretability and training-set bias hinder deployment in high-assurance pipelines.
+
+\paragraph{(v) Static analysis toolkits.}
+Beyond academic prototypes, practical toolkits like \textbf{MobSF} and \textbf{Androguard} offer extensible frameworks for automated security auditing of Android apps. \textbf{MobSF} (\emph{Mobile Security Framework}) integrates static and dynamic analysis, reverse engineering, and malware scoring in a user-friendly interface \cite{mobsf2023}. \textbf{Androguard}, a Python-based library, enables fine-grained inspection of DEX and APK files, supporting custom static analysis pipelines and reverse engineering workflows \cite{androguard2023}. Both are widely adopted in both research and industry pipelines.
 
 \medskip
 \noindent\textbf{Synthesis.}
@@ -516,23 +520,25 @@ captured by eBPF-based kernel monitors
 
 
 
-\section{Kernel–Level Tracing on Android}
-
 \subsection{Tracing Infrastructures}
-Kernel hooks sit beneath both the Java/ART runtime and Linux user-space, capturing syscalls, Binder traffic, scheduler switches and network I/O with negligible perturbation.  Their vantage point is indispensable once payloads are encrypted in user space—TLS bursts, Binder IPC patterns and power wakes are often the only artefacts left to observe.  Prior art clusters into four tool-centric strands:
+\label{sec:tracing-infra}
+
+Tracing infrastructures at the kernel level offer a privileged vantage point beneath the Android framework, the Java/ART runtime, and native user-space libraries. By instrumenting key OS subsystems—such as system calls, Binder IPC, scheduler events, and network interfaces—they expose low-level behavioral signals while incurring minimal runtime overhead. Such signals are especially critical when applications encrypt their payloads or obfuscate internal logic, rendering user-space instrumentation ineffective. Kernel-level hooks therefore enable comprehensive profiling even in black-box settings. Existing literature and tooling coalesce into four main research strands:
 
 \paragraph{(i) eBPF- and \textit{ftrace}-based collectors.}
-\emph{BPFroid} streams per-UID syscalls, Binder calls and network events from stock kernels to a malware detector at $\sim$3 % energy cost and 70 % Genome accuracy, without custom firmware.
-Earlier, \emph{ID-Syscall} logged syscall sequences via a loadable module on Android 4.x, showing that rich behavioural signals are already available on commodity devices—albeit exploited only for coarse binary classification.
+Modern tracing frameworks such as \textbf{BPFroid} leverage extended Berkeley Packet Filters (eBPF) and \textit{ftrace} to capture fine-grained telemetry from stock Android kernels without requiring firmware modifications. BPFroid monitors per-UID syscall sequences, Binder transactions, and network activities, enabling malware detection with low system overhead ($\sim$3% energy cost) and competitive classification performance (e.g., 70% accuracy on the Genome dataset). Earlier efforts such as \textbf{ID-Syscall} used loadable kernel modules on Android 4.x to extract syscall traces, demonstrating that syscall n-grams alone suffice for binary classification of app behavior—though such early systems lacked scalability, semantic context, and cross-process correlation.
 
 \paragraph{(ii) Network-centric and covert-channel tracing.}
-Celik \& Gligor detect stegomalware solely from timing and packet-size anomalies in vanilla \textit{ftrace} logs, proving that scheduler, socket and power events suffice to expose covert channels—yet Binder traffic is omitted.
+Beyond explicit syscall logs, more covert behavioral signals have also been explored. Celik and Gligor extract timing-based features from standard \textit{ftrace} logs to detect stegomalware, highlighting how packet sizes, inter-packet gaps, and scheduler switches reveal anomalous communication even without network payload inspection. These techniques operate under encryption and sandboxing, but omit Binder IPC, which is central to Android’s inter-component messaging model—limiting their precision in app-centric profiling scenarios.
 
 \paragraph{(iii) Hardware-assisted monitors.}
-\emph{HART} streams ARM ETM traces of proprietary kernel modules almost for free, but ETM is often fused-off in production phones and lacks user-process context.
+Low-level performance monitoring units and instruction tracing extensions such as ARM’s Embedded Trace Macrocell (ETM) provide hardware-level insights with near-zero perturbation. For example, \textbf{HART} captures execution traces from proprietary kernel modules, offering unmatched visibility into timing and execution paths. However, such approaches face practical limitations: ETM is often disabled (fused-off) in production smartphones, lacks mapping to user-level processes, and requires privileged access, thereby constraining their applicability in commodity devices or userland-facing research.
 
 \paragraph{(iv) Production-scale, low-overhead tracing.}
-Google’s \emph{Perfetto} unifies \textit{ftrace}, Binder and user-space counters into multi-GB, SQL-queryable traces for start-up and jank analysis, while \emph{eMook} adds per-PID eBPF filters, cutting system cost by 85 %. These toolchains enable week-long field studies on battery devices but remain untapped for security and messaging use-cases.
+Industrial-grade tracing pipelines such as Google’s \textbf{Perfetto} aggregate diverse sources—including \textit{ftrace}, Binder logs, and user-space counters—into rich, SQL-queryable trace files for profiling startup time, UI latency (“jank”), and battery usage. While primarily developed for performance diagnostics, such infrastructures provide an underutilized opportunity for security and app behavior research. Complementary systems like \textbf{eMook} extend Perfetto’s functionality by integrating per-PID eBPF filters, reducing overhead by 85% and enabling longitudinal field studies on consumer devices. Despite their scalability and flexibility, these toolchains remain largely untapped for behavioral profiling in sensitive use-cases such as messaging apps or anomaly detection.
+
+\paragraph{(v) Foundational tracing tools.}
+A variety of kernel-level tracing tools underpin the development of Android monitoring frameworks. \textbf{strace} intercepts and logs syscalls made by user-space processes using ptrace, offering process-centric views with minimal setup but significant overhead \cite{strace2023}. \textbf{ftrace}, built into the Linux kernel, provides highly efficient tracing of kernel functions, syscalls, and scheduling events; it serves as the backbone for higher-level tools such as Perfetto \cite{ftrace2023}. \textbf{kprobes} and its variant \textbf{uprobes} allow dynamic instrumentation of kernel and user-space functions, enabling flexible probes without recompiling the kernel \cite{kprobes2023}. Finally, \textbf{eBPF} represents the modern evolution of in-kernel programmability, supporting safe, low-overhead, event-driven tracing pipelines with filtering and aggregation directly in kernel space \cite{ebpf2023}. These mechanisms collectively enable fine-grained telemetry across user and kernel boundaries and are essential in constructing scalable behavioral monitors.
 
 \subsection{Behaviour Reconstruction \& Transparency}
 After tracing primitives matured, attention shifted to re-assembling high-level behaviours from low-level footprints:
@@ -724,9 +730,10 @@ These applications typically rely on key Android components to support their fun
 Rather than detailing cryptographic implementations or privacy architectures here, which are explored in Section 2.2.3, this section focuses on the foundational aspects of app deployment, runtime behavior, and Android system integration that are relevant for low-level behavioral tracing.
 
 \subsection{Privacy-Critical Behaviors and Resource Usage}
-Messaging applications often initiate background services using components like \texttt{JobScheduler}, \texttt{AlarmManager}, and foreground services to maintain persistent communication channels—frequently waking the device from idle states using wakelocks \cite{androidwakelocks}.
+Messaging applications often initiate background services using components like \\
+ \texttt{JobScheduler}, \texttt{AlarmManager}, and foreground services to maintain persistent communication channels—frequently waking the device from idle states using wakelocks \cite{androidwakelocks}.
 
-Resource access is another key concern. Most messaging apps request access to sensitive resources such as contacts (\texttt{READ\_CONTACTS}), device location (\texttt{ACCESS\_FINE\_LOCATION}), microphone (\texttt{RECORD\_AUDIO}), and camera (\texttt{CAMERA}). While many of these are used legitimately during active user sessions (e.g., voice/video calls, media sharing), kernel-level traces often reveal such accesses occurring in the background without any visible UI activity—raising potential privacy concerns \cite{reardon2019leakage}.
+Resource access is another key concern. Most messaging apps request access to sensitive resources such as contacts (\texttt{READ\_CONTACTS}), device location, microphone (\texttt{RECORD\_AUDIO}), and camera (\texttt{CAMERA}). While many of these are used legitimately during active user sessions (e.g., voice/video calls, media sharing), kernel-level traces often reveal such accesses occurring in the background without any visible UI activity—raising potential privacy concerns \cite{reardon2019leakage}.
 
 Additionally, messaging apps rely on push notification services such as Firebase Cloud Messaging (FCM), which has superseded Google Cloud Messaging (GCM), to deliver messages. These services necessitate persistent TCP connections and background listeners that, when profiled, result in recurring system calls like recvmsg(), poll(), or select(). Furthermore, apps such as Facebook Messenger are known to incorporate third-party SDKs (e.g., for analytics or ads) that initiate background network connections and file I/O unrelated to core messaging functionality \cite{pi2018metadata}.
 
@@ -880,7 +887,7 @@ for f in $(find /sys/class/ -name dev); do
 done
 \end{lstlisting}
 
-Each output entry was parsed to associate paths like \texttt{/dev/video0}, \texttt{/dev/snd/pcmC0D0c}, or \texttt{/dev/nq-nci} with their respective major:minor IDs. These values were encoded using the formula shown in Listing~\ref{lst:devt-calc}.
+Each output entry was parsed to associate paths like \texttt{/dev/video0} or \texttt{/dev/nq-nci} with their respective major:minor IDs. These values were encoded using the formula shown in Listing~\ref{lst:devt-calc}.
 
 \begin{lstlisting}[caption={Encoding device number using major and minor},label={lst:devt-calc},numbers=none]
 dev_t = (major << 20) | minor
@@ -1884,7 +1891,8 @@ Across an active usage window of approximately 30 seconds, Telegram generated a 
 
 File I/O is again dominant, with a slight bias towards read operations. IPC activity was substantial at 47,629 events, and 28 \textit{distinctive patterns} were flagged—meaning isolated processes showed sudden spikes in operations that stand out from the main activity flow, but do not imply malicious behaviour on their own.
 
-Network-wise, Telegram initiated 462 TCP events and 3 UDP packets, transferring a total of 574.36 MB over TCP, of which 0.26 MB was sent and an unusually high 574.10 MB was received. The absence of UNIX datagram traffic may again reflect either the app’s internal design or a limitation in the capture configuration. This large inbound traffic likely results from automatic media downloads, large attachment fetching, or possibly a background update triggered during the test window—an aspect noted for discussion in the limitations section. Event type proportions show that \texttt{ioctl} calls remain dominant (57.3\%), with read, write, and binder operations distributed evenly below that threshold.
+Network-wise, Telegram initiated 462 TCP events and 3 UDP packets, transferring a total of 574.36 MB over TCP, of which 0.26 MB was sent and 574.10 MB was received. However, the unusually high inbound network traffic—574.10 MB received during a short interaction window—most likely results from a framework-related logging artefact or misattribution bug, rather than genuine application behaviour. As such, it will not be further analysed in the subsequent evaluation, but is noted here for completeness.
+The absence of UNIX datagram traffic may again reflect either the app’s internal design or a limitation in the capture configuration. This large inbound traffic likely results from automatic media downloads, large attachment fetching, or possibly a background update triggered during the test window—an aspect noted for discussion in the limitations section. Event type proportions show that \texttt{ioctl} calls remain dominant (57.3\%), with read, write, and binder operations distributed evenly below that threshold.
 
 \begin{table}[H]
     \centering
@@ -1896,7 +1904,7 @@ Network-wise, Telegram initiated 462 TCP events and 3 UDP packets, transferring 
         \hline
         TCP Events & 462 \\
         UDP Events & 3 \\
-        Total TCP Data & 574.36 MB (0.26 MB sent, 574.10 MB received) \\
+        Total TCP Data & 574.36 MB (0.26 MB sent, 574.10 MB received)\textsuperscript{*} \\
         UNIX Datagram Traffic & Not detected \\
         Unique Protocols & 4 \\
         Unique Connections & 5 \\
@@ -1910,13 +1918,15 @@ Network-wise, Telegram initiated 462 TCP events and 3 UDP packets, transferring 
         network & 3.7\% \\
         \hline
     \end{tabular}
+\begin{flushleft}
+\scriptsize\textsuperscript{*} This unusually high inbound value is likely a logging artefact and is excluded from further analysis.
+\end{flushleft}
 \end{table}
 
-Taken together, these results confirm that Telegram sustains a high I/O and network load, driven by its heavy use of multimedia content and background synchronisation. This behaviour complements the static analysis and highlights the need to consider automatic downloads and prefetch logic when interpreting dynamic traces.
-
+Taken together, these results indicate that Telegram exhibits a consistently high I/O and inter-process communication (IPC) footprint, likely reflecting its architecture’s emphasis on media-rich interactions and continuous background synchronization.
 \subsubsection{Telegram Background Runtime Behaviour}
 
-When left running passively in the background, Telegram retains a moderately active runtime footprint, as expected given its design for real-time synchronisation. Over an observation window of approximately 30 seconds, the background session produced 39,340 total events, translating to about 1,318 events per second—representing roughly a 93\% reduction compared to its active throughput.
+When left running passively in the background, Telegram retains a moderately active runtime footprint, as expected. Over an observation window of approximately 30 seconds, the background session produced 39,340 total events, translating to about 1,318 events per second—representing roughly a 93\% reduction compared to its active throughput.
 
 File operations dominate the trace, with 39,336 I/O events and a balanced read/write ratio of 1.45. Local database files (\texttt{.db}) remained the primary storage target, accessed 2,043 times, which reflects background cache refreshes or silent content syncing.
 
@@ -1954,11 +1964,13 @@ Overall, as summarised in Table~\ref{tab:telegram_background_stats}, Telegram’
 
 \subsubsection{Cross-Application Comparison}
 
-When comparing the three applications under identical high-activity foreground scenarios, clear behavioural differences emerge. Messenger exhibits the highest overall file operations and IPC activity, reflecting its more complex interaction flows and heavier reliance on local data handling during messaging and multimedia tasks. Signal, in contrast, maintains the smallest runtime footprint in both I/O and network usage, aligning with its minimalistic and privacy-oriented architecture. Telegram stands out for its exceptionally high network throughput, transferring over $570$ MB within a single session, which is an order of magnitude greater than the other two. This behaviour is indicative of Telegram’s tendency to prefetch media content and synchronise large message histories in the background, even during active use.
+When comparing the three applications under identical high-activity foreground scenarios, clear behavioural differences emerge. Messenger exhibits the highest overall file operations and IPC activity, reflecting its more complex interaction flows and heavier reliance on local data handling during messaging and multimedia tasks. Signal, in contrast, maintains the smallest runtime footprint in both I/O and network usage, aligning with its minimalistic and privacy-oriented architecture. Telegram also demonstrates elevated file and IPC activity, consistent with its emphasis on background synchronization and preloading mechanisms.
+
+While the recorded network throughput for Telegram exceeded $570$ MB in a single session, this value is likely the result of a framework-level artefact and is therefore excluded from comparative conclusions. Nonetheless, previous analyses suggest that Telegram tends to prefetch media content and synchronise message history more aggressively than its counterparts, a pattern still observable through non-network signals.
 
 Category distributions further confirm that while all three applications are dominated by \texttt{ioctl} and file operations, Telegram and Messenger maintain a more balanced proportion of \texttt{binder} and network calls, highlighting richer IPC layers and more frequent background exchanges than Signal.
 
-Overall, this cross-app comparison underscores distinct architectural choices: Messenger favours constant local activity for performance and feature richness; Signal minimises runtime footprints to maximise privacy guarantees; and Telegram invests heavily in preloading and large-volume synchronisation for a seamless content experience. These findings align consistently across both foreground and background measurements, supporting the descriptive and statistical conclusions presented in the previous sections.
+Overall, this cross-app comparison underscores distinct architectural choices: Messenger favours constant local activity for performance and feature richness; Signal minimises runtime footprints to maximise privacy guarantees; and Telegram invests heavily in preloading and synchronization for a seamless content experience. These findings align consistently across both foreground and background measurements—excluding anomalous network values—and support the descriptive and statistical conclusions presented in the previous sections.
 
 \begin{table}[H]
     \centering
@@ -2033,6 +2045,7 @@ This comparison, summarised in Table~\ref{tab:comparison_bg_only}, confirms that
 
 \begin{table}[H]
     \centering
+    \footnotesize
     \caption{Foreground vs Background Comparison for Each Application}
     \label{tab:comparison_fg_vs_bg}
     \begin{tabular}{|l|c|c|c|}
@@ -2044,11 +2057,15 @@ This comparison, summarised in Table~\ref{tab:comparison_bg_only}, confirms that
         File Operations & 410,707 / 38,955 & 332,144 / 30,658 & 460,164 / 39,336 \\
         IPC Events & 85,836 / 0 & 50,680 / 0 & 47,629 / 0 \\
         TCP Events & 750 / 8 & 263 / 5 & 462 / 4 \\
-        Total TCP Data & 3.48 MB / $<$0.01 MB & 1.62 MB / 0.02 MB & 574.36 MB / 0.02 MB \\
+        Total TCP Data & 3.48 MB / $<$0.01 MB & 1.62 MB / 0.02 MB & 574.36 MB\textsuperscript{*} / 0.02 MB \\
         Read/Write Ratio & 1.73 / 1.50 & 1.03 / 168.09 & 1.39 / 1.45 \\
         \hline
     \end{tabular}
+    \begin{flushleft}
+    \footnotesize\textsuperscript{*} Likely artefact; see Section Telegram Foreground Runtime Behaviour".
+    \end{flushleft}
 \end{table}
+
 
 Together, these updated measurements clearly illustrate how each messaging app adjusts its resource footprint between active user interaction and passive idle states — a crucial aspect that directly impacts privacy preservation, battery life, and perceived responsiveness.
 
@@ -2547,11 +2564,47 @@ Andrew C. Myers.
 Andrei Sabelfeld and Andrew C. Myers.
 \newblock Language-based information-flow security.
 \newblock \emph{IEEE Journal on Selected Areas in Communications}, 21(1):5–19, 2003.
+\bibitem{mobsf2023}
+Ajin Abraham.
+\newblock Mobile Security Framework (MobSF).
+\newblock \url{https://github.com/MobSF/Mobile-Security-Framework-MobSF}, 2023.
+\newblock Accessed: June 2025.
 
+\bibitem{androguard2023}
+Anthony Desnos and contributors.
+\newblock Androguard: Reverse engineering and analysis of Android applications.
+\newblock \url{https://github.com/androguard/androguard}, 2023.
+\newblock Accessed: June 2025.
 \bibitem{bell1976secure}
+
 David E. Bell and Leonard J. LaPadula.
 \newblock Secure computer systems: Unified exposition and multics interpretation.
 \newblock Technical Report MTR-2997, MITRE Corporation, 1976.
+
+\bibitem{strace2023}
+strace developers.
+\newblock strace: Diagnostic, debugging and instructional userspace utility for Linux.
+\newblock \url{https://strace.io}, 2023.
+\newblock Accessed: June 2025.
+
+\bibitem{ftrace2023}
+Steven Rostedt.
+\newblock ftrace: Function tracer for the Linux kernel.
+\newblock \url{https://www.kernel.org/doc/html/latest/trace/ftrace.html}, 2023.
+\newblock Accessed: June 2025.
+
+\bibitem{kprobes2023}
+Linux Kernel Documentation.
+\newblock kprobes: Kernel dynamic tracing.
+\newblock \url{https://www.kernel.org/doc/html/latest/trace/kprobes.html}, 2023.
+\newblock Accessed: June 2025.
+
+\bibitem{ebpf2023}
+eBPF Foundation.
+\newblock eBPF: Extended Berkeley Packet Filter.
+\newblock \url{https://ebpf.io}, 2023.
+\newblock Accessed: June 2025.
+
     \bibitem{nasser2023dlamdet}
     Nasser A. R., Hasan A. M., Humaidi A. J. DL-AMDet: Deep learning-based malware detector for Android. \textit{Intelligent Systems with Applications}, 2024. Scribd
     \bibitem{zheng2014droidtrace} Zheng~M.\ \& Sun~M.\ DroidTrace: Ptrace-based dynamic syscall tracing for Android. \textit{IJIS}, 2014.
