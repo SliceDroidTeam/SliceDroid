@@ -461,166 +461,89 @@ This body of research has culminated in powerful, extensible toolkits for practi
 \medskip
 \noindent\textbf{Synthesis.}
 Static analysis has achieved substantial advances in precision and scale, evolving from simple manifest checks to sophisticated data-flow and machine learning models. Yet, it remains fundamentally constrained by its inability to observe runtime-specific behavior, implicit data flows, or dynamically loaded code. These blind spots, especially critical in privacy contexts, motivated the development of dynamic and hybrid approaches that can capture an application's \emph{actual} behavior under real-world conditions.
+
+
 \section{User-Space Dynamic Instrumentation}
 \label{sec:rw:dynamic:user}
 
-Whereas kernel tracing offers a \emph{system-wide} vantage, user-space dynamic
-instrumentation injects probes \emph{inside} the app process, exposing rich
-semantic context—class names, parameters, UI callbacks—without requiring a
-custom kernel.  The literature has evolved along four complementary strands
-that echo, in spirit, the structure reviewed for static analysis.
+Whereas kernel tracing offers a \emph{system-wide} vantage, user-space dynamic instrumentation injects probes \emph{inside} the app process, exposing rich semantic context—class names, parameters, and UI callbacks—without requiring a custom kernel. The literature has evolved along several complementary strands that echo, in spirit, the structure reviewed for static analysis.
 
-\paragraph{(i) System-call monitors.}
-\textbf{DroidTrace} hooks every \texttt{ptrace} event to log the full
-system-call stream and can \emph{force} rare branches to execute, increasing
-coverage in malware analysis~\cite{zheng2014droidtrace}.  A later study
-learns $n$-gram models that reconstruct high-level Android API invocations
-purely from syscall sequences, demonstrating the semantic power of even
-low-level traces~\cite{nisi2019syscall}.  These tools deploy on stock ROMs and
-capture behaviour beneath any anti-hooking guard, yet they incur measurable
-per-call overhead and cannot observe Java-level reflection or IPC content.
+\subsubsection*{(i) System-Call Monitors}
+Early approaches used the \texttt{ptrace} mechanism to intercept system calls externally. \textbf{DroidTrace}, for example, hooks every \texttt{ptrace} event to log the full system-call stream and can \emph{force} rare code branches to execute, increasing coverage~\cite{zheng2014droidtrace}. A later study demonstrated that it is possible to reconstruct high-level Android API invocations purely from syscall sequences, highlighting the semantic power of these low-level traces~\cite{nisi2019syscall}. While these tools deploy on stock ROMs, they incur measurable overhead and cannot observe internal Java-level logic.
 
-\paragraph{(ii) Dynamic binary instrumentation (DBI).}
-Instruction-granular DBI engines such as \textbf{Pin} (ported to
-ARM) enable fine-grained native tracing and custom analyses
-(e.g.\ memory-safety checks) with mature tooling support, but
-suffer from high runtime cost and outdated Android
-support.  \textbf{QBDI} improves portability to modern ARM/Thumb-2
-and withstands common packing techniques, although it remains native-only and
-requires root privileges~\cite{qbdiblackhat2020}.
+\subsubsection*{(ii) Dynamic Binary Instrumentation (DBI)}
+For analyzing native code, instruction-granular DBI engines like \textbf{Pin} (ported to ARM) enable fine-grained tracing, but suffer from high runtime cost and outdated Android support. More modern frameworks like \textbf{QBDI} improve portability to ARM/Thumb-2 and withstand common anti-analysis techniques, although they remain native-only and typically require root privileges~\cite{qbdiblackhat2020}.
 
-\paragraph{(iii) In-process hooking frameworks.}
-\textbf{Frida} injects a tiny loader that JIT-compiles JavaScript hooks into
-Java, JNI and native code, permitting live patching and interactive
-experiments~\cite{frida2020}.  \textbf{DYNAMO} layers systematic diff-based
-analysis on top of Frida to study framework evolution across Android
-versions~\cite{dynamo2021}, while \textbf{InviSeal} hardens Frida against
-detection, shrinking overhead to~$<\!3\%$ on UI benchmarks~\cite{inviseal2023}.
-Yet all three struggle with tamper-aware apps and expose only the instrumented
-process—cross-app flows, scheduler activity and kernel events remain hidden.
+\subsubsection*{(iii) ART-Level Hooking Frameworks}
+A powerful category of tools modifies the Android Runtime itself to intercept method calls across the entire system. The most prominent example is the \textbf{Xposed Framework}, which alters the Zygote process to load custom modules at startup. This allows developers to hook, modify, and replace any Java method in any application, offering unparalleled control over app behavior~\cite{xposed}. While extremely powerful, this approach requires root access and system modification, which can break security features like SafetyNet and make it unsuitable for analyzing unmodified consumer devices.
 
-\paragraph{(iv) Sandbox and multi-layer profilers.}
-Containerised sandboxes such as \textbf{C-Android} isolate each app inside a
-Linux namespace and stream user-space logs for reproducible
-testing~\cite{candroid2019}.  Emulation-centred pipelines (e.g.\ \textbf{DynaLog}
-or DroidBox derivatives) automate large-scale malware triage by collecting
-$\sim$100 runtime features in parallel VMs~\cite{dynalog2016}.  Although
-high-throughput, these environments diverge from real-device timing,
-miss in-kernel I/O, and are easily fingerprinted by sophisticated apps.
+\subsubsection*{(iv) In-Process Hooking Frameworks}
+In contrast to system-wide modification, tools like \textbf{Frida} inject a loader into a specific target process at runtime. This loader JIT-compiles JavaScript hooks into native code, permitting live patching of Java, JNI, and native functions for interactive experiments~\cite{frida2020}. \textbf{DYNAMO} builds upon Frida to perform systematic differential analysis of framework evolution across Android versions~\cite{dynamo2021}, while \textbf{InviSeal} hardens Frida against detection and reduces its overhead to less than 3\%~\cite{inviseal2023}. However, these tools struggle with tamper-aware apps and are confined to a single process, leaving cross-app and kernel-level events hidden.
+
+\subsubsection*{(v) Sandboxes and Emulators}
+To automate analysis at scale, containerised sandboxes like \textbf{C-Android} isolate apps within Linux namespaces for reproducible testing~\cite{candroid2019}. Emulation-centred pipelines (e.g., \textbf{DynaLog}) automate malware triage by collecting runtime features in parallel VMs~\cite{dynalog2016}. Although high-throughput, these environments often diverge from real-device hardware and timing, and they are easily fingerprinted by sophisticated malware.
 
 \medskip
 \noindent\textbf{Synthesis.}
-User-space instrumentation shines in \emph{semantic richness}, rapid
-deployment and interactive control, making it ideal for annotating the coarse
-kernel trace with method names, intent actions or UI context.  Its
-weaknesses—visibility gaps below the syscall boundary, susceptibility to
-anti-hooking defences and non-negligible overhead—underscore why kernel-level
-tracing remains the authoritative foundation for our behavioural profiling of
-messaging apps.  In our study, we therefore treat user-space hooks as an
-\emph{auxiliary lens} to validate and enrich the low-level, system-wide evidence
-captured by eBPF-based kernel monitors
-
-
+User-space instrumentation shines in its \emph{semantic richness}, rapid deployment, and interactive control, making it ideal for annotating a coarse kernel trace with method names, intent actions or UI context. Its weaknesses—visibility gaps below the syscall boundary, susceptibility to anti-hooking defences, and non-negligible overhead—underscore why kernel-level tracing remains the authoritative foundation for our behavioural profiling. In our study, we therefore treat user-space hooks as an \emph{auxiliary lens} to validate and enrich the low-level, system-wide evidence captured by our kernel monitors.
 
 \section{Kernel-Level Tracing Infrastructures}
-\label{sec:tracing-infra}
+\label{sec:rw:kernel}
 
-Tracing infrastructures at the kernel level offer a privileged vantage point beneath the Android framework, the Java/ART runtime, and native user-space libraries. By instrumenting key OS subsystems—such as system calls, Binder IPC, scheduler events, and network interfaces—they expose low-level behavioral signals while incurring minimal runtime overhead. Such signals are especially critical when applications encrypt their payloads or obfuscate internal logic, rendering user-space instrumentation ineffective. Kernel-level hooks therefore enable comprehensive profiling even in black-box settings. Existing literature and tooling coalesce into four main research strands:
+Tracing infrastructures at the kernel level offer a privileged vantage point beneath the Android framework, the ART runtime, and native user-space libraries. By instrumenting key OS subsystems—such as system calls, Binder IPC, and network interfaces—they expose low-level behavioral signals while incurring minimal runtime overhead. These signals are especially critical when applications encrypt payloads or obfuscate logic, rendering user-space instrumentation ineffective.
 
-\paragraph{(i) eBPF- and \textit{ftrace}-based collectors.}
-Modern tracing frameworks such as \textbf{BPFroid} leverage extended Berkeley Packet Filters (eBPF) and \textit{ftrace} to capture fine-grained telemetry from stock Android kernels without requiring firmware modifications. BPFroid monitors per-UID syscall sequences, Binder transactions, and network activities, enabling malware detection with low system overhead ($\sim$3\% energy cost) and competitive classification performance (e.g., 70\% accuracy on the Genome dataset). Earlier efforts such as \textbf{ID-Syscall} used loadable kernel modules on Android 4.x to extract syscall traces, demonstrating that syscall n-grams alone suffice for binary classification of app behavior—though such early systems lacked scalability, semantic context, and cross-process correlation.
+These infrastructures are built upon foundational Linux kernel mechanisms. In contrast to high-overhead, process-level tracers like \texttt{strace}~\cite{strace2023}, modern approaches leverage highly efficient in-kernel frameworks. These include \texttt{ftrace}~\cite{ftrace2023}, the kernel's native function tracer; \texttt{kprobes}~\cite{kprobes2023} for dynamic function instrumentation; and \texttt{eBPF}~\cite{ebpf2023}, which allows for safe, programmable tracing directly within the kernel. The literature applying these tools can be grouped as follows:
 
-\paragraph{(ii) Network-centric and covert-channel tracing.}
-Beyond explicit syscall logs, more covert behavioral signals have also been explored. Celik and Gligor extract timing-based features from standard \textit{ftrace} logs to detect stegomalware, highlighting how packet sizes, inter-packet gaps, and scheduler switches reveal anomalous communication even without network payload inspection. These techniques operate under encryption and sandboxing, but omit Binder IPC, which is central to Android’s inter-component messaging model—limiting their precision in app-centric profiling scenarios.
+\subsubsection*{(i) eBPF- and ftrace-Based Collectors}
+Modern frameworks such as \textbf{BPFroid} leverage eBPF and ftrace to capture fine-grained telemetry from stock Android kernels without requiring firmware modifications~\cite{BPFroid2021}. BPFroid monitors per-UID syscall sequences, Binder transactions, and network activities, enabling malware detection with low system overhead ($\sim$3\% energy cost). Earlier efforts, such as \textbf{ID-Syscall}, used loadable kernel modules on Android 4.x to demonstrate that syscall n-grams alone can suffice for binary classification of app behavior~\cite{Schmidt2009IDSyscall}, though such systems lacked semantic context and cross-process correlation.
 
-\paragraph{(iii) Hardware-assisted monitors.}
-Low-level performance monitoring units and instruction tracing extensions such as ARM’s Embedded Trace Macrocell (ETM) provide hardware-level insights with near-zero perturbation. For example, \textbf{HART} captures execution traces from proprietary kernel modules, offering unmatched visibility into timing and execution paths. However, such approaches face practical limitations: ETM is often disabled (fused-off) in production smartphones, lacks mapping to user-level processes, and requires privileged access, thereby constraining their applicability in commodity devices or userland-facing research.
+\subsubsection*{(ii) Network-Centric and Covert-Channel Tracing}
+Beyond explicit syscall logs, more covert behavioral signals have also been explored. Celik and Gligor extract timing-based features from standard ftrace logs to detect stegomalware, highlighting how packet sizes and inter-packet gaps reveal anomalous communication even without payload inspection~\cite{celik2021stego}. These techniques operate under encryption but often omit Binder IPC, which is central to Android’s inter-component messaging model.
 
-\paragraph{(iv) Production-scale, low-overhead tracing.}
-Industrial-grade tracing pipelines such as Google’s \textbf{Perfetto} aggregate diverse sources—including \textit{ftrace}, Binder logs, and user-space counters—into rich, SQL-queryable trace files for profiling startup time, UI latency (“jank”), and battery usage. While primarily developed for performance diagnostics, such infrastructures provide an underutilized opportunity for security and app behavior research. Complementary systems like \textbf{eMook} extend Perfetto’s functionality by integrating per-PID eBPF filters, reducing overhead by 85\% and enabling longitudinal field studies on consumer devices. Despite their scalability and flexibility, these toolchains remain largely untapped for behavioral profiling in sensitive use-cases such as messaging apps or anomaly detection.
+\subsubsection*{(iii) Hardware-Assisted Monitors}
+Low-level performance monitoring units and instruction tracing extensions like ARM’s Embedded Trace Macrocell (ETM) provide hardware-level insights with near-zero perturbation. For example, \textbf{HART} captures execution traces from proprietary kernel modules, offering unmatched visibility~\cite{zhang2020hart}. However, such approaches face practical limitations: ETM is often disabled in production smartphones, lacks mapping to user-level processes, and requires privileged access, constraining its applicability.
 
-\paragraph{(v) Foundational tracing tools.}
-A variety of kernel-level tracing tools underpin the development of Android monitoring frameworks. \textbf{strace} intercepts and logs syscalls made by user-space processes using ptrace, offering process-centric views with minimal setup but significant overhead \cite{strace2023}. \textbf{ftrace}, built into the Linux kernel, provides highly efficient tracing of kernel functions, syscalls, and scheduling events; it serves as the backbone for higher-level tools such as Perfetto \cite{ftrace2023}. \textbf{kprobes} and its variant \textbf{uprobes} allow dynamic instrumentation of kernel and user-space functions, enabling flexible probes without recompiling the kernel \cite{kprobes2023}. Finally, \textbf{eBPF} represents the modern evolution of in-kernel programmability, supporting safe, low-overhead, event-driven tracing pipelines with filtering and aggregation directly in kernel space \cite{ebpf2023}. These mechanisms collectively enable fine-grained telemetry across user and kernel boundaries and are essential in constructing scalable behavioral monitors.
+\subsubsection*{(iv) Production-Scale Tracing}
+Industrial-grade pipelines such as Google’s \textbf{Perfetto} aggregate diverse sources—including ftrace and Binder logs—into rich, SQL-queryable trace files for profiling performance metrics like startup time and UI latency~\cite{maganti2022perfetto}. While primarily for performance diagnostics, such infrastructures are underutilized for security research. Complementary systems like \textbf{eMook} extend Perfetto by integrating per-PID eBPF filters, reducing overhead by 85\% and enabling longitudinal field studies~\cite{williams2024emook}.
 
 \medskip
 \noindent\textbf{Synthesis.}
-Kernel tracing offers a hard-to-tamper, always-on lens but must still tame five hurdles: \emph{semantic gap, opaque data, privilege requirements, data volume, detectability}.  Recent work narrows these by (i) pairing syscalls with Binder provenance, (ii) granting BPF rights via SELinux instead of root, (iii) summarising high-rate events in-kernel, and (iv) obscuring probes via ETM/PTM or uprobe randomisation—pushing low-overhead, whole-system reconstruction onto stock phones.
+Kernel tracing offers a hard-to-tamper, always-on lens but must still tame five hurdles: the \emph{semantic gap, opaque data, privilege requirements, data volume, and detectability}. Recent work narrows these by pairing syscalls with Binder provenance, granting BPF rights via SELinux instead of root, and summarising high-rate events in-kernel—pushing low-overhead, whole-system reconstruction onto stock phones.
+
 
 \section{Privacy Studies on Messaging Applications}
 \label{sec:rw:privacy-im}
 
-End-to-end encryption neutralises classical content-centric attacks, but it
-does not guarantee \emph{privacy}.  Over the last decade researchers have
-investigated four complementary vectors through which popular messaging
-apps still expose sensitive information.
+End-to-end encryption neutralises classical content-centric attacks, but it does not guarantee \emph{privacy}. Over the last decade, researchers have investigated four complementary vectors through which popular messaging apps still expose sensitive information.
 
-\paragraph{(i) On-device artefacts and forensics.}
-Early work focused on residual data stored locally.
-Anglano’s systematic analysis of WhatsApp on Android~4.x recovered chat
-databases, media thumbnails and contact lists even after user‐initiated
-deletions \cite{anglano2015whatsapp}.
-Subsequent studies extended the corpus to Telegram, Signal and Viber,
-showing that cached profile photos, push-notification logs and SQLite WAL
-files can reveal conversation partners and group identifiers
-\cite{moltchanov2018telegram, obermeier2018signal}.
-While modern versions encrypt local backups, notification side-channels
-(e.g.\ Firebase tokens) remain an open avenue \cite{berezowski2020push}.
+\subsubsection*{(i) On-Device Artefacts and Forensics}
+Early work focused on residual data stored locally. Anglano’s systematic analysis of WhatsApp on Android~4.x recovered chat databases, media thumbnails, and contact lists even after user-initiated deletions~\cite{anglano2015whatsapp}. Subsequent studies extended the corpus to Telegram, Signal, and Viber, showing that cached profile photos, push-notification logs, and SQLite WAL files can reveal conversation partners and group identifiers~\cite{moltchanov2018telegram, obermeier2018signal}. While modern OS versions encrypt local backups, notification side-channels (e.g., Firebase tokens) remain an open avenue for investigation~\cite{berezowski2020push}.
 
-\paragraph{(ii) Network-level traffic analysis.}
-A second strand exploits packet timing, size and sequence to infer user
-actions without breaching encryption.
-Pioneering work by Matic \emph{et al.} fingerprinted iMessage events
-(send, read, typing) with $>90$ \% accuracy solely from TLS record
-bursts \cite{matic2015iMessage}.
-Apthorpe demonstrated similar leakage for Android IM apps over Wi-Fi
-\cite{apthorpe2018smart}.
-Recent machine-learning classifiers identify not only event types but also
-multimedia uploads and voice-over-IP handshakes in QUIC traffic
-\cite{lee2023quic}.
-Countermeasures such as adaptive padding raise bandwidth by 8–14 \%
-while mitigating most classifiers \cite{poblete2021defence}.
+\subsubsection*{(ii) Network-Level Traffic Analysis}
+A second strand exploits packet timing, size, and sequence to infer user actions without breaching encryption. Pioneering work by Matic \emph{et al.} fingerprinted iMessage events (send, read, typing) with over 90\% accuracy solely from TLS record bursts~\cite{matic2015iMessage}. Apthorpe demonstrated similar leakage for Android IM apps over Wi-Fi~\cite{apthorpe2018smart}. Recent machine-learning classifiers identify not only event types but also multimedia uploads and voice-over-IP handshakes in QUIC traffic~\cite{lee2023quic}. Countermeasures such as adaptive padding have been proposed, which raise bandwidth by 8–14\% while mitigating most classifiers~\cite{poblete2021defence}.
 
-\paragraph{(iii) Contact-discovery and social-graph exposure.}
-Many services hash user phone numbers and upload them for friend
-discovery.  Tang \emph{et al.} reverse-engineered this protocol in
-WhatsApp and estimated that an adversary can enumerate an EU-scale phone
-space for \$500 of SMS fees \cite{tang2020whatsappHash}.
-Kwon showed that Telegram’s “People Nearby” feature enables trilateration
-of user location with meter-level accuracy \cite{kwon2021telegram}.  Signal
-introduced private-set‐intersection with SGX enclaves to curb this vector,
-yet follow-up work revealed side-channels via cache timing
-\cite{marforio2022psi}.
+\subsubsection*{(iii) Contact-Discovery and Social-Graph Exposure}
+Many services hash user phone numbers and upload them for friend discovery. Tang \emph{et al.} reverse-engineered this protocol in WhatsApp and estimated that an adversary can enumerate an EU-scale phone space for \$500 of SMS fees~\cite{tang2020whatsappHash}. Kwon showed that Telegram’s “People Nearby” feature enables trilateration of user location with meter-level accuracy~\cite{kwon2021telegram}. Signal introduced private-set-intersection with SGX enclaves to curb this vector, yet follow-up work revealed side-channels via cache timing~\cite{marforio2022psi}.
 
-\paragraph{(iv) Metadata policies and compliance audits.}
-A complementary line audits whether apps meet their self-declared privacy
-policies.  Egele’s longitudinal crawl of Telegram channels uncovered the
-retention of deleted media on CDN edge nodes weeks after deletion
-\cite{egele2019cdn}.
-Bock dissected Signal’s sealed-sender protocol, confirming that only
-sender and receiver persist in a 24-hour service log but flagging
-exposure of push-token identifiers to Apple/Google \cite{bock2020sealed}.
-Recent GDPR-oriented studies show that less than 40 \% of messaging apps
-provide complete data-export facilities despite legal requirements
-\cite{frolov2022gdpr}.
-
+\subsubsection*{(iv) Metadata Policies and Compliance Audits}
+A complementary line of research audits whether apps meet their self-declared privacy policies. Egele’s longitudinal crawl of Telegram channels uncovered the retention of deleted media on CDN edge nodes weeks after deletion~\cite{egele2019cdn}. Bock dissected Signal’s sealed-sender protocol, confirming that only sender and receiver metadata persist in a 24-hour service log but flagging the exposure of push-token identifiers to Apple/Google~\cite{bock2020sealed}. Recent GDPR-oriented studies show that less than 40\% of messaging apps provide complete data-export facilities despite legal requirements~\cite{frolov2022gdpr}.
 
 \medskip
 \noindent\textbf{Synthesis.}
-Existing studies either rely on intrusive forensics, controlled testbeds
-or static policy analysis.  None combines \emph{kernel-level traces} with
-the above insights to derive a live, system-wide privacy profile.
-Our work closes this gap by correlating kprobe/ftrace events
-(Binder calls, network bursts, wakelocks) with the metadata-leak patterns
-catalogued in prior literature, delivering the first \emph{runtime}
-taxonomy of privacy-relevant behaviours in Messenger, Telegram and Signal.
+Existing studies either rely on intrusive forensics, controlled testbeds, or static policy analysis. None combines \emph{kernel-level traces} with the above insights to derive a live, system-wide privacy profile. Our work closes this gap by correlating kprobe/ftrace events (Binder calls, network bursts, wakelocks) with the metadata-leak patterns catalogued in prior literature, delivering the first \emph{runtime} taxonomy of privacy-relevant behaviours in Messenger, Telegram, and Signal.
 
-\section{Research Gap}\label{sec:rw:gap}
-Most prior work approaches Android behaviour analysis from one of three angles.
-\emph{Static inspection} (e.g., code-review and manifest checks) is efficient but often misses behaviours that surface only at run time or behind obfuscation.
-\emph{User-space monitors}—such as taint-tracking or framework hooks—offer richer semantics, yet typically require a modified or rooted runtime, can be noticed by well-crafted apps, and place implicit trust in native code.
-Finally, \emph{kernel-level tracing} delivers low overhead and strong tamper resistance, but the raw syscalls and Binder op-codes it yields expose little intent, leaving a considerable semantic gap.
+\section{Research Gap}
+\label{sec:rw:gap}
 
-Taken together, these observations indicate that there remains a need for techniques that combine the lightweight footprint and reliability of kernel-level tracing with insights gained from static inspection, enriching the collected signals with enough context for meaningful privacy and security reasoning—ideally without requiring custom firmware or major system modifications.
+As the review demonstrates, prior work approaches Android behaviour analysis from one of three principal angles, each with inherent trade-offs.
+
+\emph{Static inspection} (e.g., code-review and manifest checks) is efficient and scalable but fundamentally struggles with behaviours that surface only at run time, such as those involving dynamic code loading or heavy obfuscation~\cite{li2016droidra, feng2020survey}.
+
+\emph{User-space monitors}—such as taint-tracking or framework hooks—offer richer semantic context. Yet, they typically require a modified or rooted runtime~\cite{xposed, enck2014taintdroid}, can be detected and evaded by well-crafted apps~\cite{inviseal2023}, and must often place implicit trust in the behavior of native code libraries.
+
+Finally, \emph{kernel-level tracing} delivers a low-overhead and tamper-resistant vantage point, but the raw syscalls and Binder op-codes it yields expose little direct semantic intent. This creates a considerable "semantic gap" between low-level system events and high-level application logic, a challenge actively being researched~\cite{nisi2019syscall}.
+
+Taken together, these observations indicate that a significant research gap remains. There is a clear need for techniques that combine the lightweight footprint and high-fidelity visibility of kernel-level tracing with the contextual insights gained from static inspection. The goal is to enrich the raw, system-wide signals with enough application-specific context for meaningful privacy and security reasoning—ideally without requiring custom firmware or invasive system modifications. This thesis directly addresses this gap.
 % --------------------------------------------------
 %  Technical Background
 % --------------------------------------------------
@@ -2483,6 +2406,8 @@ Statista, “Number of Telegram monthly active users worldwide from 2018 to 2024
 \bibitem{StatistaSignal}
 Statista, “Signal - monthly active users in selected countries 2021,” 2022. [Online]. Available: \url{https://www.statista.com/statistics/1252396/signal-monthly-active-users-in-selected-countries/}
 
+\bibitem{Schmidt2009IDSyscall}
+A. Schmidt, H. Schmidt, J. Clausen, A. M. T. K. Camtepe, and S. Albayrak, “Static analysis of executables for collaborative malware detection on Android,” in \emph{Proc. of the IEEE International Conference on Communications (ICC)}, 2009.
 
 \bibitem{ShenVervierStringhini2021}
 Y. Shen, P.-A. Vervier, and G. Stringhini, ``Understanding worldwide private information collection on Android,'' \emph{arXiv preprint arXiv:2102.12869}, 2021.
