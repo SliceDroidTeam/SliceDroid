@@ -622,37 +622,32 @@ Taken together, these observations indicate that there remains a need for techni
 % --------------------------------------------------
 %  Technical Background
 % --------------------------------------------------
-
 \chapter{Technical Background}
 
-This chapter provides a detailed overview of technical background necessary for understanding the methodology and objectives of this thesis. First, it presents the architecture of the Android operating system, focusing particularly on the Linux-based kernel and how applications interact with it. Next, it discusses the behavior and privacy concerns related to messaging applications, highlighting known issues and relevant technical aspects. \section{Android Architecture}
+This chapter provides a detailed overview of technical background necessary for understanding the methodology and objectives of this thesis. First, it presents the architecture of the Android operating system, focusing particularly on the Linux-based kernel and how applications interact with it. Next, it discusses the behavior and privacy concerns related to messaging applications, highlighting known issues and relevant technical aspects.
+
+\section{Android Architecture}
 
 \subsection{Android Software Stack Overview}
-Android is a layered, open-source mobile operating system built on top of a customized version of the Linux kernel. Its architecture is designed to be modular and extensible, supporting a wide range of hardware while enforcing clear boundaries between components. The Android software stack is composed of several interconnected layers, typically including the Application Layer, the Java API Framework (or Application Framework), the Android Runtime (ART) and Native Libraries, the Hardware Abstraction Layer (HAL), and the Linux Kernel itself.
+Android is a layered, open-source mobile operating system built on top of a customized version of the Linux kernel \cite{AOSPArchOverview}. Its architecture is designed to be modular and extensible, supporting a wide range of hardware while enforcing clear boundaries between components. The Android software stack is composed of several interconnected layers, typically including the Application Layer, the Java API Framework (or Application Framework), the Android Runtime (ART) and Native Libraries, the Hardware Abstraction Layer (HAL), and the Linux Kernel itself \cite{tanenbaum2015modern}.
 
+The Application Layer hosts both system and user-installed applications. These applications interact with the system via APIs exposed by the Android Framework. The Java API Framework provides access to core system services such as activity management, resource handling, content providers, and telephony. Services like \texttt{ActivityManager}, \texttt{WindowManager}, and \texttt{PackageManager} facilitate the lifecycle management and orchestration of application behavior.
 
-The Application Layer hosts both system and user-installed applications.
-These applications interact with the system via APIs exposed by the Android Framework.
-The Java API Framework provides access to core system services such as activity management,
-resource handling, content providers, and telephony. Services like \texttt{ActivityManager},
-\texttt{WindowManager}, and \texttt{PackageManager} facilitate the lifecycle management and
-orchestration of application behavior.
+Beneath the framework lies the Android Runtime (ART), which executes application bytecode and optimizes it using ahead-of-time (AOT), just-in-time (JIT), or interpretation modes \cite{AOSPART}. Alongside ART are native libraries written in C/C++, including performance-critical components such as WebView, OpenSSL, and the Bionic libc. The Java Native Interface (JNI) allows managed Java/Kotlin code to call into these native libraries.
 
-Beneath the framework lies the Android Runtime (ART), which executes application bytecode and optimizes it using ahead-of-time (AOT), just-in-time (JIT), or interpretation modes. Alongside ART are native libraries written in C/C++, including performance-critical components such as WebView, OpenSSL, and the Bionic libc. The Java Native Interface (JNI) allows managed Java/Kotlin code to call into these native libraries.
+The HAL acts as a bridge between the Android Framework and the hardware drivers residing in the kernel. It defines standard interfaces that vendors implement to support various hardware components like audio, camera, sensors, and graphics. Since Android 10, Google introduced the Generic Kernel Image (GKI), which aims to further separate the vendor-specific hardware implementations from the core Linux kernel by introducing a stable kernel interface \cite{AOSPGKI}. This allows devices from different manufacturers to share a common kernel base while maintaining vendor-specific modules separately, simplifying updates and enhancing portability.
 
-The HAL acts as a bridge between the Android Framework and the hardware drivers residing in the kernel. It defines standard interfaces that vendors implement to support various hardware components like audio, camera, sensors, and graphics. Since Android 10, Google introduced the Generic Kernel Image (GKI), which aims to further separate the vendor-specific hardware implementations from the core Linux kernel by introducing a stable kernel interface. This allows devices from different manufacturers to share a common kernel base while maintaining vendor-specific modules separately, simplifying updates and enhancing portability.
-
-At the lowest level, the Linux kernel provides essential operating system services such as process scheduling, memory management, networking, and security enforcement. Android extends the kernel with additional features including the Binder IPC driver, ashmem (anonymous shared memory), and wakelocks to manage power usage. This kernel foundation ensures that resource access is isolated and controlled across all system layers.
+At the lowest level, the Linux kernel provides essential operating system services such as process scheduling, memory management, networking, and security enforcement \cite{love2010linux}. Android extends the kernel with additional features including the Binder IPC driver, ashmem (anonymous shared memory), and wakelocks to manage power usage \cite{feng2020survey}. This kernel foundation ensures that resource access is isolated and controlled across all system layers.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{android_stack_diagram.png}
-    \caption{Updated Diagram of Android Software Stack (source: Android Developers Guide~\cite{androidplatformdoc}).}
+    \caption{Updated Diagram of Android Software Stack (source: Android Developers Guide~\cite{AOSPArchOverview}).}
     \label{fig:android_stack}
 \end{figure}
 
 \subsection{Application Layer and Process Lifecycle}
-At the application layer, Android executes user and system applications packaged in APK format. Each APK includes compiled DEX bytecode, resources, native libraries, and a manifest file that defines app components and permissions. Apps run in sandboxed processes, each forked from the Zygote daemon—a minimal, preloaded system process that speeds up app launch time by sharing memory using copy-on-write.
+At the application layer, Android executes user and system applications packaged in APK format. Each APK includes compiled DEX bytecode, resources, native libraries, and a manifest file that defines app components and permissions. Apps run in sandboxed processes, each forked from the Zygote daemon—a minimal, preloaded system process that speeds up app launch time by sharing memory using copy-on-write \cite{AOSPArchOverview}.
 
 The lifecycle of applications is centrally managed by the \texttt{ActivityManagerService} (AMS), which coordinates activity transitions, memory prioritization, and process states (foreground, background, cached). The \texttt{PackageManagerService} (PMS) handles component registration and permission declarations based on the manifest.
 
@@ -661,21 +656,13 @@ Apps follow a component-based model: Activities, Services, Broadcast Receivers, 
 Binder IPC enables structured communication between app components and system services. Messages are serialized as Parcel objects, routed through the Binder driver, and trigger observable kernel events. These include context switches and transaction dispatches, which are measurable using tools like ftrace or kprobes.
 
 \subsection{Android Runtime, Native Layer, and JNI}
-The Android Runtime (ART) executes application bytecode using a combination of ahead-of-time (AOT), just-in-time (JIT), and interpretation mechanisms. From a kernel-level tracing perspective, JIT-related memory operations may trigger system calls such as \texttt{mmap()}, \texttt{write()}, and \texttt{mprotect()}, as ART dynamically allocates memory for optimized code.
+The Android Runtime (ART) executes application bytecode using a combination of ahead-of-time (AOT), just-in-time (JIT), and interpretation mechanisms \cite{AOSPART}. From a kernel-level tracing perspective, JIT-related memory operations may trigger system calls such as \texttt{mmap()}, \texttt{write()}, and \texttt{mprotect()}, as ART dynamically allocates memory for optimized code.
 
 Beyond execution, ART interacts with the kernel to manage thread scheduling and memory access—behaviors that appear in system call traces. In dynamic analysis, such patterns can be correlated with app lifecycle events or anomalous execution spikes.
 
-JNI further extends the runtime by enabling Java/Kotlin code to invoke native C/C++ libraries. These native operations often bypass standard framework controls, introducing low-level file, network, or cryptographic actions. This is particularly relevant for behavioral profiling, as native code may perform sensitive operations that differ from those visible at the Java level.
+JNI further extends the runtime by enabling Java/Kotlin code to invoke native C/C++ libraries \cite{AOSPJNI}. These native operations often bypass standard framework controls, introducing low-level file, network, or cryptographic actions. This is particularly relevant for behavioral profiling, as native code may perform sensitive operations that differ from those visible at the Java level.
 
-In the context of this thesis, which focuses on dynamic kernel-level analysis, capturing system interactions initiated by ART and JNI is essential. It enables the identification of execution phases or modules that deviate from expected behavior—especially in apps that rely heavily on native components for messaging, encryption, or background communication.
-The sequence of events during JNI initialization is illustrated in Figure~\ref{fig:jni_init}.
-It begins when the VM loads the application class, triggering a static initializer which invokes
-the native \texttt{JNI\_OnLoad()} function. This function registers native methods and returns
-the \texttt{JNI\_Version}, after which Android proceeds with the usual application lifecycle
-(e.g., \texttt{onCreate()}) managed by the \texttt{ActivityManager}.
-This interaction flow is especially relevant in behavioral analysis,
-as native components may introduce low-level behavior patterns not observable through the Java layer alone.
-
+In the context of this thesis, which focuses on dynamic kernel-level analysis, capturing system interactions initiated by ART and JNI is essential. It enables the identification of execution phases or modules that deviate from expected behavior—especially in apps that rely heavily on native components for messaging, encryption, or background communication. The sequence of events during JNI initialization is illustrated in Figure~\ref{fig:jni_init}. It begins when the VM loads the application class, triggering a static initializer which invokes the native \texttt{JNI\_OnLoad()} function. This function registers native methods and returns the \texttt{JNI\_Version}, after which Android proceeds with the usual application lifecycle (e.g., \texttt{onCreate()}) managed by the \texttt{ActivityManager}. This interaction flow is especially relevant in behavioral analysis, as native components may introduce low-level behavior patterns not observable through the Java layer alone.
 
 \begin{figure}[H]
     \centering
@@ -685,43 +672,42 @@ as native components may introduce low-level behavior patterns not observable th
 \end{figure}
 
 \subsection{Linux Kernel Fundamentals and System Calls in Android}
-
-The Android operating system relies on the Linux kernel as its foundational layer for managing hardware resources, abstracting device drivers, and ensuring secure process isolation. All interactions between user applications and hardware components are mediated through the kernel’s system call interface, making it a critical observation point for behavioral profiling.
+The Android operating system relies on the Linux kernel as its foundational layer for managing hardware resources, abstracting device drivers, and ensuring secure process isolation \cite{love2010linux}. All interactions between user applications and hardware components are mediated through the kernel’s system call interface, making it a critical observation point for behavioral profiling.
 
 Each time an application requests a low-level operation—such as reading a file, accessing a sensor, or opening a network socket—it invokes one or more system calls, which switch execution from user space to kernel space. In Android, these calls are typically issued via the Bionic libc, which serves as the system’s C standard library, or directly through Java Native Interface (JNI) bindings when applications rely on native code for performance-critical tasks. Capturing these calls reveals how an application actually uses system resources, regardless of its declared permissions or documented features.
 
-Android’s kernel extends the standard Linux design with additional components such as the Binder IPC driver for efficient inter-process communication, ashmem for shared memory management, and wakelocks for fine-grained power control. These features generate distinctive kernel-level events that tracing tools can capture to uncover hidden or background activities in messaging apps.
+Android’s kernel extends the standard Linux design with additional components such as the Binder IPC driver for efficient inter-process communication, ashmem for shared memory management, and wakelocks for fine-grained power control \cite{AOSPArchOverview}. These features generate distinctive kernel-level events that tracing tools can capture to uncover hidden or background activities in messaging apps.
 
 For this purpose, tracing frameworks such as \texttt{ftrace}, \texttt{kprobes}, and eBPF are employed (see Section~2.3.1 for an overview of these infrastructures). Instrumenting kernel functions such as \texttt{ksys\_open} or \texttt{\_\_sys\_sendmsg} enables the collection of detailed logs on file operations, network transmissions, and process scheduling, which form the basis for constructing robust behavioral profiles and detecting suspicious usage patterns.
-\subsection{ Android Security Model and Isolation Mechanisms}
-Android enforces a layered security model combining Linux kernel features with user-space controls. Each application runs in its own sandbox, identified by a unique UID and GID, restricting file and device access. This is complemented by the use of SELinux in enforcing mode, which uses MAC policies to define allowable interactions between system components and applications.
+
+\subsection{Android Security Model and Isolation Mechanisms}
+Android enforces a layered security model combining Linux kernel features with user-space controls. Each application runs in its own sandbox, identified by a unique UID and GID, restricting file and device access. This is complemented by the use of SELinux in enforcing mode, which uses MAC policies to define allowable interactions between system components and applications \cite{AOSPSecurity}.
 
 Filesystem isolation further ensures that apps can only access their designated directories (e.g., \texttt{/data/data/{package\_name}}). Attempts to traverse or access other app spaces are blocked unless the app has elevated privileges or exploits kernel vulnerabilities.
 
 System call filtering through seccomp restricts the range of calls an app can make, reducing the kernel's attack surface. From a profiling standpoint, observing unauthorized system calls or failed access attempts provides insight into potentially malicious or privacy-invasive behavior.
 
-\section{Messaging Apps: Characteristics  Privacy Implications}
+\section{Messaging Apps: Characteristics and Privacy Implications}
 
 \subsection{Functional Overview}
 Messaging applications are among the most widely used mobile software categories, providing real-time communication, media sharing, group messaging, and voice/video calling capabilities. Popular platforms such as Signal, Telegram, and Facebook Messenger serve billions of users globally, integrating deeply into daily communication routines.
 
-Android, as the dominant mobile operating system, provides the primary distribution platform for these apps through the Google Play Store. According to public data \cite{statista2024messaging, googleplaydata2024}, Facebook Messenger has surpassed 5 billion downloads, Telegram exceeds 1.2 billion downloads, and Signal has more than 100 million installs. While usage varies by region, these numbers highlight the ubiquity and market penetration of messaging applications on Android devices.
+Android, as the dominant mobile operating system, provides the primary distribution platform for these apps through the Google Play Store. According to public data, Facebook Messenger has surpassed 5 billion downloads, Telegram exceeds 1.2 billion downloads, and Signal has more than 100 million installs \cite{StatistaMessenger, StatistaTelegram, StatistaSignal}. While usage varies by region, these numbers highlight the ubiquity and market penetration of messaging applications on Android devices.
 
 Such widespread deployment across diverse hardware and Android configurations introduces heterogeneous behaviors in terms of network communication patterns, lifecycle management, and system-level operations. This diversity, combined with varying security practices among apps, renders them ideal candidates for behavioral profiling at the kernel level.
 
-These applications typically rely on key Android components to support their functionality: foreground \texttt{Services} are used for persistent communication sessions, \texttt{Broadcast Receivers} handle asynchronous events such as network connectivity or message reception, and \texttt{Content Providers} facilitate access to structured data such as shared databases. All applications are packaged in APK format and structured using component declarations in the \texttt{AndroidManifest.xml} file.
+These applications typically rely on key Android components to support their functionality: foreground \texttt{Services} are used for persistent communication sessions, \texttt{Broadcast Receivers} handle asynchronous events such as network connectivity or message reception, and \texttt{Content Providers} facilitate access to structured data such as shared databases. All applications are packaged in APK format and structured using component declarations in the \texttt{AndroidManifest.xml} file \cite{AOSPArchOverview}.
 
 Rather than detailing cryptographic implementations or privacy architectures here, which are explored in Section 2.2.3, this section focuses on the foundational aspects of app deployment, runtime behavior, and Android system integration that are relevant for low-level behavioral tracing.
 
 \subsection{Privacy-Critical Behaviors and Resource Usage}
-Messaging applications often initiate background services using components like \\
- \texttt{JobScheduler}, \texttt{AlarmManager}, and foreground services to maintain persistent communication channels—frequently waking the device from idle states using wakelocks \cite{androidwakelocks}.
+Messaging applications often initiate background services using components like \texttt{JobScheduler}, \texttt{AlarmManager}, and foreground services to maintain persistent communication channels—frequently waking the device from idle states using wakelocks \cite{AOSPWakelocks}.
 
-Resource access is another key concern. Most messaging apps request access to sensitive resources such as contacts (\texttt{READ\_CONTACTS}), device location, microphone (\texttt{RECORD\_AUDIO}), and camera (\texttt{CAMERA}). While many of these are used legitimately during active user sessions (e.g., voice/video calls, media sharing), kernel-level traces often reveal such accesses occurring in the background without any visible UI activity—raising potential privacy concerns \cite{reardon2019leakage}.
+Resource access is another key concern. Most messaging apps request access to sensitive resources such as contacts (\texttt{READ\_CONTACTS}), device location, microphone (\texttt{RECORD\_AUDIO}), and camera (\texttt{CAMERA}). While many of these are used legitimately during active user sessions (e.g., voice/video calls, media sharing), kernel-level traces often reveal such accesses occurring in the background without any visible UI activity—raising potential privacy concerns \cite{enck2014taintdroid}.
 
-Additionally, messaging apps rely on push notification services such as Firebase Cloud Messaging (FCM), which has superseded Google Cloud Messaging (GCM), to deliver messages. These services necessitate persistent TCP connections and background listeners that, when profiled, result in recurring system calls like recvmsg(), poll(), or select(). Furthermore, apps such as Facebook Messenger are known to incorporate third-party SDKs (e.g., for analytics or ads) that initiate background network connections and file I/O unrelated to core messaging functionality \cite{pi2018metadata}.
+Additionally, messaging apps rely on push notification services such as Firebase Cloud Messaging (FCM), which has superseded Google Cloud Messaging (GCM), to deliver messages. These services necessitate persistent TCP connections and background listeners that, when profiled, result in recurring system calls like \texttt{recvmsg()}, \texttt{poll()}, or \texttt{select()}. Furthermore, apps such as Facebook Messenger are known to incorporate third-party SDKs (e.g., for analytics or ads) that initiate background network connections and file I/O unrelated to core messaging functionality \cite{ShenVervierStringhini2021}.
 
-Metadata collection—such as timestamps, contact hashes, or device identifiers—is another privacy-relevant behavior. Even apps that implement strong encryption at the message content level (like Signal) may still generate system call activity that reflects metadata-related operations (e.g., \texttt{stat()}, \texttt{write()}, \texttt{getuid()}). In privacy-unfriendly apps, this is more pronounced and persistent \cite{signalprivacy2016}.
+Metadata collection—such as timestamps, contact hashes, or device identifiers—is another privacy-relevant behavior. Even apps that implement strong encryption at the message content level (like Signal) may still generate system call activity that reflects metadata-related operations (e.g., \texttt{stat()}, \texttt{write()}, \texttt{getuid()}) \cite{arxiv2020metadata}.
 
 Finally, the use of native code through JNI can introduce kernel-visible activity that bypasses Android’s permission mediation layer. This is especially relevant for apps that offload cryptographic or media processing to native components. System call traces such as \texttt{mmap()}, \texttt{ioctl()}, and \texttt{openat()} often appear in these cases and can be captured using ftrace or kprobes.
 
@@ -730,11 +716,11 @@ These behaviors underscore the necessity of dynamic, syscall-level observation f
 \subsection{Architectures, Privacy, and Cryptographic Models}
 Messaging applications adopt distinct architectural and cryptographic frameworks that critically influence their privacy characteristics and observable behaviors at the kernel level. The majority of messaging platforms—including Signal, Telegram, and Facebook Messenger—use centralized client-server architectures, where backend servers handle communication routing, message storage, and authentication. Centralization supports multi-device synchronization and cloud storage but introduces privacy risks, such as metadata accumulation and continuous background socket activity (e.g., \texttt{connect()}, \texttt{poll()}, \texttt{recvmsg()}).
 
-Signal utilizes a centralized yet privacy-focused architecture, relying exclusively on the Signal Protocol, a robust end-to-end encryption (E2EE) scheme ensuring forward secrecy, deniability, session-specific ephemeral keys, and the Double Ratchet algorithm for key management. The Double Ratchet combines a Diffie-Hellman key exchange and symmetric key cryptography, generating new encryption keys for every message sent, significantly enhancing security against key compromise \cite{signalwhitepaper}. Signal employs a custom Java implementation of the Signal Protocol known as libsignal, which provides cryptographic primitives and protocol management directly within Android applications, facilitating rigorous security auditing and simplifying integration. Kernel-level activities linked to Signal’s encryption involve system calls such as \texttt{getrandom()}, \texttt{mprotect()}, and \texttt{write()} during cryptographic operations. Signal's architecture avoids cloud synchronization and external dependencies, significantly reducing its syscall footprint.
+Signal utilizes a centralized yet privacy-focused architecture, relying exclusively on the Signal Protocol, a robust end-to-end encryption (E2EE) scheme ensuring forward secrecy, deniability, session-specific ephemeral keys, and the Double Ratchet algorithm for key management \cite{signalwhitepaper}. The Double Ratchet combines a Diffie-Hellman key exchange and symmetric key cryptography, generating new encryption keys for every message sent, significantly enhancing security against key compromise. Signal employs a custom Java implementation of the Signal Protocol known as libsignal, which provides cryptographic primitives and protocol management directly within Android applications, facilitating rigorous security auditing and simplifying integration. Kernel-level activities linked to Signal’s encryption involve system calls such as \texttt{getrandom()}, \texttt{mprotect()}, and \texttt{write()} during cryptographic operations. Signal's architecture avoids cloud synchronization and external dependencies, significantly reducing its syscall footprint.
 
-Telegram implements a hybrid model, providing optional E2EE via "Secret Chats" but defaulting to server-side encryption. Standard conversations store plaintext messages centrally, enabling synchronization but increasing metadata exposure. This design results in elevated kernel activity, particularly frequent \texttt{send()}, \texttt{recv()}, and \texttt{stat()} calls for persistent synchronization and message retrieval.
+Telegram implements a hybrid model, providing optional E2EE via "Secret Chats" but defaulting to server-side encryption \cite{moltchanov2018telegram}. Standard conversations store plaintext messages centrally, enabling synchronization but increasing metadata exposure. This design results in elevated kernel activity, particularly frequent \texttt{send()}, \texttt{recv()}, and \texttt{stat()} calls for persistent synchronization and message retrieval.
 
-Facebook Messenger exemplifies a privacy-limited centralized system, offering E2EE only within an opt-in "Secret Conversations" mode based on a derivative of the Signal Protocol. Default chats lack end-to-end encryption, incorporate numerous third-party SDKs for advertising and analytics, and generate extensive background system calls such as \texttt{open()}, \texttt{socket()}, \texttt{unlink()}, and \texttt{connect()}.
+Facebook Messenger exemplifies a privacy-limited centralized system, offering E2EE only within an opt-in "Secret Conversations" mode based on a derivative of the Signal Protocol. Default chats lack end-to-end encryption, incorporate numerous third-party SDKs for advertising and analytics, and generate extensive background system calls such as \texttt{open()}, \texttt{socket()}, \texttt{unlink()}, and \texttt{connect()} \cite{ShenVervierStringhini2021}.
 
 Storage models further distinguish these apps. Signal maintains exclusively local encrypted storage without cloud backups, minimizing kernel interactions. Telegram and Messenger utilize cloud synchronization for message histories, leading to increased kernel-level I/O operations (e.g., \texttt{open()}, \texttt{fsync()}, \texttt{stat()}).
 
@@ -743,7 +729,6 @@ Ephemeral messaging capabilities (disappearing messages) affect transient kernel
 Finally, encryption key management significantly impacts syscall activity. Signal generates and securely stores keys locally using secure hardware or biometric-protected storage. Telegram and Messenger employ centralized key management, simplifying multi-device usage but requiring trust in backend infrastructure.
 
 These architectural and cryptographic distinctions shape observable syscall behaviors, enabling kernel-level analysis to assess privacy implications effectively.
-
 % --------------------------------------------------
 %  Research Methodology
 % --------------------------------------------------
@@ -1397,9 +1382,9 @@ Turning to the individual flags in \autoref{tab:critical-flags}, all three appli
   \begin{tabular}{|l|c|c|c|}
     \hline
     \textbf{Flag} & \textbf{Signal} & \textbf{Telegram} & \textbf{Messenger} \\ \hline
-    allowBackup        & \cmark & \cmark & \cmark \\ \hline
-    cleartextTraffic   & —      & \cmark & \cmark \\ \hline
-    exportedComponents & 19     & 33     & 48     \\ \hline
+    \texttt{allowBackup}        & \cmark & \cmark & \cmark \\ \hline
+    \texttt{cleartextTraffic}   & —      & \cmark & \cmark \\ \hline
+    \texttt{exportedComponents} & 19     & 33     & 48     \\ \hline
   \end{tabular}
 \end{table}
 
@@ -1434,16 +1419,16 @@ privilege.
         & \textbf{Signal}
         & \textbf{Telegram}
         & \textbf{Messenger} \\ \midrule
-    USE\_CREDENTIALS           & \cmark & —      & — \\
-    MANAGE\_ACCOUNTS           & —      & \cmark & \cmark \\
-    SYSTEM\_ALERT\_WINDOW      & —      & \cmark & \cmark \\
-    CALL\_PHONE                & —      & \cmark & \cmark \\
-    REQUEST\_INSTALL\_PACKAGES & —      & \cmark & — \\
-    ACCESS\_BACKGROUND\_LOCATION & —    & \cmark & — \\
-    READ\_CALL\_LOG            & —      & \cmark & — \\
-    READ\_CALENDAR             & —      & —      & \cmark \\
-    WRITE\_CALENDAR            & —      & —      & \cmark \\
-    BLUETOOTH\_CONNECT         & —      & \cmark & \cmark \\ \bottomrule
+    \texttt{USE\_CREDENTIALS}           & \cmark & —      & — \\
+    \texttt{MANAGE\_ACCOUNTS}           & —      & \cmark & \cmark \\
+    \texttt{SYSTEM\_ALERT\_WINDOW}      & —      & \cmark & \cmark \\
+    \texttt{CALL\_PHONE}                & —      & \cmark & \cmark \\
+    \texttt{REQUEST\_INSTALL\_PACKAGES} & —      & \cmark & — \\
+    \texttt{ACCESS\_BACKGROUND\_LOCATION} & —    & \cmark & — \\
+    \texttt{READ\_CALL\_LOG}            & —      & \cmark & — \\
+    \texttt{READ\_CALENDAR}             & —      & —      & \cmark \\
+    \texttt{WRITE\_CALENDAR}            & —      & —      & \cmark \\
+    \texttt{BLUETOOTH\_CONNECT}         & —      & \cmark & \cmark \\ \bottomrule
   \end{tabular}
 \end{table}
 
@@ -1537,9 +1522,9 @@ privilege envelope while also avoiding embedded trackers.
   \begin{tabular}{|l|c|}
     \hline
     \textbf{App} & \textbf{Dangerous permissions requested} \\ \hline
-    Signal    & \(15 / 25\) \\ \hline
-    Telegram  & \(18 / 25\) \\ \hline
-    Messenger & \(16 / 25\) \\ \hline
+    Signal    & 15\,/\,25 \\ \hline
+    Telegram  & 18\,/\,25 \\ \hline
+    Messenger & 16\,/\,25 \\ \hline
   \end{tabular}
 \end{table}
 
@@ -2442,6 +2427,21 @@ Statista, \emph{Number of smartphone users worldwide from 2014 to 2029}, 2024. [
 \bibitem{Reuters2021WhatsAppExodus}
 M. S. Sibal and N. S. Roshni, “Signal, Telegram see demand spike as new WhatsApp terms stir debate,” \emph{Reuters}, Jan. 2021. [Online]. Available: \url{https://www.reuters.com/article/idUSKBN29E04O/}
 
+\bibitem{AOSPArchOverview}
+Android Open Source Project, “Platform Architecture,” 2024. [Online]. Available: \url{https://source.android.com/docs/core/architecture}
+
+\bibitem{AOSPWakelocks}
+Android Open Source Project, “PowerManager.WakeLock,” 2024. [Online]. Available: \url{https://developer.android.com/reference/android/os/PowerManager.WakeLock}
+
+\bibitem{StatistaMessenger}
+Statista, “Leading mobile messaging apps worldwide as of June 2024, by number of monthly active users,” 2024. [Online]. Available: \url{https://www.statista.com/statistics/258749/most-popular-global-mobile-messenger-apps/}
+
+\bibitem{StatistaTelegram}
+Statista, “Number of Telegram monthly active users worldwide from 2018 to 2024,” 2024. [Online]. Available: \url{https://www.statista.com/statistics/1242337/telegram-users/}
+
+\bibitem{StatistaSignal}
+Statista, “Signal - monthly active users in selected countries 2021,” 2022. [Online]. Available: \url{https://www.statista.com/statistics/1252396/signal-monthly-active-users-in-selected-countries/}
+
 % --- Regulations & Acts ---
 \bibitem{GDPR2016}
 European Parliament and Council, “Regulation (EU) 2016/679 (General Data Protection Regulation),” \emph{Official Journal of the European Union}, L119, May 2016.
@@ -2450,6 +2450,35 @@ European Parliament and Council, “Regulation (EU) 2016/679 (General Data Prote
 UK Parliament, \emph{Data Protection Act 2018}, c. 12, May 2018. [Online]. Available: \url{https://www.legislation.gov.uk/ukpga/2018/12/contents}
 
 % --- Academic Papers & Foundational Works ---
+
+
+\bibitem{AOSPArchOverview}
+Android Open Source Project, “Platform Architecture,” 2024. [Online]. Available: \url{https://source.android.com/docs/core/architecture}
+
+\bibitem{AOSPART}
+Android Open Source Project, “Android Runtime (ART) and Dalvik,” 2024. [Online]. Available: \url{https://source.android.com/docs/core/dalvik}
+
+\bibitem{AOSPGKI}
+Android Open Source Project, “Generic Kernel Image (GKI),” 2024. [Online]. Available: \url{https://source.android.com/docs/core/gki}
+
+\bibitem{AOSPJNI}
+Android Open Source Project, “JNI tips,” 2024. [Online]. Available: \url{https://developer.android.com/training/articles/perf-jni}
+
+\bibitem{AOSPSecurity}
+Android Open Source Project, “Android Security Overview,” 2024. [Online]. Available: \url{https://source.android.com/docs/security/overview/android}
+
+\bibitem{AOSPWakelocks}
+Android Open Source Project, “PowerManager.WakeLock,” 2024. [Online]. Available: \url{https://developer.android.com/reference/android/os/PowerManager.WakeLock}
+
+\bibitem{StatistaMessenger}
+Statista, “Leading mobile messaging apps worldwide as of June 2024, by number of monthly active users,” 2024. [Online]. Available: \url{https://www.statista.com/statistics/258749/most-popular-global-mobile-messenger-apps/}
+
+\bibitem{StatistaTelegram}
+Statista, “Number of Telegram monthly active users worldwide from 2018 to 2024,” 2024. [Online]. Available: \url{https://www.statista.com/statistics/1242337/telegram-users/}
+
+\bibitem{StatistaSignal}
+Statista, “Signal - monthly active users in selected countries 2021,” 2022. [Online]. Available: \url{https://www.statista.com/statistics/1252396/signal-monthly-active-users-in-selected-countries/}
+
 
 \bibitem{ShenVervierStringhini2021}
 Y. Shen, P.-A. Vervier, and G. Stringhini, ``Understanding worldwide private information collection on Android,'' \emph{arXiv preprint arXiv:2102.12869}, 2021.
