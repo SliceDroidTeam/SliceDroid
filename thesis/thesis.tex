@@ -251,7 +251,7 @@ central role in both personal and professional communication. However, the
 ubiquitous use of smartphones for such purposes has led to the accumulation of
 sensitive personal data on user devices, including photos, contact lists,
 location history, and financial information, thereby raising serious privacy and
-security concerns \cite{ArsTechnica2018}.
+security concerns \cite{ArsTechnica2018}, \cite{ShenVervierStringhini2021}.
 
 Incidents such as Facebook’s unauthorized collection of SMS texts and call logs
 from Android devices \cite{ArsTechnica2018} underscore the vulnerabilities
@@ -266,7 +266,7 @@ privileges they grant, inadvertently exposing sensitive data \cite{CHI2024Permis
 End-to-end encryption (E2EE) provides strong guarantees for content
 confidentiality, yet its effectiveness ultimately depends on correct
 implementation, device-level protections, and careful metadata handling
-\cite{arxiv2020metadata,wired2023signalhack}. Messaging apps may still leak
+\cite{arxiv2020metadata,CohnGordon2017SignalAnalysis,wired2023signalhack}. Messaging apps may still leak
 information through patterns such as message timing or background system
 activity—even when message payloads are encrypted.
 
@@ -274,11 +274,11 @@ Addressing these challenges requires a comprehensive understanding of how messag
 apps are structured and how they behave at runtime. This thesis adopts a hybrid
 approach that combines static analysis—examining app manifests, permissions,
 and embedded components—with kernel-level tracing of live system calls to
-capture detailed behavioral evidence. Kernel-level tracing is a powerful
-technique for runtime visibility: tools such as \texttt{ftrace} and \texttt{kprobes}
+capture detailed behavioral evidence \cite{BPFroid2021,AOSP2024Ftrace}. Kernel-level tracing is a powerful
+technique for runtime visibility: tools such as \texttt{ftrace} \cite{ftrace2023} and \texttt{kprobes} \cite{kprobes2023}
 record system-call activity with minimal overhead, offering fine-grained insights
 into how an application interacts with operating system resources
-\cite{BPFroid2021,AOSP2024Ftrace}. Despite its potential, only a handful of
+. Despite its potential, only a handful of
 studies have systematically applied this method to messaging apps
 \cite{SLR2025Messaging}, despite their widespread and sensitive use—including
 by government and military officials \cite{Politico2025Signal}.
@@ -295,11 +295,11 @@ The precise research questions are listed in Section~1.3.
 The motivation behind this research arises from the necessity to bridge existing
 gaps between user expectations, regulatory compliance, and the actual operational
 behavior of popular messaging applications. Messaging apps process extensive personal
-data, creating substantial risks related to privacy violations and security breaches.
+data, creating substantial risks related to privacy violations and security breaches \cite{ArsTechnica2018}.
 Recent incidents involving unauthorized data collection by prominent messaging
 applications, along with revelations about governmental use of supposedly secure
 messaging platforms, underscore significant concerns regarding transparency
-and user trust.
+and user trust.\cite{ArsTechnica2018, Reuters2021WhatsAppExodus, Politico2025Signal}.
 
 \paragraph{Problem Statement}
 
@@ -2439,6 +2439,9 @@ E. Golden, “Inside the hazy, fractured mess of Signal use in the government,�
 \bibitem{statista2024smartphone}
 Statista, \emph{Number of smartphone users worldwide from 2014 to 2029}, 2024. [Online]. Available: \url{https://www.statista.com/forecasts/1143723/smartphone-users-in-the-world}
 
+\bibitem{Reuters2021WhatsAppExodus}
+M. S. Sibal and N. S. Roshni, “Signal, Telegram see demand spike as new WhatsApp terms stir debate,” \emph{Reuters}, Jan. 2021. [Online]. Available: \url{https://www.reuters.com/article/idUSKBN29E04O/}
+
 % --- Regulations & Acts ---
 \bibitem{GDPR2016}
 European Parliament and Council, “Regulation (EU) 2016/679 (General Data Protection Regulation),” \emph{Official Journal of the European Union}, L119, May 2016.
@@ -2447,9 +2450,14 @@ European Parliament and Council, “Regulation (EU) 2016/679 (General Data Prote
 UK Parliament, \emph{Data Protection Act 2018}, c. 12, May 2018. [Online]. Available: \url{https://www.legislation.gov.uk/ukpga/2018/12/contents}
 
 % --- Academic Papers & Foundational Works ---
-\bibitem{CHI2024Permissions}
-E. Shapiro, L. Wong, and J. Lin, “Decoding Android Permissions: A Study of Developer Challenges and User Misconceptions,” in \emph{Proc. CHI ’24}, Honolulu, HI, USA, May 2024, pp. 1–14.
 
+\bibitem{ShenVervierStringhini2021}
+Y. Shen, P.-A. Vervier, and G. Stringhini, ``Understanding worldwide private information collection on Android,'' \emph{arXiv preprint arXiv:2102.12869}, 2021.
+\bibitem{CHI2024Permissions}
+S.~J. Oishwee, Z.~Codabux, and N.~Stakhanova, “Decoding Android Permissions: A Study of Developer Challenges and Solutions on Stack Overflow,” in \emph{Proc. 18th ACM/IEEE Int. Symp. on Empirical Software Engineering and Measurement (ESEM ’24)}, Barcelona, Spain, Oct. 2024, pp. 143–153, doi:10.1145/3674805.3686676.
+
+\bibitem{CohnGordon2017SignalAnalysis}
+K. Cohn-Gordon, C. Cremers, B. Dowling, L. Garratt, and D. Stebila, “A Formal Security Analysis of the Signal Messaging Protocol,” in \emph{Proc. of the IEEE European Symposium on Security and Privacy (EuroS\&P)}, Paris, France, Apr. 2017.
 \bibitem{NDSS2025Mismatch}
 Y. Chen, Y. Huang, and B. Liu, “Detecting and Interpreting Inconsistencies in App Behaviors,” in \emph{Proc. NDSS ’25}, San Diego, CA, USA, Feb. 2025.
 
@@ -2466,7 +2474,7 @@ P. Manoharan, A. Panchenko, and T. Engel, “An Empirical Study of Metadata Leak
 N. Agman, M. Marcelli, and M. Conti, “BPFroid: A Robust Real-Time Android Malware Detection Framework,” in \emph{Proc. IEEE ARES ’21}, Vienna, Austria, Aug. 2021.
 
 \bibitem{SLR2025Messaging}
-H. Zhao and P. Storaker, “A Systematic Literature Review of Secure Instant Messaging Protocols,” \emph{ACM Computing Surveys}, early access, May 2025.
+A. R. Onik, J. Brown, C. Walker, and I. Baggili, “A Systematic Literature Review of Secure Instant Messaging Applications from a Digital Forensics Perspective,” \emph{ACM Computing Surveys}, vol. 57, no. 9, Article 239, pp. 1–36, May 2025. [Online]. Available: \url{https://doi.org/10.1145/3727641}
 
 \bibitem{feng2020survey}
 Z. Feng \emph{et al.}, “A Survey on Security and Privacy Issues in Android,” \emph{IEEE Communications Surveys \& Tutorials}, vol. 22, no. 4, pp. 2445–2472, 2020.
@@ -2520,7 +2528,7 @@ F. Wei, S. Roy, X. Ou, and Robby, “Amandroid: A precise and general inter-comp
 D. Arp, M. Spreitzenbarth, H. Gascon, and K. Rieck, “Drebin: Effective and explainable detection of Android malware in your pocket,” in \emph{Proc. NDSS '14}, 2014.
 
 \bibitem{DynamicSecurityAnalysis2023}
-M. Doe, J. Smith, and A. Lee, “Dynamic Security Analysis on Android: A Systematic Literature Review,” \emph{Journal of Mobile Security}, vol. 15, no. 4, pp. 123–145, Nov. 2023.
+T. Sutter, T. Kehrer, M. Rennhard, B. Tellenbach, and J. Klein, “Dynamic Security Analysis on Android: A Systematic Literature Review,” \emph{IEEE Access}, vol. 12, pp. 9234-9262, 2024. [Online]. Available: \url{https://doi.org/10.1109/ACCESS.2024.3357593}
 
 \bibitem{li2016droidra}
 L. Li, T. F. Bissyandé, D. Octeau, and J. Klein, “DroidRA: Taming reflection to support whole-program analysis of Android apps,” in \emph{Proc. ISSTA '16}, 2016.
@@ -2662,11 +2670,15 @@ H. Ngo, \emph{et al.}, “Barriers to Secure Messaging Adoption in Civil‑Socie
 
 
 % --- Tools, Frameworks & Books ---
+
+\bibitem{ftrace2023}
+S. Rostedt, “ftrace: The Linux Kernel Function Tracer,” The Linux Kernel Documentation, 2023. [Online]. Available: \url{https://www.kernel.org/doc/html/latest/trace/ftrace.html}
+
 \bibitem{AOSP2024Ftrace}
 Android Open Source Project, “Use ftrace,” Oct. 2024. [Online]. Available: \url{https://source.android.com/docs/core/tests/debug/ftrace}
 
-\bibitem{Kprobes2024}
-S. Padmanabhan, “Kprobes in Action: Instrumenting and Debugging the Linux Kernel,” Blog post, Sept. 2024. [Online]. Available: \url{https://www.sachinpbuzz.com/2024/09/kprobes-in-action-instrumenting-and.html}
+\bibitem{kprobes2023}
+The Linux Kernel, “Kernel Probes (Kprobes),” The Linux Kernel Documentation, 2023. [Online]. Available: \url{https://www.kernel.org/doc/html/latest/trace/kprobes.html}
 
 \bibitem{love2010linux}
 R. Love, \emph{Linux Kernel Development}, 3rd ed., Addison-Wesley, 2010.
@@ -2685,9 +2697,6 @@ The strace developers, “strace: Diagnostic, debugging and instructional usersp
 
 \bibitem{ftrace2023}
 S. Rostedt, “ftrace: Function tracer for the Linux kernel,” The Linux Kernel Documentation, 2023. [Online]. Available: \url{https://www.kernel.org/doc/html/latest/trace/ftrace.html}
-
-\bibitem{kprobes2023}
-The Linux Kernel, “kprobes: Kernel dynamic tracing,” The Linux Kernel Documentation, 2023. [Online]. Available: \url{https://www.kernel.org/doc/html/latest/trace/kprobes.html}
 
 \bibitem{ebpf2023}
 eBPF Foundation, “eBPF: Extended Berkeley Packet Filter,” 2023. [Online]. Available: \url{https://ebpf.io}
