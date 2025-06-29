@@ -761,7 +761,7 @@ This deliberate triangulation ensures that the findings are generalisable and il
 
 Static analysis was employed as the initial phase of the hybrid approach due to its capacity to rapidly detect privacy-critical behaviors directly within application binaries without requiring execution. By systematically inspecting code structures, manifest configurations, and declared permissions, potential leakage vectors, risky API calls, and suspicious data flows can be flagged early, effectively narrowing the scope and complexity of the subsequent dynamic investigation.
 
-For this purpose, two well-established tools were used in combination: \textsc{Androguard} and the Mobile Security Framework (\textsc{MobSF}). Their integration provided both automation-friendly scripting and comprehensive security reporting capabilities. A detailed justification of why these specific tools were selected, along with their comparative strengths, is presented in Section~4.2.1 (\emph{Tool Selection and Rationale}).
+For this purpose, two well-established tools were used in combination: \textsc{Androguard}~\cite{androguard2023} and the Mobile Security Framework (\textsc{MobSF})~\cite{mobsf2023}. Their integration provided both automation-friendly scripting and comprehensive security reporting capabilities. A detailed justification of why these specific tools were selected, along with their comparative strengths, is presented in Section~4.2.1 (\emph{Tool Selection and Rationale}).
 
 \subsection{Dynamic Analysis Methodology}
 
@@ -2379,9 +2379,11 @@ In summary, this thesis confirms that static and dynamic analyses, combined with
 
 \section{Opportunities for Improvement}
 
-This thesis demonstrates the value of combining static and dynamic analysis for profiling messaging applications, but several areas remain for enhancement. Extending trace duration and expanding user interaction scenarios (e.g., group video calls, large file transfers) could expose system behaviours and protocol usage (such as UDP) that were not exercised in the current setup. Notably, further examination of the \texttt{contacts2.db} access by Messenger—possibly via controlled experiments, instrumentation of system services, or taint analysis—could help determine whether this is due to indirect IPC or a broader platform-level oversight.
+Many of the opportunities for future enhancement directly address the methodological and project-specific constraints outlined in Section~1.4. This thesis demonstrates the value of combining static and dynamic analysis, but several areas remain for significant enhancement. The primary opportunity lies in expanding the experimental scope. Future work should conduct a large-scale analysis across a more diverse set of applications from various categories~\cite{lindorfer2014andrubis} and extend the trace duration from seconds to hours or even days. Such a longitudinal approach would capture subtle background and idle-state behaviors often missed in short-term observations~\cite{Razaghpanah2020AppsTrackers}. This would also allow for profiling more complex user interaction scenarios (e.g., group video calls, large file transfers) that could expose different system behaviours and protocol usage, such as UDP. Notably, further examination of the \texttt{contacts2.db} access by Messenger—possibly via dynamic taint analysis~\cite{enck2014taintdroid}—could determine whether this is due to indirect IPC or a platform-level oversight.
 
-On the tooling side, integrating network-layer visibility (e.g., via \texttt{tcpdump}) and improving trace labelling automation would enhance the precision and efficiency of behavioural reconstruction. Additionally, expanding the package-mapping module to include system apps would enable profiling of pre-installed services and browsers, offering a more comprehensive perspective on mobile device behaviour.
+On the tooling side, integrating deeper network-layer visibility would enhance behavioral reconstruction. Beyond capturing packet data with \texttt{tcpdump}~\cite{lindorfer2014andrubis}, this could include DNS query analysis to identify server endpoints and inspection of TLS handshake metadata (e.g., Server Name Indication - SNI), which reveals communication endpoints even through encrypted traffic~\cite{apthorpe2018smart}. Furthermore, improving trace labelling automation to reconstruct API semantics from syscalls~\cite{nisi2019syscall} and expanding the analysis to include pre-installed system apps~\cite{Tian2020Preinstalled} would offer a more holistic perspective on mobile device behaviour.
+
+
 % --------------------------------------------------
 %  Conclusions
 % --------------------------------------------------
@@ -2697,7 +2699,8 @@ J. Smith, \emph{et al.}, “Electromagnetic Side‑Channel Analysis on Smartphon
 \bibitem{ngo2021signaladoption}
 H. Ngo, \emph{et al.}, “Barriers to Secure Messaging Adoption in Civil‑Society Organisations,” in \emph{Proc. ACM CHI 2021}.
 
-
+\bibitem{Tian2020Preinstalled}
+J. Gamba, M. Rashed, A. Razaghpanah, J. Tapiador, and N. Vallina-Rodriguez, “An Analysis of Pre-installed Android Software,” in \emph{Proc. of the IEEE Symposium on Security and Privacy (S\&P)}, 2020.
 % --- Tools, Frameworks & Books ---
 
 \bibitem{ftrace2023}
@@ -2765,6 +2768,9 @@ AFL++ Team, \emph{AFL++: Improving Security Fuzzing for the Modern Era}, 2023.
 
 \bibitem{clusterfuzz2020}
 Google, \emph{ClusterFuzz: Automated Bug Finding at Scale}, Technical report, 2020.
+
+\bibitem{Razaghpanah2020AppsTrackers}
+A. Razaghpanah, R. Nithyanand, N. Vallina-Rodriguez, S. Sundaresan, M. Allman, C. Kreibich, and P. Gill, “Apps, Trackers, Privacy, and Regulators: A Global Study of the Mobile Tracking Ecosystem,” in \emph{Proc. of the IEEE Symposium on Security and Privacy (S\&P)}, 2018.
 
 \end{thebibliography}
 % --------------------------------------------------
