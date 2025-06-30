@@ -31,6 +31,7 @@
 \usepackage{paralist}
 \usepackage{enumitem}
 \usepackage{multirow}
+\usepackage{xurl}
 
 % ---------------------------------------------------------
 % symbols for ✓ / ✗
@@ -472,7 +473,7 @@ Whereas kernel tracing offers a \emph{system-wide} vantage, user-space dynamic i
 Early approaches used the \texttt{ptrace} mechanism to intercept system calls externally. \textbf{DroidTrace}, for example, hooks every \texttt{ptrace} event to log the full system-call stream and can \emph{force} rare code branches to execute, increasing coverage~\cite{zheng2014droidtrace}. A later study demonstrated that it is possible to reconstruct high-level Android API invocations purely from syscall sequences, highlighting the semantic power of these low-level traces~\cite{nisi2019syscall}. While these tools deploy on stock ROMs, they incur measurable overhead and cannot observe internal Java-level logic.
 
 \subsubsection*{(ii) Dynamic Binary Instrumentation (DBI)}
-For analyzing native code, instruction-granular DBI engines like \textbf{Pin} (ported to ARM) enable fine-grained tracing, but suffer from high runtime cost and outdated Android support. More modern frameworks like \textbf{QBDI} improve portability to ARM/Thumb-2 and withstand common anti-analysis techniques, although they remain native-only and typically require root privileges~\cite{qbdiblackhat2020}.
+For analyzing native code, instruction-granular DBI engines like \textbf{Pin} (ported to ARM) enable fine-grained tracing, but suffer from high runtime cost and outdated Android support. More modern frameworks like \textbf{QBDI} improve portability to ARM/ \\Thumb-2 and withstand common anti-analysis techniques, although they remain native-only and typically require root privileges~\cite{qbdiblackhat2020}.
 
 \subsubsection*{(iii) ART-Level Hooking Frameworks}
 A powerful category of tools modifies the Android Runtime itself to intercept method calls across the entire system. The most prominent example is the \textbf{Xposed Framework}, which alters the Zygote process to load custom modules at startup. This allows developers to hook, modify, and replace any Java method in any application, offering unparalleled control over app behavior~\cite{xposed}. While extremely powerful, this approach requires root access and system modification, which can break security features like SafetyNet and make it unsuitable for analyzing unmodified consumer devices.
@@ -504,7 +505,7 @@ Beyond explicit syscall logs, more covert behavioral signals have also been expl
 Low-level performance monitoring units and instruction tracing extensions like ARM’s Embedded Trace Macrocell (ETM) provide hardware-level insights with near-zero perturbation. For example, \textbf{HART} captures execution traces from proprietary kernel modules, offering unmatched visibility~\cite{zhang2020hart}. However, such approaches face practical limitations: ETM is often disabled in production smartphones, lacks mapping to user-level processes, and requires privileged access, constraining its applicability.
 
 \subsubsection*{(iv) Production-Scale Tracing}
-Industrial-grade pipelines such as Google’s \textbf{Perfetto} aggregate diverse sources—including ftrace and Binder logs—into rich, SQL-queryable trace files for profiling performance metrics like startup time and UI latency~\cite{maganti2022perfetto}. While primarily for performance diagnostics, such infrastructures are underutilized for security research. Complementary systems like \textbf{eMook} extend Perfetto by integrating per-PID eBPF filters, reducing overhead by 85\% and enabling longitudinal field studies~\cite{williams2024emook}.
+Industrial-grade pipelines such as Google’s \textbf{Perfetto} aggregate diverse sources, including ftrace and Binder logs—into rich, SQL-queryable trace files for profiling performance metrics like startup time and UI latency~\cite{maganti2022perfetto}. While primarily for performance diagnostics, such infrastructures are underutilized for security research. Complementary systems like \textbf{eMook} extend Perfetto by integrating per-PID eBPF filters, reducing overhead by 85\% and enabling longitudinal field studies~\cite{williams2024emook}.
 
 \medskip
 \noindent\textbf{Synthesis.}
@@ -543,7 +544,8 @@ As the review demonstrates, prior work approaches Android behaviour analysis fro
 
 Finally, \emph{kernel-level tracing} delivers a low-overhead and tamper-resistant vantage point, but the raw syscalls and Binder op-codes it yields expose little direct semantic intent. This creates a considerable "semantic gap" between low-level system events and high-level application logic, a challenge actively being researched~\cite{nisi2019syscall}.
 
-Taken together, these observations point to a clear methodological gap: there is a need for techniques that combine the high-fidelity visibility of kernel-level tracing with the contextual insights of static analysis. This gap is particularly pronounced in the domain of messaging applications. While numerous studies have analyzed these apps from a digital forensics~\cite{Onik2025SLR} or network-level metadata perspective~\cite{arxiv2020metadata}, the application of system-wide runtime monitoring remains limited.
+Taken together, these observations point to a clear methodological gap: there is a need for techniques that combine the high-fidelity visibility of kernel-level tracing with the contextual insights of static analysis. This gap is particularly pronounced in the domain of messaging applications. While numerous studies have analyzed these apps from a digital forensics or network-level metadata perspective~\cite{arxiv2020metadata}, the application of system-wide runtime monitoring remains limited.
+
 This thesis addresses this twofold gap by proposing a framework that not only integrates static and kernel-level dynamic analysis but also applies it systematically to profile the privacy-relevant behaviors of popular messaging apps. Designed for practical use, our system operates on stock consumer devices and, while it requires root privileges for kernel instrumentation, it avoids the need for custom firmware or kernel recompilation. It achieves its accessibility and minimizes complex configuration through a fully automated analysis pipeline and an interactive web-based dashboard for intuitive visualization of the collected behavioral evidence.
 
 % --------------------------------------------------
@@ -628,7 +630,8 @@ These applications typically rely on key Android components to support their fun
 Rather than detailing cryptographic implementations or privacy architectures here, which are explored in Section 2.2.3, this section focuses on the foundational aspects of app deployment, runtime behavior, and Android system integration that are relevant for low-level behavioral tracing.
 
 \subsection{Privacy-Critical Behaviors and Resource Usage}
-Messaging applications often initiate background services using components like \texttt{JobScheduler}, \texttt{AlarmManager}, and foreground services to maintain persistent communication channels—frequently waking the device from idle states using wakelocks \cite{AOSPWakelocks}.
+Messaging applications often initiate background services using components like \\
+\texttt{JobScheduler}, \texttt{AlarmManager}, and foreground services to maintain persistent communication channels—frequently waking the device from idle states using wakelocks \cite{AOSPWakelocks}.
 
 Resource access is another key concern. Most messaging apps request access to sensitive resources such as contacts (\texttt{READ\_CONTACTS}), device location, microphone (\texttt{RECORD\_AUDIO}), and camera (\texttt{CAMERA}). While many of these are used legitimately during active user sessions (e.g., voice/video calls, media sharing), kernel-level traces often reveal such accesses occurring in the background without any visible UI activity—raising potential privacy concerns \cite{enck2014taintdroid}.
 
@@ -850,7 +853,7 @@ The codebase is organised into clearly defined top-level components to support t
 
 The instrumentation layer is responsible for capturing low-level system interactions occurring on the Android device. The initial implementation of the tracing subsystem was developed by Nikos Alexopoulos as part of the SliceDroid project at AUEB, and forms the foundational backbone of this thesis. This base layer leverages dynamic kernel probes (\texttt{kprobes}) and static \texttt{tracepoints} exposed via the \texttt{ftrace} interface, allowing efficient interception of system call and function-level activity in the kernel.
 
-The original setup includes probes on core I/O functions such as \texttt{vfs\_read}, \texttt{vfs\_write}, and \texttt{do\_vfs\_ioctl}, enabling access to internal kernel structures (e.g., \texttt{file}, \texttt{inode}, \texttt{super\_block}) and extraction of metadata such as device and inode identifiers, file types, and access credentials. In addition, Binder transactions are captured using the static tracepoints \texttt{binder\_transaction} and \texttt{binder\_transaction\_received}.
+The original setup includes probes on core I/O functions such as \texttt{vfs\_read}, \\ \texttt{vfs\_write}, and \texttt{do\_vfs\_ioctl}, enabling access to internal kernel structures (e.g., \texttt{file}, \texttt{inode}, \texttt{super\_block}) and extraction of metadata such as device and inode identifiers, file types, and access credentials. In addition, Binder transactions are captured using the static tracepoints \texttt{binder\_transaction} and \texttt{binder\_transaction\_received}.
 
 In the context of this thesis, we extended the instrumentation layer to include additional \texttt{kprobes} targeting network-related operations. Specifically, probes were added on functions such as \texttt{\_\_tcp\_sendmsg}, \texttt{udp\_sendmsg}, \texttt{inet\_sendmsg}, \texttt{sys\_sendto}, \texttt{sys\_bind}, and \texttt{tcp\_connect}, enabling the reconstruction of socket-level behaviors and outbound communication events. This augmentation allows for the detection of privacy-sensitive network transmissions and complements the I/O and IPC tracing pipeline with external data flow visibility.
 
@@ -1079,20 +1082,21 @@ To close this architecture chapter, Figure \ref{fig:pipeline} condenses the enti
 
 \begin{figure}[H]
 \centering
+\resizebox{\columnwidth}{!}{%
 \begin{tikzpicture}[
   font=\sffamily\small,
   box/.style={
-     rectangle, rounded corners=3pt,
-     draw=black!65, very thick,
-     fill=gray!20,
-     text width=3cm, align=center,
-     minimum height=1.0cm},
+    rectangle, rounded corners=3pt,
+    draw=black!65, very thick,
+    fill=gray!20,
+    text width=3cm, align=center,
+    minimum height=1.0cm},
   arrow/.style={-{Latex[length=3mm,width=2mm]}, thick},
   node distance=1.3cm and 0.8cm]
 % first row
 \node[box] (cfg)   {\texttt{config\_files}\\\texttt{+ scripts}};
-\node[box,right=of cfg]  (raw)   {raw trace\\};
-\node[box,right=of raw]  (parse) {parsing};
+\node[box,right=of cfg]   (raw)   {raw trace\\};
+\node[box,right=of raw]   (parse) {parsing};
 \node[box,right=of parse] (clean) {cleaning\\\& indexing};
 % second row
 \node[box,below=1.1cm of clean] (slice) {slicing};
@@ -1108,7 +1112,8 @@ To close this architecture chapter, Figure \ref{fig:pipeline} condenses the enti
   (slice) edge (exp)
   (exp) edge (api)
   (api) edge (viz);
-\end{tikzpicture}
+\end{tikzpicture}%
+}
 \caption{End-to-end data flow from probe configuration to interactive analytics.}
 \label{fig:pipeline}
 \end{figure}
@@ -1301,7 +1306,8 @@ Messenger has no high-severity items, yet its eighty-six warnings reveal a “ma
   \end{tabular}
 \end{table}
 
-Turning to the individual flags in \autoref{tab:critical-flags}, all three applications keep \lstinline{allowBackup=true}, meaning a device in developer mode can exfiltrate private app data unless users disable OEM backup routes. Only Telegram and Messenger permit clear-text HTTP traffic globally—a policy that undermines transport-layer confidentiality and should be restricted to explicit, whitelisted domains. Finally, Messenger presents the largest externally visible surface with forty-eight exported components, followed by Telegram at thirty-three and Signal at nineteen; every exported entry must be permission-guarded or otherwise verified to avoid component-hijacking attacks.
+Turning to the individual flags in \autoref{tab:critical-flags}, all three applications keep \\
+ \texttt{allowBackup=true}, meaning a device in developer mode can exfiltrate private app data unless users disable OEM backup routes. Only Telegram and Messenger permit clear-text HTTP traffic globally—a policy that undermines transport-layer confidentiality and should be restricted to explicit, whitelisted domains. Finally, Messenger presents the largest externally visible surface with forty-eight exported components, followed by Telegram at thirty-three and Signal at nineteen; every exported entry must be permission-guarded or otherwise verified to avoid component-hijacking attacks.
 \begin{table}[htbp]
   \centering
   \caption{Critical Manifest Flags}
@@ -1459,7 +1465,7 @@ privilege envelope while also avoiding embedded trackers.
 \paragraph{Firebase back-end exposure.}
 
 Messenger diverges architecturally from its rivals: instead of relying on third-party back-ends it maintains a proprietary service mesh—historically rooted in custom XMPP extensions and, more recently, a gRPC-based “MqttLite” transport—so no Firebase endpoints appear in the binary.
-Static string inspection, on the other hand, reveals hard-coded Firebase Realtime Database URLs in both Signal and Telegram (\autoref{tab:firebase}). MobSF flags these only as \textit{info} because the associated Remote-Config queries are refused (HTTP 4/403), implying that anonymous feature-flag pulls are disabled. That safeguard hinges on server-side rules: if at any point permissive read/write ACLs are introduced—intentionally or by accident—the same endpoints could expose chat metadata or configuration secrets and escalate from “low noise” to a critical data-leak vector.
+Static string inspection, on the other hand, reveals hard-coded Firebase Realtime Database URLs in both Signal and Telegram. MobSF flags these only as \textit{info} because the associated Remote-Config queries are refused (HTTP 4/403), implying that anonymous feature-flag pulls are disabled. That safeguard hinges on server-side rules: if at any point permissive read/write ACLs are introduced—intentionally or by accident—the same endpoints could expose chat metadata or configuration secrets and escalate from “low noise” to a critical data-leak vector.
 
 \subsection{Cross-Application Comparative Synthesis}
 \label{sec:comparative-synthesis}
@@ -1894,6 +1900,7 @@ Overall, this cross-app comparison underscores distinct architectural choices: M
     \centering
     \caption{Comparison of Network Metrics and Event Category Distribution}
     \label{tab:comparison_network_categories}
+    \resizebox{\columnwidth}{!}{%
     \begin{tabular}{|l|c|c|c|}
         \hline
         \textbf{Metric} & \textbf{Messenger} & \textbf{Signal} & \textbf{Telegram} \\
@@ -1901,7 +1908,7 @@ Overall, this cross-app comparison underscores distinct architectural choices: M
         TCP Events & 750 & 263 & 462 \\
         UDP Events & 2 & 0 & 3 \\
         Total TCP Data & 3.48 MB & 1.62 MB & 574.36 MB \\
-        UNIX Datagram Traffic & 2.44 MB sent / 48.2 MB received & None & None \\
+        UNIX Traffic & 2.44 MB sent / 48.2 MB received & None & None \\
         Unique Protocols & 4 & 3 & 4 \\
         Unique Connections & 2 & 1 & 5 \\
         \hline
@@ -1911,7 +1918,8 @@ Overall, this cross-app comparison underscores distinct architectural choices: M
         write (\%) & 10.5 & 13.0 & 12.1 \\
         network (\%) & 6.3 & 4.8 & 3.7 \\
         \hline
-    \end{tabular}
+    \end{tabular}%
+    }
 \end{table}
 
 When comparing runtime behaviour in the passive background state, a more nuanced picture emerges. Signal demonstrates the most discreet background profile, dropping to near-zero network and IPC activity and performing only lightweight file reads for integrity checks. Messenger shows a moderate background footprint: while its event rate and active processes drop drastically compared to active use, it maintains background file I/O and minimal network pings, likely for push notifications and state synchronisation. Telegram remains the most active in the background among the three: although its event throughput decreases by over 90\% relative to its foreground mode, it sustains the highest residual file activity and some low-level network interactions, reflecting its design for persistent cache refresh and background synchronisation.
@@ -2284,7 +2292,7 @@ Perhaps the most critical finding is the observation of Messenger's access to th
 
 Finally, the statistically significant differences in event rates and resource usage patterns between the applications, confirmed by ANOVA and Tukey HSD tests, provide quantitative validation for these qualitative distinctions. While other studies have performed forensic analyses of these apps at rest~\cite{anglano2015whatsapp, obermeier2018signal}, our work contributes by delivering a comparative analysis of their live system behaviour, demonstrating that architectural philosophies translate into measurable, kernel-level operational fingerprints.
 
-\subsection{Answers to Research Questions}
+\section{Answers to Research Questions}
 
 \paragraph{\textbf{RQ1.} What systematic methodology can be used for a comparative security and privacy analysis of mobile messaging applications?}
 
@@ -2306,7 +2314,7 @@ In summary, this thesis confirms that static and dynamic analyses, combined with
 
 \section{Opportunities for Improvement}
 
-Many of the opportunities for future enhancement directly address the methodological and project-specific constraints outlined in Section~1.4. This thesis demonstrates the value of combining static and dynamic analysis, but several areas remain for significant enhancement. The primary opportunity lies in expanding the experimental scope. Future work should conduct a large-scale analysis across a more diverse set of applications from various categories~\cite{lindorfer2014andrubis} and extend the trace duration from seconds to hours or even days. Such a longitudinal approach would capture subtle background and idle-state behaviors often missed in short-term observations~\cite{Razaghpanah2020AppsTrackers}. This would also allow for profiling more complex user interaction scenarios (e.g., group video calls, large file transfers) that could expose different system behaviours and protocol usage, such as UDP. Notably, further examination of the \texttt{contacts2.db} access by Messenger—possibly via dynamic taint analysis~\cite{enck2014taintdroid}—could determine whether this is due to indirect IPC or a platform-level oversight.
+Many of the opportunities for future enhancement directly address the methodological and project-specific constraints outlined in Section~1.4. This thesis demonstrates the value of combining static and dynamic analysis, but several areas remain for significant enhancement. The primary opportunity lies in expanding the experimental scope. Future work should conduct a large-scale analysis across a more diverse set of applications from various categories~\cite{lindorfer2014andrubis} and extend the trace duration from seconds to minutes or even hours. Such a longitudinal approach would capture subtle background and idle-state behaviors often missed in short-term observations~\cite{Razaghpanah2020AppsTrackers}. This would also allow for profiling more complex user interaction scenarios (e.g., group video calls, large file transfers) that could expose different system behaviours and protocol usage, such as UDP. Notably, further examination of the \texttt{contacts2.db} access by Messenger—possibly via dynamic taint analysis~\cite{enck2014taintdroid}—could determine whether this is due to indirect IPC or a platform-level oversight.
 
 On the tooling side, integrating deeper network-layer visibility would enhance behavioral reconstruction. Beyond capturing packet data with \texttt{tcpdump}~\cite{lindorfer2014andrubis}, this could include DNS query analysis to identify server endpoints and inspection of TLS handshake metadata (e.g., Server Name Indication - SNI), which reveals communication endpoints even through encrypted traffic~\cite{apthorpe2018smart}. Furthermore, improving trace labelling automation to reconstruct API semantics from syscalls~\cite{nisi2019syscall} and expanding the analysis to include pre-installed system apps~\cite{Tian2020Preinstalled} would offer a more holistic perspective on mobile device behaviour.
 
@@ -2321,7 +2329,17 @@ This thesis set out to systematically assess the security and privacy posture of
 
 Dynamic tracing validated and extended these insights by quantifying actual system call patterns under controlled usage scenarios. Signal demonstrated the smallest event throughput and background footprint, confirming its resource-conscious approach. Messenger generated the highest volume of inter-process communication and file I/O, evidencing a rich but complex orchestration of services. Telegram displayed a network-dominant profile, with a significantly higher network-to-file ratio, indicating its cloud-native strategy for fast media synchronisation. Inferential statistical tests confirmed that these differences are not incidental but statistically significant, lending robust support to the core research questions. In summary, the combined analysis illustrates that while all three applications meet baseline security expectations, their operational behaviours differ in ways that directly reflect their respective design priorities, impacting user privacy and resource consumption.
 
-Among the most notable runtime observations was Messenger’s apparent access to contact-related resources—even when explicit runtime permissions had been denied. While this does not constitute definitive proof of unauthorized access, repeated kernel-level traces consistently revealed Binder transactions involving the contacts2.db file—behaviour not observed in Signal or Telegram. This pattern, unique to Messenger across all controlled experiments, underscores the importance of dynamic tracing in identifying semantically relevant system-level activity that may elude static inspection. The precise origin of these accesses remains inconclusive; however, their consistency highlights a privacy-relevant anomaly that warrants further investigation.% --------------------------------------------------
+Among the most notable runtime observations was Messenger’s apparent access to contact-related resources—even when explicit runtime permissions had been denied. While this does not constitute definitive proof of unauthorized access, repeated kernel-level traces consistently revealed Binder transactions involving the contacts2.db file—behaviour not observed in Signal or Telegram. This pattern, unique to Messenger across all controlled experiments, underscores the importance of dynamic tracing in identifying semantically relevant system-level activity that may elude static inspection. The precise origin of these accesses remains inconclusive; however, their consistency highlights a privacy-relevant anomaly that warrants further investigation.
+
+\section{Future Work}
+
+The methodological framework established in this thesis opens several avenues for future research, moving beyond the immediate technical details to address broader questions of digital privacy and security.
+
+A primary next step is to apply this combined analytical approach to a wider and more diverse range of mobile applications. While this study focused on messaging apps, the methodology could yield significant insights into other domains where user data is sensitive, such as banking, healthcare (mHealth), or social media applications. Such a large-scale study would help establish a broader baseline for ”normal” versus ”suspicious” behaviour across the mobile ecosystem and could reveal systemic privacy risks tied to specific app categories or development practices.
+
+Furthermore, future work should investigate the long-term behaviour of applications. The current analysis captured short, controlled user interactions. Extending the observation period to hours or even days would allow for a more comprehensive understanding of an app’s lifecycle, particularly its idle-state and background activities. This longitudinal analysis could uncover subtle, periodic data collection or communication patterns that are invisible during brief tests but are critical to an application’s overall privacy footprint.
+
+Finally, a crucial direction is to conclusively identify the source of privacy-anomalous behaviours, such as Messenger’s access to the contacts database. While this study provided strong evidence of the behaviour at the kernel level, the next logical step would be to employ more advanced techniques to trace the exact chain of events within the application that leads to this access. Answering such questions would not only solve a technical puzzle but also provide key insights into bypassing platform security models, helping developers and vendors build more secure systems.
 
 % --------------------------------------------------
 %  Βibliography
