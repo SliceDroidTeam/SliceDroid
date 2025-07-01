@@ -5,56 +5,58 @@ The style file: plain.bst
 Database file #1: bib.bib
 Warning--empty booktitle in BPFroid2021
 Warning--empty booktitle in moltchanov2018telegram
-Warning--empty booktitle in bock2020sealed
+Warning--empty booktitle in cohngordon2017formal
 Warning--empty booktitle in mobsf2023
 Warning--empty booktitle in dynamo2021
-Warning--can't use both volume and number fields in gangopadhyay2025telescope
 Warning--empty booktitle in qbdiblackhat2020
 Warning--empty booktitle in lee2023quic
 Warning--empty journal in obermeier2018signal
 Warning--empty booktitle in inviseal2023
 Warning--can't use both volume and number fields in inviseal2023
-Warning--empty booktitle in frolov2022gdpr
+Warning--empty booktitle in nikitin2021analysis
+Warning--can't use both volume and number fields in nikitin2021analysis
+Warning--empty institution in eff2018scorecard
 Warning--empty booktitle in wei2014amandroid
-You've used 70 entries,
+Warning--empty journal in datta2021auditing
+You've used 76 entries,
             2118 wiz_defined-function locations,
-            863 strings with 17269 characters,
-and the built_in function-call counts, 21853 in all, are:
-= -- 2032
-> -- 1124
-< -- 14
-+ -- 448
-- -- 376
-* -- 1302
-:= -- 3612
-add.period$ -- 221
-call.type$ -- 70
-change.case$ -- 393
+            892 strings with 18450 characters,
+and the built_in function-call counts, 23668 in all, are:
+= -- 2209
+> -- 1225
+< -- 17
++ -- 488
+- -- 410
+* -- 1408
+:= -- 3914
+add.period$ -- 242
+call.type$ -- 76
+change.case$ -- 428
 chr.to.int$ -- 0
-cite$ -- 83
-duplicate$ -- 841
-empty$ -- 1833
-format.name$ -- 376
-if$ -- 4638
+cite$ -- 91
+duplicate$ -- 902
+empty$ -- 1964
+format.name$ -- 410
+if$ -- 5024
 int.to.chr$ -- 0
-int.to.str$ -- 70
-missing$ -- 49
-newline$ -- 360
-num.names$ -- 140
-pop$ -- 584
+int.to.str$ -- 76
+missing$ -- 50
+newline$ -- 391
+num.names$ -- 152
+pop$ -- 636
 preamble$ -- 1
-purify$ -- 323
+purify$ -- 352
 quote$ -- 0
-skip$ -- 627
+skip$ -- 684
 stack$ -- 0
-substring$ -- 853
-swap$ -- 180
-text.length$ -- 14
+substring$ -- 901
+swap$ -- 199
+text.length$ -- 17
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 276
-warning$ -- 13
-while$ -- 187
-width$ -- 72
-write$ -- 741
-(There were 13 warnings)
+type$ -- 300
+warning$ -- 15
+while$ -- 201
+width$ -- 78
+write$ -- 807
+(There were 15 warnings)

@@ -53,6 +53,13 @@ Cosimo Anglano, Massimo Canonico, and Marco Guazzone.
 \newblock Forensic analysis of telegram messenger on android smartphones.
 \newblock volume~23, pages 31--49. Elsevier, 2017.
 
+\bibitem{angwin2021propublica}
+Julia Angwin and Yael~N. Perlroth.
+\newblock {How Facebook Undermines Privacy Promises}.
+\newblock ProPublica, September 2021.
+\newblock URL:
+  \url{https://www.propublica.org/article/how-facebook-undermines-privacy-promises}.
+
 \bibitem{apthorpe2018smart}
 Noah Apthorpe, Dillon Reisman, and Nick Feamster.
 \newblock {A Smart Home is No Castle: Privacy Vulnerabilities of Encrypted IoT
@@ -80,11 +87,11 @@ Luca Caviglione, Wojciech Mazurczyk, Matteo Repetto, Andreas Schaffhauser, and
   in Linux environments}.
 \newblock {\em Computer Networks}, 191, 2021.
 
-\bibitem{bock2020sealed}
+\bibitem{cohngordon2017formal}
 Katriel Cohn-Gordon, Cas Cremers, Benjamin Dowling, Luke Garratt, and Douglas
   Stebila.
 \newblock A formal security analysis of the signal messaging protocol.
-\newblock pages 1914--1983. Springer, 2020.
+\newblock volume~33, pages 1914--1983. Springer, 2020.
 
 \bibitem{coull2014traffic}
 Scott~E Coull and Kevin~P Dyer.
@@ -155,13 +162,6 @@ J.~Gamba, M.~Rashed, A.~Razaghpanah, J.~Tapiador, and N.~Vallina-Rodriguez.
 \newblock In {\em Proc. of the IEEE Symposium on Security and Privacy (S\&P)},
   2020.
 
-\bibitem{gangopadhyay2025telescope}
-Susmita Gangopadhyay, Danilo Dess{\'\i}, Dimitar Dimitrov, and Stefan Dietze.
-\newblock Telescope: A longitudinal dataset for investigating online discourse
-  and information interaction on telegram.
-\newblock In {\em Proceedings of the International AAAI Conference on Web and
-  Social Media}, volume~19, pages 2423--2433, 2025.
-
 \bibitem{qbdiblackhat2020}
 Elia Geretto.
 \newblock A qbdi-based fuzzer targeting magic bytes comparisons.
@@ -217,6 +217,12 @@ M.~Lindorfer et~al.
   Behaviors}.
 \newblock In {\em Proc. BADGERS '14}, 2014.
 
+\bibitem{nikitin2021analysis}
+Kaijun Liu, Guoai Xu, Xiaomei Zhang, Guosheng Xu, and Zhangjie Zhao.
+\newblock Evaluating the privacy policy of android apps: a privacy policy
+  compliance study for popular apps in china and europe.
+\newblock volume 2022, page 2508690. Wiley Online Library, 2022.
+
 \bibitem{love2010linux}
 Robert Love.
 \newblock {\em Linux Kernel Development}.
@@ -234,11 +240,16 @@ L.~Maganti.
 \newblock {Analyzing Perfetto Traces at Every Scale}.
 \newblock In {\em Tracing Summit}, 2022.
 
-\bibitem{frolov2022gdpr}
-Peder~Lind Mangset.
-\newblock Analysis of mobile application's compliance with the general data
-  protection regulation (gdpr).
-\newblock 2018.
+\bibitem{marlinspike2018sealed}
+Moxie Marlinspike.
+\newblock {Technology for Privacy: Signal's Sealed Sender}, October 2018.
+\newblock Signal Blog. URL: \url{https://signal.org/blog/sealed-sender/}.
+
+\bibitem{eff2018scorecard}
+Francesca Musiani and Ksenia Ermoshina.
+\newblock What is a good secure messaging tool? the eff secure messaging
+  scorecard and the shaping of digital (usable) security.
+\newblock Technical Report~3, 2017.
 
 \bibitem{nasser2023dlamdet}
 A.~R. Nasser, A.~M. Hasan, and A.~J. Humaidi.
@@ -379,6 +390,11 @@ Andrew~S. Tanenbaum and Herbert Bos.
 \newblock {\em Modern Operating Systems}.
 \newblock Pearson, 4th edition, 2015.
 
+\bibitem{telegram2025policy}
+{Telegram FZ-LLC}.
+\newblock {Telegram Privacy Policy}, 2025.
+\newblock Accessed on July 2, 2025. URL: \url{https://telegram.org/privacy}.
+
 \bibitem{ebpf2023}
 {The eBPF Community}.
 \newblock {eBPF: Extended Berkeley Packet Filter}.
@@ -408,6 +424,13 @@ Andrew~S. Tanenbaum and Herbert Bos.
 \newblock [Online]. Available:
   \url{https://www.legislation.gov.uk/ukpga/2018/12/contents}.
 
+\bibitem{reardon2019sok}
+Nik Unger, Sergej Dechand, Joseph Bonneau, Sascha Fahl, Henning Perl, Ian
+  Goldberg, and Matthew Smith.
+\newblock Sok: secure messaging.
+\newblock In {\em 2015 IEEE Symposium on Security and Privacy}, pages 232--249.
+  IEEE, 2015.
+
 \bibitem{signalwhitepaper}
 Dion Van~Dam.
 \newblock Analysing the signal protocol, 2019.
@@ -418,11 +441,23 @@ Fengguo Wei, Sankardas Roy, Xinming Ou, and Robby.
   framework for security vetting of android apps.
 \newblock pages 1--32. ACM New York, NY, USA, 2018.
 
+\bibitem{whatsapp2025policy}
+{WhatsApp Inc.}
+\newblock {WhatsApp Privacy Policy}, 2025.
+\newblock Accessed on July 2, 2025. URL:
+  \url{https://www.whatsapp.com/legal/privacy-policy}.
+
 \bibitem{candroid2019}
 Lei Xu, Guoxi Li, Chuan Li, Weijie Sun, Zhaohui Li, and Jing Zhang.
 \newblock {Condroid: A Container-Based Virtualization Solution Adapted for
   Android Devices}.
 \newblock In {\em Proc. IEEE MobileCloud '15}, 2015.
+
+\bibitem{datta2021auditing}
+Manal~M Yunis, Raed El-Khalil, and Miray Ghanem.
+\newblock Towards a conceptual framework on the importance of privacy and
+  security concerns in audit data analytics.
+\newblock 1490:1498, 2021.
 
 \bibitem{zhang2020hart}
 F.~Zhang et~al.
