@@ -1,0 +1,60 @@
+This is BibTeX, Version 0.99d (TeX Live 2022/dev/Debian)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: thesis.aux
+The style file: plain.bst
+Database file #1: bib.bib
+Warning--empty booktitle in BPFroid2021
+Warning--empty booktitle in moltchanov2018telegram
+Warning--empty booktitle in bock2020sealed
+Warning--empty booktitle in mobsf2023
+Warning--empty booktitle in dynamo2021
+Warning--can't use both volume and number fields in gangopadhyay2025telescope
+Warning--empty booktitle in qbdiblackhat2020
+Warning--empty booktitle in lee2023quic
+Warning--empty journal in obermeier2018signal
+Warning--empty booktitle in inviseal2023
+Warning--can't use both volume and number fields in inviseal2023
+Warning--empty booktitle in frolov2022gdpr
+Warning--empty booktitle in wei2014amandroid
+You've used 70 entries,
+            2118 wiz_defined-function locations,
+            863 strings with 17269 characters,
+and the built_in function-call counts, 21853 in all, are:
+= -- 2032
+> -- 1124
+< -- 14
++ -- 448
+- -- 376
+* -- 1302
+:= -- 3612
+add.period$ -- 221
+call.type$ -- 70
+change.case$ -- 393
+chr.to.int$ -- 0
+cite$ -- 83
+duplicate$ -- 841
+empty$ -- 1833
+format.name$ -- 376
+if$ -- 4638
+int.to.chr$ -- 0
+int.to.str$ -- 70
+missing$ -- 49
+newline$ -- 360
+num.names$ -- 140
+pop$ -- 584
+preamble$ -- 1
+purify$ -- 323
+quote$ -- 0
+skip$ -- 627
+stack$ -- 0
+substring$ -- 853
+swap$ -- 180
+text.length$ -- 14
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 276
+warning$ -- 13
+while$ -- 187
+width$ -- 72
+write$ -- 741
+(There were 13 warnings)

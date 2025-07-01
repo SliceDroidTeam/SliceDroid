@@ -1,0 +1,438 @@
+\begin{thebibliography}{10}
+
+\bibitem{BPFroid2021}
+Yaniv Agman and Danny Hendler.
+\newblock Bpfroid: Robust real time android malware detection framework.
+\newblock 2021.
+
+\bibitem{dynalog2016}
+Mohammed~K. Alzaylaee, Suleiman~Y. Yerima, and Sakir Sezer.
+\newblock Dynalog: an automated dynamic analysis framework for characterizing
+  android applications.
+\newblock In {\em 2016 International Conference On Cyber Security And
+  Protection Of Digital Services (Cyber Security)}, pages 1--8, 2016.
+
+\bibitem{AOSPART}
+{Android Open Source Project}.
+\newblock {Android Runtime (ART) and Dalvik}, 2024.
+\newblock [Online]. Available:
+  \url{https://source.android.com/docs/core/dalvik}.
+
+\bibitem{AOSPJNI}
+{Android Open Source Project}.
+\newblock {JNI tips}, 2024.
+\newblock [Online]. Available:
+  \url{https://developer.android.com/training/articles/perf-jni}.
+
+\bibitem{AOSPArchOverview}
+{Android Open Source Project}.
+\newblock {Platform Architecture}, 2024.
+\newblock [Online]. Available:
+  \url{https://source.android.com/docs/core/architecture}.
+
+\bibitem{AOSPWakelocks}
+{Android Open Source Project}.
+\newblock {PowerManager.WakeLock}, 2024.
+\newblock [Online]. Available:
+  \url{https://developer.android.com/reference/android/os/PowerManager.WakeLock}.
+
+\bibitem{AOSP2024Ftrace}
+{Android Open Source Project}.
+\newblock {Use ftrace}, Oct 2024.
+\newblock [Online]. Available:
+  \url{https://source.android.com/docs/core/tests/debug/ftrace}.
+
+\bibitem{anglano2015whatsapp}
+Cosimo Anglano.
+\newblock Forensic analysis of whatsapp messenger on android smartphones.
+\newblock {\em Digital Investigation}, 11(3):201--213, 2014.
+\newblock Special Issue: Embedded Forensics.
+
+\bibitem{moltchanov2018telegram}
+Cosimo Anglano, Massimo Canonico, and Marco Guazzone.
+\newblock Forensic analysis of telegram messenger on android smartphones.
+\newblock volume~23, pages 31--49. Elsevier, 2017.
+
+\bibitem{apthorpe2018smart}
+Noah Apthorpe, Dillon Reisman, and Nick Feamster.
+\newblock {A Smart Home is No Castle: Privacy Vulnerabilities of Encrypted IoT
+  Traffic}.
+\newblock {\em arXiv preprint arXiv:1705.06805}, 2017.
+
+\bibitem{arp2014drebin}
+Daniel Arp, Michael Spreitzenbarth, Malte H{\"u}bner, Hugo Gascon, and Konrad
+  Rieck.
+\newblock {Drebin: Effective and explainable detection of Android malware in
+  your pocket}.
+\newblock In {\em Proc. NDSS '14}, 2014.
+
+\bibitem{arzt2014flowdroid}
+Steven Arzt, Siegfried Rasthofer, Christian Fritz, Eric Bodden, Alexandre
+  Bartel, Jacques Klein, Yves Le~Traon, Damien Octeau, and Patrick McDaniel.
+\newblock {FlowDroid: Precise Context, Flow, Field, Object-sensitive and
+  Lifecycle-aware Taint Analysis for Android Apps}.
+\newblock In {\em Proc. PLDI '14}, 2014.
+
+\bibitem{celik2021stego}
+Luca Caviglione, Wojciech Mazurczyk, Matteo Repetto, Andreas Schaffhauser, and
+  Marco Zuppelli.
+\newblock {Kernel-level tracing for detecting stegomalware and covert channels
+  in Linux environments}.
+\newblock {\em Computer Networks}, 191, 2021.
+
+\bibitem{bock2020sealed}
+Katriel Cohn-Gordon, Cas Cremers, Benjamin Dowling, Luke Garratt, and Douglas
+  Stebila.
+\newblock A formal security analysis of the signal messaging protocol.
+\newblock pages 1914--1983. Springer, 2020.
+
+\bibitem{coull2014traffic}
+Scott~E Coull and Kevin~P Dyer.
+\newblock Traffic analysis of encrypted messaging services: Apple imessage and
+  beyond.
+\newblock {\em ACM SIGCOMM Computer Communication Review}, 44(5):5--11, 2014.
+
+\bibitem{williams2024emook}
+Milo Craun, Khizar Hussain, Uddhav Gautam, Zhengjie Ji, Tanuj Rao, and Dan
+  Williams.
+\newblock Eliminating ebpf tracing overhead on untraced processes.
+\newblock In {\em Proceedings of the ACM SIGCOMM 2024 Workshop on eBPF and
+  Kernel Extensions}, pages 16--22, 2024.
+
+\bibitem{mobsf2023}
+Henry Dalziel and Ajin Abraham.
+\newblock Automated security analysis of android and ios applications with
+  mobile security framework.
+\newblock Syngress, 2015.
+
+\bibitem{DataReportal2025}
+{DataReportal}.
+\newblock {Digital 2025: Global Digital Overview – mobile‐phone users reach
+  5.81 billion}, Apr 2025.
+\newblock [Online]. Available:
+  \url{https://datareportal.com/global-digital-overview}.
+
+\bibitem{dynamo2021}
+Abdallah Dawoud and Sven Bugiel.
+\newblock Bringing balance to the force: Dynamic analysis of the android
+  application framework.
+\newblock 2021.
+
+\bibitem{androguard2023}
+A.~Desnos and contributors.
+\newblock {Androguard}.
+\newblock [Online]. Available: \url{https://github.com/androguard/androguard},
+  2025.
+
+\bibitem{enck2014taintdroid}
+William Enck et~al.
+\newblock {TaintDroid: An Information-Flow Tracking System for Realtime Privacy
+  Monitoring on Smartphones}.
+\newblock {\em ACM Transactions on Computer Systems (TOCS)}, 32(2), 2014.
+
+\bibitem{GDPR2016}
+{European Parliament and Council}.
+\newblock {Regulation (EU) 2016/679 (General Data Protection Regulation)}.
+\newblock Official Journal of the European Union, L119, May 2016.
+
+\bibitem{felt2011androidprivacy}
+Adrienne~P. Felt et~al.
+\newblock {Android Permissions Demystified}.
+\newblock In {\em Proc. 18th ACM Conference on Computer and Communications
+  Security (CCS)}, 2011.
+
+\bibitem{ArsTechnica2018}
+S.~Gallagher.
+\newblock {Facebook scraped call, text message data for years from Android
+  phones}.
+\newblock Ars Technica, Mar 2018.
+\newblock [Online]. Available:
+  \url{https://arstechnica.com/information-technology/2018/03/facebook-scraped-call-text-message-data-for-years-from-android-phones/}.
+
+\bibitem{Tian2020Preinstalled}
+J.~Gamba, M.~Rashed, A.~Razaghpanah, J.~Tapiador, and N.~Vallina-Rodriguez.
+\newblock {An Analysis of Pre-installed Android Software}.
+\newblock In {\em Proc. of the IEEE Symposium on Security and Privacy (S\&P)},
+  2020.
+
+\bibitem{gangopadhyay2025telescope}
+Susmita Gangopadhyay, Danilo Dess{\'\i}, Dimitar Dimitrov, and Stefan Dietze.
+\newblock Telescope: A longitudinal dataset for investigating online discourse
+  and information interaction on telegram.
+\newblock In {\em Proceedings of the International AAAI Conference on Web and
+  Social Media}, volume~19, pages 2423--2433, 2025.
+
+\bibitem{qbdiblackhat2020}
+Elia Geretto.
+\newblock A qbdi-based fuzzer targeting magic bytes comparisons.
+\newblock 2018.
+
+\bibitem{Politico2025Signal}
+E.~Golden.
+\newblock {Inside the hazy, fractured mess of Signal use in the government}.
+\newblock POLITICO, Apr 2025.
+\newblock [Online]. Available:
+  \url{https://www.politico.com/news/2025/04/02/inside-the-hazy-fractured-mess-of-signal-chats-in-the-government-00264466}.
+
+\bibitem{wired2023signalhack}
+A.~Greenberg.
+\newblock {How a Signal Knockoff Used by the US Military Got Hacked in 20
+  Minutes}.
+\newblock WIRED, Aug 2023.
+\newblock [Online]. Available:
+  \url{https://www.wired.com/story/how-the-signal-knock-off-app-telemessage-got-hacked-in-20-minutes/}.
+
+\bibitem{lee2023quic}
+YA~Joarder and Carol Fung.
+\newblock Exploring quic security and privacy: A comprehensive survey on quic
+  security and privacy vulnerabilities, threats, attacks and future research
+  directions.
+\newblock IEEE, 2024.
+
+\bibitem{obermeier2018signal}
+S~Krishnapriya, VS~Priyanka, and S~Satheesh Kumar.
+\newblock Forensic extraction and analysis of signal application in android
+  phones.
+\newblock 1:1--6, 2021.
+
+\bibitem{inviseal2023}
+Saurabh Kumar, Debadatta Mishra, Biswabandan Panda, and Sandeep~Kumar Shukla.
+\newblock Inviseal: A stealthy dynamic analysis framework for android systems.
+\newblock volume~4, pages 1--31. ACM New York, NY, 2023.
+
+\bibitem{li2015iccta}
+L.~Li, A.~Bartel, T.~F. Bissyand{\'e}, J.~Klein, et~al.
+\newblock {IccTA: Detecting inter-component privacy leaks in Android apps}.
+\newblock In {\em Proc. ICSE ’15}, 2015.
+
+\bibitem{li2016droidra}
+L.~Li, T.~F. Bissyand{\'e}, D.~Octeau, and J.~Klein.
+\newblock {DroidRA: Taming reflection to support whole-program analysis of
+  Android apps}.
+\newblock In {\em Proc. ISSTA '16}, 2016.
+
+\bibitem{lindorfer2014andrubis}
+M.~Lindorfer et~al.
+\newblock {ANDRUBIS - 1,000,000 Apps Later: A View on Current Android Malware
+  Behaviors}.
+\newblock In {\em Proc. BADGERS '14}, 2014.
+
+\bibitem{love2010linux}
+Robert Love.
+\newblock {\em Linux Kernel Development}.
+\newblock Addison-Wesley, 3rd edition, 2010.
+
+\bibitem{lu2012chex}
+L.~Lu, Z.~Li, Z.~Wu, W.~Lee, and G.~Jiang.
+\newblock {CHEX: Statically vetting Android apps for component hijacking
+  vulnerabilities}.
+\newblock In {\em Proc. of the 19th ACM conference on Computer and
+  communications security (CCS '12)}, pages 260--271, 2012.
+
+\bibitem{maganti2022perfetto}
+L.~Maganti.
+\newblock {Analyzing Perfetto Traces at Every Scale}.
+\newblock In {\em Tracing Summit}, 2022.
+
+\bibitem{frolov2022gdpr}
+Peder~Lind Mangset.
+\newblock Analysis of mobile application's compliance with the general data
+  protection regulation (gdpr).
+\newblock 2018.
+
+\bibitem{nasser2023dlamdet}
+A.~R. Nasser, A.~M. Hasan, and A.~J. Humaidi.
+\newblock {DL-AMDet: Deep learning-based malware detector for Android}.
+\newblock {\em Intelligent Systems with Applications}, 21, 2024.
+
+\bibitem{ning2019dexlego}
+Z.~Ning and F.~Zhang.
+\newblock {DexLEGO: Reassembleable bytecode extraction for aiding static
+  analysis}.
+\newblock In {\em Proc. DSN '18}, 2018.
+
+\bibitem{nisi2019syscall}
+Dario Nisi, Antonio Bianchi, and Yanick Fratantonio.
+\newblock Exploring $\{$Syscall-Based$\}$ semantics reconstruction of android
+  applications.
+\newblock In {\em 22nd International Symposium on Research in Attacks,
+  Intrusions and Defenses (RAID 2019)}, pages 517--531, 2019.
+
+\bibitem{octeau2013epicc}
+Damien Octeau, Patrick McDaniel, Somesh Jha, Alexandre Bartel, Eric Bodden,
+  Jacques Klein, and Yves Le~Traon.
+\newblock Effective $\{$Inter-Component$\}$ communication mapping in android:
+  An essential step towards holistic security analysis.
+\newblock In {\em 22nd USENIX Security Symposium (USENIX Security 13)}, pages
+  543--558, 2013.
+
+\bibitem{CHI2024Permissions}
+S.~J. Oishwee, Z.~Codabux, and N.~Stakhanova.
+\newblock {Decoding Android Permissions: A Study of Developer Challenges and
+  Solutions on Stack Overflow}.
+\newblock In {\em Proc. 18th ACM/IEEE Int. Symp. on Empirical Software
+  Engineering and Measurement (ESEM ’24)}, pages 143--153, Barcelona, Spain,
+  2024.
+
+\bibitem{SLR2025Messaging}
+A.~R. Onik, J.~Brown, C.~Walker, and I.~Baggili.
+\newblock {A Systematic Literature Review of Secure Instant Messaging
+  Applications from a Digital Forensics Perspective}.
+\newblock {\em ACM Computing Surveys}, 57(9), May 2025.
+\newblock [Online]. Available: \url{https://doi.org/10.1145/3727641}.
+
+\bibitem{poblete2021defence}
+Antonio~J Pinheiro, Paulo~Freitas de~Araujo-Filho, Jeandro de~M Bezerra, and
+  Divanilson~R Campelo.
+\newblock Adaptive packet padding approach for smart home networks: A tradeoff
+  between privacy and performance.
+\newblock {\em IEEE Internet of Things Journal}, 8(5):3930--3938, 2020.
+
+\bibitem{arxiv2020metadata}
+Alexandre Pujol, Damien Magoni, Liam Murphy, and Christina Thorpe.
+\newblock Spying on instant messaging servers: Potential privacy leaks through
+  metadata.
+\newblock {\em Transactions on Data Privacy}, 12:175--206, 2019.
+
+\bibitem{Razaghpanah2020AppsTrackers}
+A.~Razaghpanah, R.~Nithyanand, N.~Vallina-Rodriguez, S.~Sundaresan, M.~Allman,
+  C.~Kreibich, and P.~Gill.
+\newblock {Apps, Trackers, Privacy, and Regulators: A Global Study of the
+  Mobile Tracking Ecosystem}.
+\newblock In {\em Proc. of the IEEE Symposium on Security and Privacy (S\&P)},
+  2018.
+
+\bibitem{ftrace2023}
+S.~Rostedt.
+\newblock {ftrace: The Linux Kernel Function Tracer}.
+\newblock The Linux Kernel Documentation, 2023.
+\newblock [Online]. Available:
+  \url{https://www.kernel.org/doc/html/latest/trace/ftrace.html}.
+
+\bibitem{xposed}
+rovo89.
+\newblock {Xposed Framework}.
+\newblock [Online]. Available: \url{https://github.com/rovo89/Xposed}, 2025.
+
+\bibitem{Schmidt2009IDSyscall}
+A.~Schmidt, H.~Schmidt, J.~Clausen, S.~A. M. T.~K. Camtepe, and S.~Albayrak.
+\newblock {Static analysis of executables for collaborative malware detection
+  on Android}.
+\newblock In {\em Proc. of the IEEE International Conference on Communications
+  (ICC)}, 2009.
+
+\bibitem{ShenVervierStringhini2021}
+Y.~Shen, P.-A. Vervier, and G.~Stringhini.
+\newblock {Understanding worldwide private information collection on Android}.
+\newblock {\em arXiv preprint arXiv:2102.12869}, 2021.
+
+\bibitem{libdroid2022}
+Chen Shi, Chris Chao-Chun Cheng, and Yong Guan.
+\newblock Libdroid: Summarizing information flow of android native libraries
+  via static analysis.
+\newblock {\em Forensic Science International: Digital Investigation},
+  42:301405, 2022.
+
+\bibitem{feng2020survey}
+Gulshan Shrivastava, Prabhat Kumar, Deepak Gupta, and Joel~JPC Rodrigues.
+\newblock Privacy issues of android application permissions: A literature
+  review.
+\newblock {\em Transactions on Emerging Telecommunications Technologies},
+  31(12):e3773, 2020.
+
+\bibitem{Reuters2021WhatsAppExodus}
+M.~S. Sibal and N.~S. Roshni.
+\newblock {Signal, Telegram see demand spike as new WhatsApp terms stir
+  debate}.
+\newblock Reuters, Jan 2021.
+\newblock [Online]. Available:
+  \url{https://www.reuters.com/article/idUSKBN29E04O/}.
+
+\bibitem{StatCounter2025}
+{StatCounter Global Stats}.
+\newblock {Mobile Operating System Market Share Worldwide – April 2025},
+  2025.
+\newblock [Online]. Available:
+  \url{https://gs.statcounter.com/os-market-share/mobile/worldwide}.
+
+\bibitem{StatistaSignal}
+{Statista}.
+\newblock {Signal - monthly active users in selected countries 2021}, 2022.
+\newblock [Online]. Available:
+  \url{https://www.statista.com/statistics/1252396/signal-monthly-active-users-in-selected-countries/}.
+
+\bibitem{StatistaMessenger}
+{Statista}.
+\newblock {Leading mobile messaging apps worldwide as of June 2024, by number
+  of monthly active users}, 2024.
+\newblock [Online]. Available:
+  \url{https://www.statista.com/statistics/258749/most-popular-global-mobile-messenger-apps/}.
+
+\bibitem{DynamicSecurityAnalysis2023}
+T.~Sutter, T.~Kehrer, M.~Rennhard, B.~Tellenbach, and J.~Klein.
+\newblock {Dynamic Security Analysis on Android: A Systematic Literature
+  Review}.
+\newblock {\em IEEE Access}, 12:9234--9262, 2024.
+
+\bibitem{tanenbaum2015modern}
+Andrew~S. Tanenbaum and Herbert Bos.
+\newblock {\em Modern Operating Systems}.
+\newblock Pearson, 4th edition, 2015.
+
+\bibitem{ebpf2023}
+{The eBPF Community}.
+\newblock {eBPF: Extended Berkeley Packet Filter}.
+\newblock [Online]. Available: \url{https://ebpf.io}, 2025.
+
+\bibitem{frida2020}
+{The Frida Project}.
+\newblock {Frida: Dynamic Instrumentation Toolkit}.
+\newblock [Online]. Available: \url{https://frida.re}, 2025.
+
+\bibitem{kprobes2023}
+{The Linux Kernel}.
+\newblock {Kernel Probes (Kprobes)}.
+\newblock The Linux Kernel Documentation, 2023.
+\newblock [Online]. Available:
+  \url{https://www.kernel.org/doc/html/latest/trace/kprobes.html}.
+
+\bibitem{strace2023}
+{The strace developers}.
+\newblock {strace: Diagnostic, debugging and instructional userspace utility
+  for Linux}.
+\newblock [Online]. Available: \url{https://strace.io}, 2025.
+
+\bibitem{UKDPA2018}
+{UK Parliament}.
+\newblock {Data Protection Act 2018, c. 12}, May 2018.
+\newblock [Online]. Available:
+  \url{https://www.legislation.gov.uk/ukpga/2018/12/contents}.
+
+\bibitem{signalwhitepaper}
+Dion Van~Dam.
+\newblock Analysing the signal protocol, 2019.
+
+\bibitem{wei2014amandroid}
+Fengguo Wei, Sankardas Roy, Xinming Ou, and Robby.
+\newblock Amandroid: A precise and general inter-component data flow analysis
+  framework for security vetting of android apps.
+\newblock pages 1--32. ACM New York, NY, USA, 2018.
+
+\bibitem{candroid2019}
+Lei Xu, Guoxi Li, Chuan Li, Weijie Sun, Zhaohui Li, and Jing Zhang.
+\newblock {Condroid: A Container-Based Virtualization Solution Adapted for
+  Android Devices}.
+\newblock In {\em Proc. IEEE MobileCloud '15}, 2015.
+
+\bibitem{zhang2020hart}
+F.~Zhang et~al.
+\newblock {HART: Hardware-Assisted Kernel Module Tracing on ARM}.
+\newblock In {\em Proc. ESORICS '20}, 2020.
+
+\bibitem{zheng2014droidtrace}
+M.~Zheng and M.~Sun.
+\newblock {DroidTrace: Ptrace-based dynamic syscall tracing for Android}.
+\newblock {\em International Journal of Information Security}, 13(4):359--370,
+  2014.
+
+\end{thebibliography}
