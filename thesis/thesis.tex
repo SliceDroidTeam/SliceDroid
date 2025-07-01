@@ -145,7 +145,7 @@ This thesis introduces a hybrid security analysis methodology for generating det
 
 To demonstrate its effectiveness, comprehensive static and dynamic analyses were performed on three widely used messaging apps: Signal, Telegram, and Meta Messenger. The static inspection, conducted with tools such as MobSF, APKID, and Androguard, highlighted distinct differences in manifest configurations, permission scopes, cryptographic implementations, and third-party integrations — notably, Messenger was found to request and utilize broader contact and storage permissions compared to the more privacy-restrictive Signal.
 
-For dynamic evaluation, the extended SliceDroid collected precise runtime data under realistic usage scenarios, capturing file system operations, IPC calls and network flows. The combined analyses uncovered significant behavioral differences: Messenger exhibited the highest runtime complexity and heavy IPC usage, and notably, it was discovered that Messenger continues to access user contacts even after permission is revoked. This is achieved through a persistent sync adapter state in Google Play Services, revealing a fundamental flaw in the Android permission model that static analysis alone could not uncover.
+For dynamic evaluation, the extended SliceDroid collected precise runtime data under realistic usage scenarios, capturing file system operations, IPC calls and network flows. The combined analyses uncovered significant behavioral differences: Messenger exhibited the highest runtime complexity and heavy IPC usage, and notably, it was discovered that Messenger continues to access user contacts even after permission is revoked. This appears to be achieved through a persistent sync adapter state within Google Play Services, highlighting an aspect of the Android permission model that may warrant further investigation, and which was not readily apparent through static analysis alone.
 
 Overall, these findings highlight the value of integrating static analysis with kernel-level tracing to reveal hidden operations and inform more robust security and privacy evaluations of mobile applications.
 \end{abstract}
@@ -399,7 +399,7 @@ This thesis makes the following key contributions to the field of mobile securit
     \item Develops and integrates a custom package-to-process name mapper, allowing accurate identification and attribution of runtime events to the corresponding commercial application, even when system-level identifiers differ.
     \item Delivers an in-depth comparative analysis of three major messaging applications (Signal, Telegram, Meta Messenger), highlighting significant architectural and operational differences impacting user privacy.
     \item Statistically validates observed differences through rigorous inferential testing (ANOVA and Tukey HSD), offering robust, evidence-based conclusions.
-    \item Identifies critical privacy-related insights, including permission discrepancies and hidden runtime behaviors.
+    \item Identifies critical privacy-related insights, including discrepancies between user-revoked permissions and sustained data access, and reveals hidden runtime behaviors such as persistent sync adapter states and indirect inter-process communication.
 \end{enumerate}
 
 
@@ -1973,7 +1973,7 @@ This comparison, summarised in Table~\ref{tab:comparison_bg_only}, confirms that
         \hline
     \end{tabular}
     \begin{flushleft}
-    \footnotesize\textsuperscript{*} Likely artefact; see Section Telegram Foreground Runtime Behaviour".
+    \footnotesize\textsuperscript{*} Likely artefact; see Section "Telegram Foreground Runtime Behaviour".
     \end{flushleft}
 \end{table}
 
@@ -2020,10 +2020,9 @@ Overall, these patterns confirm that Messenger leverages full device permissions
 
 
 \subsubsection{Messenger Restricted Permissions Scenario}
+The analysis of the Messenger application, under conditions of explicitly denied permissions, revealed a potential privacy bypass that highlights an area for improvement within the Android permission model. Despite the user revoking contacts permission through the standard Android interface, systematic access to the contacts database persisted. This access was achieved through an indirect but consistently reproducible mechanism.
 
-The analysis of Messenger under explicitly denied permissions revealed a critical privacy violation, exposing a fundamental weakness in the Android permission model. Despite the user revoking contacts permission through the standard Android interface, systematic access to the contacts database persisted. This access was achieved through an indirect but consistently reproducible mechanism.
-
-When executed with restricted permissions, Messenger exhibited extensive contacts database access that contradicted the configured settings. As shown in Figure~\ref{fig:messenger-none-events}, while the overall event timeline appears conventional, kernel-level analysis of a 30.35-second trace identified systematic read/write operations on the \texttt{contacts2.db} database and its associated temporary files (\texttt{-shm}, \texttt{-wal}). The Behavior Timeline in Figure~\ref{fig:messenger-none-behav} quantifies this, revealing over 100 distinct database operations. This pattern was not incidental, appearing consistently across nine out of ten test runs.
+When executed with restricted permissions, Messenger exhibited extensive contacts database access that appeared to contradict the configured settings. As shown in Figure~\ref{fig:messenger-none-events}, while the overall event timeline appears conventional, kernel-level analysis of a 30.35-second trace identified systematic read/write operations on the \texttt{contacts2.db} database and its associated temporary files (\texttt{-shm}, \texttt{-wal}). The Behavior Timeline in Figure~\ref{fig:messenger-none-behav} quantifies this, revealing over 100 distinct database operations. This pattern was not incidental, appearing consistently across nine out of ten test runs.
 
 \begin{figure}[H]
     \centering
@@ -2038,19 +2037,16 @@ When executed with restricted permissions, Messenger exhibited extensive contact
     \caption{Behavior Timeline quantifying persistent contacts database operations (100+ events) during the trace period.}
     \label{fig:messenger-none-behav}
 \end{figure}
+Further investigation through detailed Binder Inter-Process Communication (IPC) analysis revealed that the contacts access does not originate directly from the Messenger application itself. Instead, it stems from a Content Provider process (PID 27488, UID 10064) activated by a Binder worker thread. Listing~\ref{lst:binder-trace} provides a representative excerpt from the kernel trace illustrating this indirect access to \texttt{contacts2.db}.
 
-To identify the source of these operations, we performed a detailed Binder Inter-Process Communication (IPC) analysis. Tracing revealed that the access originates not from Messenger itself, but from a Content Provider process (PID 27488, UID 10064) activated by a Binder worker thread. A representative excerpt from the kernel trace is shown in Listing~\ref{lst:binder-trace}.
-
-% Listing starts on a new page as requested
-\newpage
-
+\clearpage
 \begin{lstlisting}[language=bash, caption={Kernel trace showing contacts database access via a Binder worker thread.}, label={lst:binder-trace}]
 binder:27488_B-7197 (27488) [000] d..1. 116474.302632: ioctl_probe: (do_vfs_ioctl) file=... pathname="contacts2.db"
 binder:27488_B-7197 (27488) [000] d..1. 116474.302693: read_probe: (vfs_read) file=... buf=... count=100 pathname="contacts2.db"
 binder:27488_B-7197 (27488) [000] d..1. 116474.303025: read_probe: (vfs_read) file=... count=4096 pathname="contacts2.db"
 \end{lstlisting}
 
-This systematic analysis allowed us to reconstruct the complete information flow, which circumvents the user's explicit denial of permission. The violation occurs via a three-stage process involving Messenger, Google Play Services, and the Android Content Provider, as illustrated in Figure~\ref{fig:messenger-indirect-flow}. The investigation concluded that this vulnerability stems from a \textbf{persistent sync adapter state} that survives permission revocation.
+This indirect access constitutes a three-stage bypass of the Android permission model, involving Messenger, Google Play Services, and the Android Content Provider. This process is illustrated in Figure~\ref{fig:messenger-indirect-flow}.
 
 \begin{figure}[H]
     \centering
@@ -2075,7 +2071,8 @@ This systematic analysis allowed us to reconstruct the complete information flow
     \node[app] (messenger) {\textbf{Messenger App} \\ (PID 20660) \\ {\footnotesize\color{red!80!black}Contacts: DENIED}};
     \node[service, right=of messenger] (gms) {\textbf{Google Play Services} \\ (PID 29281) \\ {\footnotesize\color{green!60!black}System Privileges}};
     \node[provider, below=of gms] (provider) {\textbf{Content Provider} \\ (PID 27488) \\ {\footnotesize\color{green!60!black}System Access}};
-    \node[db, below=of provider] (db) {\texttt{contacts2.db}};
+    \node[db, below=of provider] (db) {\scriptsize\texttt{contacts2.db}};
+
 
     % Direct access path (blocked)
     \draw[denied] (messenger) to[bend right=60] node[midway, below, sloped] {Direct Access Blocked} (db);
@@ -2091,7 +2088,28 @@ This systematic analysis allowed us to reconstruct the complete information flow
     \label{fig:messenger-indirect-flow}
 \end{figure}
 
-The timeline of this root cause is as follows:
+The stages of this bypass are detailed below:
+
+\begin{lstlisting}[language=bash, caption={Stage 1: Messenger to Google Play Services.}, label={lst:stage1-bypass}]
+# Stage 1: Messenger (PID 20660) -> Google Play Services (PID 29281)
+CombinedTP27-20885   ( 20660) ... binder_transaction: transaction=6750378 dest_proc=29281 ...
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash, caption={Stage 2: Google Play Services to Content Provider.}, label={lst:stage2-bypass}]
+# Stage 2: GMS (29281) -> Content Provider (27488)
+SyncAdapterThre-20959 ( 29281) ... binder_transaction: transaction=6754221 dest_proc=27488 ...
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash, caption={Stage 3: Content Provider to contacts database.}, label={lst:stage3-bypass}]
+# Stage 3: Content Provider (27488) -> contacts2.db
+binder:27488_B-7197 ( 27488) ... read_probe: ... pathname="contacts2.db"
+\end{lstlisting}
+
+This information flow was corroborated by automated tools, such as Slicedroid, which confirmed the communication between the three implicated processes.
+
+
+The core of this vulnerability lies in a \textbf{persistent sync adapter state} that survives permission revocation. The timeline below, also illustrated in Figure~\ref{fig:sync-persistence}, explains this critical flaw:
+
 \begin{enumerate}
     \item \textbf{Grant:} A user initially grants Messenger contacts permission.
     \item \textbf{Register:} The app registers a sync task with Google Play Services, creating a persistent entry in the Android AccountManager.
@@ -2099,8 +2117,6 @@ The timeline of this root cause is as follows:
     \item \textbf{Persist:} The sync adapter registration is \textbf{not cleared} and remains active.
     \item \textbf{Trigger:} When Messenger runs, it makes generic API calls to Google Play Services, which in turn triggers the persistent sync adapter, leading to unauthorized contacts access via a privileged system service.
 \end{enumerate}
-
-This design flaw in the Android permission lifecycle is illustrated in Figure~\ref{fig:sync-persistence}. This vulnerability has significant privacy implications, creating a "control illusion" where users believe their actions have secured their data, when in reality, access continues unabated. It represents a systemic risk, as it likely affects any application using this common Google Play Services sync pattern.
 
 \begin{figure}[H]
     \centering
@@ -2139,14 +2155,26 @@ This design flaw in the Android permission lifecycle is illustrated in Figure~\r
         dashed,
         rounded corners,
         inner sep=8pt,
-        label={[text=red!80!black, font=\sffamily\bfseries]right:DESIGN FLAW}
+        label={[text=red!80!black, font=\sffamily\bfseries]right:DESIGN ASPECT TO CONSIDER}
     ] (flaw_box) {};
 
     \end{tikzpicture}
     \caption{Timeline showing the core vulnerability: the sync adapter’s state persists beyond permission revocation, creating a permanent access channel.}
     \label{fig:sync-persistence}
 \end{figure}
-Our findings reveal a critical flaw in Android's permission architecture: the model is incomplete because it fails to manage the lifecycle of persistent states, such as sync registrations, upon permission changes. This allows privileged system services to be unknowingly exploited as privacy bypasses, undermining the foundation of informed consent in the mobile ecosystem.
+
+
+Interestingly, when Messenger is granted contacts permission, the access pattern to the contacts database differs significantly. In such cases, Messenger directly accesses the data via the standard Android ContentProvider interface, using an internal worker thread (e.g., Worker-2), as shown in Listing~\ref{lst:stage3-granted-permission}.
+
+\begin{lstlisting}[language=bash, caption={Contacts Database Access via Content Provider with Granted Permission.}, label={lst:stage3-granted-permission}]
+Worker-2-29606 ( 28473) [000] d..1. 55456.666750: read_probe: (vfs_read+0x0/0x488) file=0xffffff815e3c8280 buf=0x7ca89f71e0 count=0x64 inode=4483 k__dev=0 s_dev_inode=266338357 i_mode=33200 kuid=10064 kgid=10064 pathname="contacts2.db"
+\end{lstlisting}
+
+This contrast underscores that the observed bypass mechanism is not the default behavior but rather an evasive strategy triggered specifically when direct access is denied. The anomalous behavior persists only when the user has revoked the permission, highlighting the exploitation of privileged system components.
+
+This potential vulnerability has significant privacy implications, as it creates a "control illusion" where users believe their actions have secured their data, when, in reality, access may continue unabated. Our findings suggest a gap in Android's permission architecture: the model appears incomplete, as it may not fully manage the lifecycle of persistent states, such as sync registrations, upon permission changes. This could allow privileged system services to be unknowingly leveraged as privacy bypasses, potentially undermining the foundation of informed consent in the mobile ecosystem.
+
+While this study focused on the Messenger application, further research would be beneficial to confirm the broader extent of this issue across other applications utilizing similar Google Play Services sync patterns.
 
 \subsubsection{Signal Full Foreground Scenario}
 
@@ -2384,7 +2412,7 @@ From a static perspective, Signal’s lean manifest configuration and restrictiv
 
 Dynamic tracing validates these static insights by providing empirical evidence of runtime behaviour. The finding that Messenger generates the highest event throughput and most intensive inter-process communication is consistent with its complex, feature-rich design. Signal's minimal runtime footprint reinforces its characterisation as a privacy-preserving application, while Telegram's high network-to-file ratio underscores its cloud-native architecture.
 
-The most critical finding is the discovery that Messenger accesses the contacts2.db database even when its permission is denied. This exemplifies a critical "permission gap" in Android. Our kernel-level analysis successfully traced the indirect information flow: Messenger initiates an API call to Google Play Services, which in turn triggers a persistent SyncAdapter that accesses the contacts Content Provider with system-level privileges. This confirms an interaction that completely bypasses the user-facing permission model.
+A critical finding appears to be that Messenger accesses the contacts2.db database even when its permission is denied. This could exemplify a critical "permission gap" in Android. Our kernel-level analysis seemed to trace an indirect information flow: Messenger initiate an API call to Google Play Services, which in turn could trigger a persistent SyncAdapter that accesses the contacts Content Provider with system-level privileges. This suggests an interaction that potentially bypasses the user-facing permission model.
 
 Finally, the statistically significant differences in event rates and resource usage patterns between the applications, confirmed by ANOVA and Tukey HSD tests, provide quantitative validation for these qualitative distinctions. While other studies have performed forensic analyses of these apps at rest~\cite{anglano2015whatsapp, obermeier2018signal}, our work contributes by delivering a comparative analysis of their live system behaviour, demonstrating that architectural philosophies translate into measurable, kernel-level operational fingerprints.
 
@@ -2425,7 +2453,7 @@ This thesis set out to systematically assess the security and privacy posture of
 
 Dynamic tracing validated and extended these insights by quantifying actual system call patterns under controlled usage scenarios. Signal demonstrated the smallest event throughput and background footprint, confirming its resource-conscious approach. Messenger generated the highest volume of inter-process communication and file I/O, evidencing a rich but complex orchestration of services. Telegram displayed a network-dominant profile, with a significantly higher network-to-file ratio, indicating its cloud-native strategy for fast media synchronisation. Inferential statistical tests confirmed that these differences are not incidental but statistically significant, lending robust support to the core research questions. In summary, the combined analysis illustrates that while all three applications meet baseline security expectations, their operational behaviours differ in ways that directly reflect their respective design priorities, impacting user privacy and resource consumption.
 
-Among the most conclusive findings was the discovery of a persistent privacy violation by Messenger, which continues to access contact-related resources even after its permission is explicitly revoked. Our analysis provides definitive proof that this occurs due to a persistent sync adapter state maintained by Google Play Services, which acts as a proxy. The precise origin of this access is no longer inconclusive; it is a direct consequence of a design flaw in the Android permission model where revoking a permission does not clear associated sync states, creating a hidden data access channel.
+Among the most conclusive findings was the discovery of a persistent privacy violation by Messenger, which continues to access contact-related resources even after its permission is explicitly revoked. Our analysis provides strong indications that this occurs due to a persistent sync adapter state maintained by Google Play Services, which acts as a proxy. The precise origin of this access, appears to be potentially attributed to a design characteristic in the Android permission model, where revoking a permission might not clear associated sync states, possibly creating an unacknowledged data access channel.
 
 \section{Future Work}
 
