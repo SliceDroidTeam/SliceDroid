@@ -358,6 +358,7 @@ research questions:
 
 To provide a realistic perspective on the scope of this thesis, it is important to distinguish between constraints that arise from project-specific conditions and those inherent to kernel-level behavioural analysis and static inspection.
 
+\vspace{0.3cm}
 
 \textbf{Project-Specific Constraints.}
 
@@ -385,12 +386,12 @@ Overall, these limitations do not compromise the core findings but should be kep
 This thesis makes the following key contributions to the field of mobile security and privacy analysis:
 
 \begin{enumerate}[label=\roman*.]
+    \item Identifies critical privacy-related insights, including discrepancies between user-revoked permissions and sustained data access, and reveals hidden runtime behaviors such as persistent sync adapter states and indirect inter-process communication.
     \item Proposes and implements an enhanced kernel-level tracing methodology, building upon the SliceDroid framework, enabling precise monitoring of mobile application runtime behavior.
     \item Provides a systematic hybrid analysis approach combining static and dynamic methods, resulting in comprehensive behavioral profiles for security-critical applications.
     \item Develops and integrates a custom package-to-process name mapper, allowing accurate identification and attribution of runtime events to the corresponding commercial application, even when system-level identifiers differ.
     \item Delivers an in-depth comparative analysis of three major messaging applications (Signal, Telegram, Meta Messenger), highlighting significant architectural and operational differences impacting user privacy.
     \item Statistically validates observed differences through rigorous inferential testing (ANOVA and Tukey HSD), offering robust, evidence-based conclusions.
-    \item Identifies critical privacy-related insights, including discrepancies between user-revoked permissions and sustained data access, and reveals hidden runtime behaviors such as persistent sync adapter states and indirect inter-process communication.
 \end{enumerate}
 
 
@@ -936,8 +937,11 @@ $M \leftarrow \{\}$
 \end{algorithm}
 \BlankLine
 \BlankLine
-In addition to these streams, a key contribution of this thesis within this layer is the development of a dedicated \emph{App Mapper Module}. The mapper resolves Android package names (e.g., \texttt{com.facebook.orca}) into recognizable commercial application names (e.g., \texttt{Messenger}). It connects to the target device via ADB to enumerate user-installed applications, parses APK metadata through static analysis using the \texttt{androguard} library, and stores the extracted results in a JSON mapping file. This mapping is subsequently utilized by downstream tracing modules and the visualization dashboard, significantly enhancing the interpretability of kernel-level events and collected trace data (see Appendix~\ref{appendix:app-mapper-code} for implementation details).
+In addition to these streams, a key contribution of this thesis within this layer is the development of a dedicated \textbf{App Mapper Module} to tackle a fundamental challenge in kernel-level tracing: the "semantic gap" between system identifiers and real-world applications.
 
+The mapper bridges this gap by resolving cryptic Android package names (e.g., \texttt{com.facebook.orca}) into their recognizable commercial counterparts (e.g., \texttt{Messenger}). To achieve this, it connects to the target device via \textbf{ADB}, enumerates installed applications, and programmatically pulls each APK. It then uses the \textbf{\texttt{androguard}} library to perform a lightweight static analysis, extracting the application's public name from its metadata.
+
+The resulting key-value pairs are serialized into a \textbf{JSON mapping file}. Downstream components, from the trace parser to the visualization dashboard, consume this file to automatically enrich the raw data. This process transforms obscure trace events into clear, human-readable insights, significantly enhancing the interpretability and practical value of the entire analysis pipeline (see Appendix~\ref{appendix:app-mapper-code} for implementation details).
 
 \subsubsection{Parsing and Pre-Processing}
 After the raw kernel traces were collected from the device, they were quickly pre-processed using a lightweight Python parser. Each trace line was split using regular expressions to extract the main header fields (task, PID, CPU, flags, timestamp, event name) and the detailed key-value pairs. Numerical fields were converted to plain decimal form, flags were normalized, and paths were cleaned of extra characters.
@@ -1121,7 +1125,7 @@ To capture meaningful behavioural variations and to systematically compare how e
   \item \textbf{Active Foreground Scenario:} The app was actively used for normal tasks such as messaging, media sharing, and voice or video calls where applicable. This scenario represents the peak operational state with frequent user actions, providing a reference for typical real-world usage patterns. Comparing it with the passive and restricted runs helps pinpoint which kernel-level events are triggered exclusively by user-initiated activity versus background processes.
 \end{enumerate}
 
-Each scenario execution lasted approximately one minute to capture sufficient behavioural samples and was repeated multiple times to enhance reliability and minimise outlier effects. The runs were systematically scheduled in a consistent sequence—starting from passive, followed by restricted, then full permissions, and concluding with active usage—to ensure stable device conditions and to avoid cross-contamination of residual states.
+Each scenario execution lasted approximately 30 seconds. This duration was strategically chosen as a pragmatic balance: it is long enough to capture the complete sequence of system calls for common user actions (e.g., sending a message or capturing a photo), yet short enough to minimise noise from unrelated background processes and keep the resulting trace files to a manageable size for analysis. Each run was repeated multiple times to enhance statistical reliability and minimise outlier effects. The scenarios were systematically executed in a consistent sequence—starting from passive, followed by restricted, then full permissions, and concluding with active usage—to ensure stable device conditions and to avoid cross-contamination of residual states.
 
 By applying this structured workload design, the resulting traces enable detailed side-by-side comparisons. This makes it possible to clearly identify behavioural deviations across permission settings and activity states, providing deeper insights into each application's runtime privacy implications and resource footprint.
 
@@ -1962,8 +1966,107 @@ This comparison, summarised in Table~\ref{tab:comparison_bg_only}, confirms that
 
 Together, these updated measurements clearly illustrate how each messaging app adjusts its resource footprint between active user interaction and passive idle states — a crucial aspect that directly impacts privacy preservation, battery life, and perceived responsiveness.
 
-\subsection{Behavioural Patterns Observed}
+\subsection{Cross-Application Comparative Analysis}
 
+To advance beyond descriptive statistics, we conducted a one-way Analysis of Variance (ANOVA) to compare the means of multiple independent groups and test whether the observed differences in application behavior are statistically significant. This section outlines the methodology, assumptions, and post-hoc analyses, providing robust evidence for distinct architectural characteristics supported by inferential testing.
+
+\subsubsection{Theoretical Background of ANOVA and Post-Hoc Testing}
+The validity of ANOVA results hinges on three key assumptions, which were tested prior to analysis:
+\begin{enumerate}[label=\roman*.]
+    \item \textbf{Normality of Residuals:} The residuals (the differences between individual observations and their group mean) for each group must be normally distributed. This ensures the sampling distribution of the mean is reliable. For an observation \( Y_{ij} \) in group \(i\), the errors \( \varepsilon_{ij} = Y_{ij} - \mu_i \) should follow a normal distribution:
+    $$ \varepsilon_{ij} \sim \mathcal{N}(0, \sigma^2) $$
+    \item \textbf{Homogeneity of Variances (Homoscedasticity):} The variance within each group being compared must be equal. This is formally stated by the null hypothesis:
+    $$ H_0: \sigma^2_1 = \sigma^2_2 = \dots = \sigma^2_k $$
+    \item \textbf{Independence of Observations:} The observations in each group, as well as between groups, must be independent of one another.
+\end{enumerate}
+
+
+ANOVA tests the following null and alternative hypotheses concerning the population means \( \mu_i \) of the \( k \) application groups:
+\begin{enumerate}[label=\roman*.]
+    \item \textbf{Null Hypothesis ($H_0$):} All group means are equal, implying no difference in the measured metric across applications.
+    $$ H_0: \mu_1 = \mu_2 = \dots = \mu_k $$
+    \item \textbf{Alternative Hypothesis ($H_1$):} At least one group mean is different, indicating a significant effect of the application choice on the metric.
+    $$ H_1: \exists i, j \text{ such that } \mu_i \neq \mu_j $$
+\end{enumerate}
+The F-statistic is calculated as the ratio of the variance between the groups ($MS_B$) to the variance within the groups ($MS_W$). A large F-value suggests that the variability between groups is high compared to the variability within groups.
+$$
+F = \frac{MS_B}{MS_W}, \quad \text{where} \quad MS_B = \frac{\sum_{i=1}^k n_i (\bar{Y}_i - \bar{Y})^2}{k-1} \quad \text{,} \quad MS_W = \frac{\sum_{i=1}^k \sum_{j=1}^{n_i} (Y_{ij} - \bar{Y}_i)^2}{N - k}
+$$
+
+
+A statistically significant ANOVA result (i.e., rejecting $H_0$) indicates that a difference exists, but does not specify which groups differ. To identify these specific pairwise differences, we employ a post-hoc test. We selected Tukey's Honestly Significant Difference (HSD) test because it is designed to control the family-wise error rate when performing all possible pairwise comparisons. The HSD critical value is calculated as:
+$$
+HSD = q_{\alpha, k, N-k} \sqrt{\frac{MS_W}{n}}
+$$
+where \( q \) is the value from the studentized range distribution for a given significance level \( \alpha \).
+
+\subsubsection{Results of Statistical Tests}
+
+To ensure the statistical robustness of our analysis and account for performance variability, we conducted 10 independent test runs for each application under controlled conditions. This iterative data collection process yields a more reliable and representative sample, minimizing the influence of anomalous executions or transient system states. We then applied our statistical methodology to three key performance metrics, calculated from the aggregated data of these 10 runs, to accurately profile each application's typical operational behavior.
+\paragraph{(i) Events per Second:}
+This metric measures the rate of system-level activity generated by an application, providing an indication of its overall operational intensity or "chattiness." It is calculated by dividing the total number of monitored system events (e.g., system calls, file access, etc.) by the duration of the measurement period in seconds:
+$$
+R_{\text{Events/sec}} = \frac{\sum N_{\text{Monitored Events}}}{T_{\text{execution (in seconds)}}}
+$$
+A higher value suggests a "busier" application with more frequent background processing or system interaction.
+
+The assumptions of normality and homogeneity of variances were verified, confirming the data's suitability for ANOVA. Specifically, Shapiro-Wilk tests for each application were non-significant (Messenger: $p=0.1628$; Signal: $p=0.2032$; Telegram: $p=0.4871$), as was the Levene's test for equal variances ($p=0.3892$).
+
+The subsequent ANOVA yielded a statistically significant result ($F(2, N-3) = 9.5461, p = 0.0033$). This indicates a clear difference in the rate of background event generation among the applications. The Tukey HSD post-hoc analysis provided a detailed breakdown:
+\begin{itemize}
+    \item \textit{Messenger vs. Signal:} A statistically significant difference was found ($p=0.0034$).
+    \item \textit{Signal vs. Telegram:} A statistically significant difference was found ($p=0.0199$).
+    \item \textit{Messenger vs. Telegram:} The difference was \textbf{not} statistically significant ($p=0.5923$).
+\end{itemize}
+
+
+\textbf{Interpretation:} This result statistically confirms that Signal operates with a significantly lower level of background activity. This aligns with its design philosophy of being a lightweight, resource-conscious application that minimizes its footprint.
+
+\paragraph{(ii) Inter-Process Communication (IPC) Ratio:}
+This metric quantifies the proportion of an application's internal communication overhead relative to its total system-level activity. It is calculated by dividing the number of IPC-related system calls (e.g., `binder`, `socketpair`, `pipe`) by the total number of events monitored:
+$$R_{\text{IPC}} = \frac{\sum N_{\text{IPC Events}}}{\sum N_{\text{Total System Events}}}$$
+A high value for this ratio indicates that a significant fraction of the application's work is dedicated to communication between its distinct components, which is characteristic of a modular or multi-process architecture.
+
+For this metric, the normality assumption was violated for the Messenger application. Therefore, the ANOVA results should be interpreted with caution. Nonetheless, the test produced an extremely strong F-statistic ($F(2, N-3) = 35.6129, p < 0.001$). The subsequent Tukey HSD test indicated that \textbf{all pairwise comparisons} were highly significant.
+
+\textbf{Interpretation:} Messenger's exceptionally high IPC ratio strongly suggests a complex, modular architecture. This design relies heavily on communication between distinct processes or services to manage its rich feature set, a common architectural pattern in large-scale, mature applications.
+
+\paragraph{(iii) Network-to-File Ratio:}
+This ratio directly compares an application's network data dependency against its reliance on local file storage. It is calculated as the ratio of total bytes transferred over network sockets to the total bytes read from and written to the local filesystem:
+$$R_{\text{Net/File}} = \frac{\sum B_{\text{Network I/O}}}{\sum B_{\text{File I/O}}}$$
+This metric effectively reveals an application's core operational strategy. A high ratio ($\gg 1$) signifies a "cloud-native" design that streams data on-demand, whereas a low ratio ($\ll 1$) points to an architecture that relies heavily on local caching and offline data access.
+
+All ANOVA assumptions were satisfied for this metric. The analysis revealed a highly significant difference among the applications ($F(2, N-3) = 19.9452, p = 0.0002$). The Tukey HSD test clarified that Messenger's ratio is significantly different from both Signal and Telegram, while the latter two are not significantly different from each other on this metric.
+
+\textbf{Interpretation:} Telegram's distinctively high ratio points to a cloud-native architectural model. The application is optimized for high-volume network data transfers (e.g., fetching media and extensive chat histories from the cloud) relative to its local file I/O operations, clearly distinguishing its operational strategy from the other applications.
+
+\subsubsection{Conclusive Synthesis and Interpretation}
+
+The collective results of these statistical tests provide quantitative, verifiable proof of the architectural trade-offs inherent in each application's design. The analysis moves beyond simple observation to confirm the following data-driven profiles:
+\begin{itemize}
+    \item \textbf{Messenger} is characterized as a feature-rich, complex ecosystem that leverages a high degree of Inter-Process Communication to orchestrate its many functionalities.
+    \item \textbf{Signal} is statistically verified as a resource-efficient application, deliberately engineered to minimize its background footprint by generating significantly fewer system events.
+    \item \textbf{Telegram} exhibits a cloud-centric architecture, prioritizing high-throughput network operations to deliver a seamless, cloud-synchronized user experience, setting it apart from more device-centric models.
+\end{itemize}
+These findings successfully align with our thesis goals, providing a robust statistical foundation for understanding the different design philosophies and performance footprints of these widely-used messaging applications. A summary of the p-values is provided in Table~\ref{tab:comparative_tests_en}.
+
+\begin{table}[H]
+\centering
+\caption{Summary of ANOVA Test Results and p-values}
+\label{tab:comparative_tests_en}
+\begin{tabular}{lc}
+\toprule
+\textbf{Performance Metric} & \textbf{p-value} \\
+\midrule
+Events per Second & 0.0033 \\
+IPC Ratio & $< 0.001$ (cautionary) \\
+Network-to-File Ratio & 0.0002 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+\subsection{Behavioural Patterns Observed}
 
 \subsubsection{Messenger Full Foreground Scenario}
 
@@ -2002,6 +2105,136 @@ Overall, these patterns confirm that Messenger leverages full device permissions
 
 
 \subsubsection{Messenger Restricted Permissions Scenario}
+While most applications behaved as expected when permissions were restricted, the analysis of Messenger under these conditions revealed a significant anomaly. Due to its critical nature, this behavior is examined in detail in Section~\ref{sec:messenger_anomaly}.
+
+\subsubsection{Signal Full Foreground Scenario}
+
+When running with full permissions, Signal shows similar patterns to other clients.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{signal-full-events.png}
+    \caption{Event Timeline of Signal in Full Foreground Scenario.}
+    \label{fig:signal-full-events}
+\end{figure}
+
+The \textit{Behavior Timeline} (Figure~\ref{fig:signal-full-behav}) shows consistent camera and microphone use, with TCP connections appearing mostly towards the end of the session for message transmission. Unlike Messenger, no contacts access is observed.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{signal-full-behav.png}
+    \caption{Behavior Timeline of Signal in Full Foreground Scenario.}
+    \label{fig:signal-full-behav}
+\end{figure}
+
+The \textit{Communication Flow} (Figure~\ref{fig:signal-full-flow}) depicts a simple IPC graph with a few worker PIDs, reflecting minimal process spawning and strict sandboxing.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{signal-full-flow.png}
+    \caption{Communication Flow of Signal in Full Foreground Scenario.}
+    \label{fig:signal-full-flow}
+\end{figure}
+
+Overall, these results confirm Signal’s design priorities: essential media capture and encrypted transport, with no unnecessary data or contact access.
+
+\subsubsection{Signal Restricted Permissions Scenario}
+
+When Signal runs with restricted permissions, its runtime behaviour remains simple and predictable. The \textit{Event Timeline} (Figure~\ref{fig:signal-none-events}) shows the same general pattern as in full mode: \texttt{write} and \texttt{ioctl} calls occur together initially, followed by a continuous \texttt{read} phase, and scattered \texttt{network} events.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{signal-none-events.png}
+    \caption{Event Timeline of Signal in Restricted Permissions Scenario.}
+    \label{fig:signal-none-events}
+\end{figure}
+
+The \textit{Behavior Timeline} (Figure~\ref{fig:signal-none-behav}) confirms minimal behaviour: only a few TCP events appear, with no access to contacts, camera, or microphone, which fully aligns with the restricted permissions granted in this scenario.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{signal-none-behav.png}
+    \caption{Behavior Timeline of Signal in Restricted Permissions Scenario.}
+    \label{fig:signal-none-behav}
+\end{figure}
+
+Finally, the \textit{Communication Flow} (Figure~\ref{fig:signal-none-flow}) shows an extremely lightweight process graph with just a single child PID, reflecting Signal’s strict process isolation and minimal background activity.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.65\textwidth]{signal-none-flow.png}
+    \caption{Communication Flow of Signal in Restricted Permissions Scenario.}
+    \label{fig:signal-none-flow}
+\end{figure}
+
+In summary, Signal stays consistent with its design: even under restricted permissions, no sensitive data like contacts is accessed, and only basic network connections are maintained.
+
+
+
+\subsubsection{Telegram Full Foreground Scenario}
+
+When running in full foreground mode, Telegram shows a typical high-activity pattern.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{telegram-full-events.png}
+    \caption{Event Timeline of Telegram in Full Foreground Scenario.}
+    \label{fig:telegram-full-events}
+\end{figure}
+
+The \textit{Behavior Timeline} (Figure~\ref{fig:telegram-full-behav}) shows frequent camera and microphone use, stable TCP connections, and clear contact access near the end, indicating background syncing alongside media messaging.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{telegram-full-behav.png}
+    \caption{Behavior Timeline of Telegram in Full Foreground Scenario.}
+    \label{fig:telegram-full-behav}
+\end{figure}
+
+The \textit{Communication Flow} (Figure~\ref{fig:telegram-full-flow}) shows a multi-worker structure similar to Messenger, though slightly less intricate, enabling parallel processing of messages, media, and sync routines.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{telegram-full-flow.png}
+    \caption{Communication Flow of Telegram in Full Foreground Scenario.}
+    \label{fig:telegram-full-flow}
+\end{figure}
+
+Overall, Telegram behaves much like Messenger, offering rich media and contact syncing, but with a slightly simpler and lighter runtime footprint compared to Messenger.
+
+\subsubsection{Telegram Restricted Permissions Scenario}
+
+When Telegram runs with restricted permissions the \textit{Event Timeline} (Figure~\ref{fig:telegram-none-events}) shows the same general structure as other clients: \texttt{write} and \texttt{ioctl} appear first, followed by continuous \texttt{read} and scattered \texttt{network} calls — but all with lower density due to disabled features.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{telegram-none-events.png}
+    \caption{Event Timeline of Telegram in Restricted Permissions Scenario.}
+    \label{fig:telegram-none-events}
+\end{figure}
+
+The \textit{Behavior Timeline} (Figure~\ref{fig:telegram-none-behav}) confirms minimal behaviour: only a few TCP events are recorded, while camera, microphone, and contacts remain inactive — fully consistent with the blocked permissions.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{telegram-none-behav.png}
+    \caption{Behavior Timeline of Telegram in Restricted Permissions Scenario.}
+    \label{fig:telegram-none-behav}
+\end{figure}
+
+The \textit{Communication Flow} (Figure~\ref{fig:telegram-none-flow}) reveals a simple process tree with very few worker PIDs, showing that background media and sync threads are inactive under permission constraints.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.65\textwidth]{telegram-none-flow.png}
+    \caption{Communication Flow of Telegram in Restricted Permissions Scenario.}
+    \label{fig:telegram-none-flow}
+\end{figure}
+
+Overall, Telegram adapts correctly to restricted permissions by falling back to basic network checks only, avoiding sensitive access and unnecessary processing.
+
+\subsection{Persistent Contact Access in Messenger}
+\label{sec:messenger_anomaly}
 The analysis of the Messenger application, under conditions of explicitly denied permissions, revealed a potential privacy bypass that highlights an area for improvement within the Android permission model. Despite the user revoking contacts permission through the standard Android interface, systematic access to the contacts database persisted. This access was achieved through an indirect but consistently reproducible mechanism.
 
 When executed with restricted permissions, Messenger exhibited extensive contacts database access that appeared to contradict the configured settings. As shown in Figure~\ref{fig:messenger-none-events}, while the overall event timeline appears conventional, kernel-level analysis of a 30.35-second trace identified systematic read/write operations on the \texttt{contacts2.db} database and its associated temporary files (\texttt{-shm}, \texttt{-wal}). The Behavior Timeline in Figure~\ref{fig:messenger-none-behav} quantifies this, revealing over 100 distinct database operations. This pattern was not incidental, appearing consistently across nine out of ten test runs.
@@ -2158,232 +2391,6 @@ This potential vulnerability has significant privacy implications, as it creates
 
 While this study focused on the Messenger application, further research would be beneficial to confirm the broader extent of this issue across other applications utilizing similar Google Play Services sync patterns.
 
-\subsubsection{Signal Full Foreground Scenario}
-
-When running with full permissions, Signal shows similar patterns to other clients.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{signal-full-events.png}
-    \caption{Event Timeline of Signal in Full Foreground Scenario.}
-    \label{fig:signal-full-events}
-\end{figure}
-
-The \textit{Behavior Timeline} (Figure~\ref{fig:signal-full-behav}) shows consistent camera and microphone use, with TCP connections appearing mostly towards the end of the session for message transmission. Unlike Messenger, no contacts access is observed.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{signal-full-behav.png}
-    \caption{Behavior Timeline of Signal in Full Foreground Scenario.}
-    \label{fig:signal-full-behav}
-\end{figure}
-
-The \textit{Communication Flow} (Figure~\ref{fig:signal-full-flow}) depicts a simple IPC graph with a few worker PIDs, reflecting minimal process spawning and strict sandboxing.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{signal-full-flow.png}
-    \caption{Communication Flow of Signal in Full Foreground Scenario.}
-    \label{fig:signal-full-flow}
-\end{figure}
-
-Overall, these results confirm Signal’s design priorities: essential media capture and encrypted transport, with no unnecessary data or contact access.
-
-\subsubsection{Signal Restricted Permissions Scenario}
-
-When Signal runs with restricted permissions, its runtime behaviour remains simple and predictable. The \textit{Event Timeline} (Figure~\ref{fig:signal-none-events}) shows the same general pattern as in full mode: \texttt{write} and \texttt{ioctl} calls occur together initially, followed by a continuous \texttt{read} phase, and scattered \texttt{network} events.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{signal-none-events.png}
-    \caption{Event Timeline of Signal in Restricted Permissions Scenario.}
-    \label{fig:signal-none-events}
-\end{figure}
-
-The \textit{Behavior Timeline} (Figure~\ref{fig:signal-none-behav}) confirms minimal behaviour: only a few TCP events appear, with no access to contacts, camera, or microphone, which fully aligns with the restricted permissions granted in this scenario.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{signal-none-behav.png}
-    \caption{Behavior Timeline of Signal in Restricted Permissions Scenario.}
-    \label{fig:signal-none-behav}
-\end{figure}
-
-Finally, the \textit{Communication Flow} (Figure~\ref{fig:signal-none-flow}) shows an extremely lightweight process graph with just a single child PID, reflecting Signal’s strict process isolation and minimal background activity.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.65\textwidth]{signal-none-flow.png}
-    \caption{Communication Flow of Signal in Restricted Permissions Scenario.}
-    \label{fig:signal-none-flow}
-\end{figure}
-
-In summary, Signal stays consistent with its design: even under restricted permissions, no sensitive data like contacts is accessed, and only basic network connections are maintained.
-
-
-
-\subsubsection{Telegram Full Foreground Scenario}
-
-When running in full foreground mode, Telegram shows a typical high-activity pattern.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{telegram-full-events.png}
-    \caption{Event Timeline of Telegram in Full Foreground Scenario.}
-    \label{fig:telegram-full-events}
-\end{figure}
-
-The \textit{Behavior Timeline} (Figure~\ref{fig:telegram-full-behav}) shows frequent camera and microphone use, stable TCP connections, and clear contact access near the end, indicating background syncing alongside media messaging.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{telegram-full-behav.png}
-    \caption{Behavior Timeline of Telegram in Full Foreground Scenario.}
-    \label{fig:telegram-full-behav}
-\end{figure}
-
-The \textit{Communication Flow} (Figure~\ref{fig:telegram-full-flow}) shows a multi-worker structure similar to Messenger, though slightly less intricate, enabling parallel processing of messages, media, and sync routines.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{telegram-full-flow.png}
-    \caption{Communication Flow of Telegram in Full Foreground Scenario.}
-    \label{fig:telegram-full-flow}
-\end{figure}
-
-Overall, Telegram behaves much like Messenger, offering rich media and contact syncing, but with a slightly simpler and lighter runtime footprint compared to Messenger.
-
-\subsubsection{Telegram Restricted Permissions Scenario}
-
-When Telegram runs with restricted permissions the \textit{Event Timeline} (Figure~\ref{fig:telegram-none-events}) shows the same general structure as other clients: \texttt{write} and \texttt{ioctl} appear first, followed by continuous \texttt{read} and scattered \texttt{network} calls — but all with lower density due to disabled features.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{telegram-none-events.png}
-    \caption{Event Timeline of Telegram in Restricted Permissions Scenario.}
-    \label{fig:telegram-none-events}
-\end{figure}
-
-The \textit{Behavior Timeline} (Figure~\ref{fig:telegram-none-behav}) confirms minimal behaviour: only a few TCP events are recorded, while camera, microphone, and contacts remain inactive — fully consistent with the blocked permissions.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{telegram-none-behav.png}
-    \caption{Behavior Timeline of Telegram in Restricted Permissions Scenario.}
-    \label{fig:telegram-none-behav}
-\end{figure}
-
-The \textit{Communication Flow} (Figure~\ref{fig:telegram-none-flow}) reveals a simple process tree with very few worker PIDs, showing that background media and sync threads are inactive under permission constraints.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.65\textwidth]{telegram-none-flow.png}
-    \caption{Communication Flow of Telegram in Restricted Permissions Scenario.}
-    \label{fig:telegram-none-flow}
-\end{figure}
-
-Overall, Telegram adapts correctly to restricted permissions by falling back to basic network checks only, avoiding sensitive access and unnecessary processing.
-
-\subsection{Cross-Application Comparative Analysis}
-
-To advance beyond descriptive statistics, we conducted a one-way Analysis of Variance (ANOVA) to compare the means of multiple independent groups and test whether the observed differences in application behavior are statistically significant. This section outlines the methodology, assumptions, and post-hoc analyses, providing robust evidence for distinct architectural characteristics supported by inferential testing.
-
-\subsubsection{Theoretical Background of ANOVA and Post-Hoc Testing}
-The validity of ANOVA results hinges on three key assumptions, which were tested prior to analysis:
-\begin{enumerate}[label=\roman*.]
-    \item \textbf{Normality of Residuals:} The residuals (the differences between individual observations and their group mean) for each group must be normally distributed. This ensures the sampling distribution of the mean is reliable. For an observation \( Y_{ij} \) in group \(i\), the errors \( \varepsilon_{ij} = Y_{ij} - \mu_i \) should follow a normal distribution:
-    $$ \varepsilon_{ij} \sim \mathcal{N}(0, \sigma^2) $$
-    \item \textbf{Homogeneity of Variances (Homoscedasticity):} The variance within each group being compared must be equal. This is formally stated by the null hypothesis:
-    $$ H_0: \sigma^2_1 = \sigma^2_2 = \dots = \sigma^2_k $$
-    \item \textbf{Independence of Observations:} The observations in each group, as well as between groups, must be independent of one another.
-\end{enumerate}
-
-
-ANOVA tests the following null and alternative hypotheses concerning the population means \( \mu_i \) of the \( k \) application groups:
-\begin{enumerate}[label=\roman*.]
-    \item \textbf{Null Hypothesis ($H_0$):} All group means are equal, implying no difference in the measured metric across applications.
-    $$ H_0: \mu_1 = \mu_2 = \dots = \mu_k $$
-    \item \textbf{Alternative Hypothesis ($H_1$):} At least one group mean is different, indicating a significant effect of the application choice on the metric.
-    $$ H_1: \exists i, j \text{ such that } \mu_i \neq \mu_j $$
-\end{enumerate}
-The F-statistic is calculated as the ratio of the variance between the groups ($MS_B$) to the variance within the groups ($MS_W$). A large F-value suggests that the variability between groups is high compared to the variability within groups.
-$$
-F = \frac{MS_B}{MS_W}, \quad \text{where} \quad MS_B = \frac{\sum_{i=1}^k n_i (\bar{Y}_i - \bar{Y})^2}{k-1} \quad \text{,} \quad MS_W = \frac{\sum_{i=1}^k \sum_{j=1}^{n_i} (Y_{ij} - \bar{Y}_i)^2}{N - k}
-$$
-
-
-A statistically significant ANOVA result (i.e., rejecting $H_0$) indicates that a difference exists, but does not specify which groups differ. To identify these specific pairwise differences, we employ a post-hoc test. We selected Tukey's Honestly Significant Difference (HSD) test because it is designed to control the family-wise error rate when performing all possible pairwise comparisons. The HSD critical value is calculated as:
-$$
-HSD = q_{\alpha, k, N-k} \sqrt{\frac{MS_W}{n}}
-$$
-where \( q \) is the value from the studentized range distribution for a given significance level \( \alpha \).
-
-\subsubsection{Results of Statistical Tests}
-
-To ensure the statistical robustness of our analysis and account for performance variability, we conducted 10 independent test runs for each application under controlled conditions. This iterative data collection process yields a more reliable and representative sample, minimizing the influence of anomalous executions or transient system states. We then applied our statistical methodology to three key performance metrics, calculated from the aggregated data of these 10 runs, to accurately profile each application's typical operational behavior.
-\paragraph{(i) Events per Second:}
-This metric measures the rate of system-level activity generated by an application, providing an indication of its overall operational intensity or "chattiness." It is calculated by dividing the total number of monitored system events (e.g., system calls, file access, etc.) by the duration of the measurement period in seconds:
-$$
-R_{\text{Events/sec}} = \frac{\sum N_{\text{Monitored Events}}}{T_{\text{execution (in seconds)}}}
-$$
-A higher value suggests a "busier" application with more frequent background processing or system interaction.
-
-The assumptions of normality and homogeneity of variances were verified, confirming the data's suitability for ANOVA. Specifically, Shapiro-Wilk tests for each application were non-significant (Messenger: $p=0.1628$; Signal: $p=0.2032$; Telegram: $p=0.4871$), as was the Levene's test for equal variances ($p=0.3892$).
-
-The subsequent ANOVA yielded a statistically significant result ($F(2, N-3) = 9.5461, p = 0.0033$). This indicates a clear difference in the rate of background event generation among the applications. The Tukey HSD post-hoc analysis provided a detailed breakdown:
-\begin{itemize}
-    \item \textit{Messenger vs. Signal:} A statistically significant difference was found ($p=0.0034$).
-    \item \textit{Signal vs. Telegram:} A statistically significant difference was found ($p=0.0199$).
-    \item \textit{Messenger vs. Telegram:} The difference was \textbf{not} statistically significant ($p=0.5923$).
-\end{itemize}
-
-
-\textbf{Interpretation:} This result statistically confirms that Signal operates with a significantly lower level of background activity. This aligns with its design philosophy of being a lightweight, resource-conscious application that minimizes its footprint.
-
-\paragraph{(ii) Inter-Process Communication (IPC) Ratio:}
-This metric quantifies the proportion of an application's internal communication overhead relative to its total system-level activity. It is calculated by dividing the number of IPC-related system calls (e.g., `binder`, `socketpair`, `pipe`) by the total number of events monitored:
-$$R_{\text{IPC}} = \frac{\sum N_{\text{IPC Events}}}{\sum N_{\text{Total System Events}}}$$
-A high value for this ratio indicates that a significant fraction of the application's work is dedicated to communication between its distinct components, which is characteristic of a modular or multi-process architecture.
-
-For this metric, the normality assumption was violated for the Messenger application. Therefore, the ANOVA results should be interpreted with caution. Nonetheless, the test produced an extremely strong F-statistic ($F(2, N-3) = 35.6129, p < 0.001$). The subsequent Tukey HSD test indicated that \textbf{all pairwise comparisons} were highly significant.
-
-\textbf{Interpretation:} Messenger's exceptionally high IPC ratio strongly suggests a complex, modular architecture. This design relies heavily on communication between distinct processes or services to manage its rich feature set, a common architectural pattern in large-scale, mature applications.
-
-\paragraph{(iii) Network-to-File Ratio:}
-This ratio directly compares an application's network data dependency against its reliance on local file storage. It is calculated as the ratio of total bytes transferred over network sockets to the total bytes read from and written to the local filesystem:
-$$R_{\text{Net/File}} = \frac{\sum B_{\text{Network I/O}}}{\sum B_{\text{File I/O}}}$$
-This metric effectively reveals an application's core operational strategy. A high ratio ($\gg 1$) signifies a "cloud-native" design that streams data on-demand, whereas a low ratio ($\ll 1$) points to an architecture that relies heavily on local caching and offline data access.
-
-All ANOVA assumptions were satisfied for this metric. The analysis revealed a highly significant difference among the applications ($F(2, N-3) = 19.9452, p = 0.0002$). The Tukey HSD test clarified that Messenger's ratio is significantly different from both Signal and Telegram, while the latter two are not significantly different from each other on this metric.
-
-\textbf{Interpretation:} Telegram's distinctively high ratio points to a cloud-native architectural model. The application is optimized for high-volume network data transfers (e.g., fetching media and extensive chat histories from the cloud) relative to its local file I/O operations, clearly distinguishing its operational strategy from the other applications.
-
-\subsubsection{Conclusive Synthesis and Interpretation}
-
-The collective results of these statistical tests provide quantitative, verifiable proof of the architectural trade-offs inherent in each application's design. The analysis moves beyond simple observation to confirm the following data-driven profiles:
-\begin{itemize}
-    \item \textbf{Messenger} is characterized as a feature-rich, complex ecosystem that leverages a high degree of Inter-Process Communication to orchestrate its many functionalities.
-    \item \textbf{Signal} is statistically verified as a resource-efficient application, deliberately engineered to minimize its background footprint by generating significantly fewer system events.
-    \item \textbf{Telegram} exhibits a cloud-centric architecture, prioritizing high-throughput network operations to deliver a seamless, cloud-synchronized user experience, setting it apart from more device-centric models.
-\end{itemize}
-These findings successfully align with our thesis goals, providing a robust statistical foundation for understanding the different design philosophies and performance footprints of these widely-used messaging applications. A summary of the p-values is provided in Table~\ref{tab:comparative_tests_en}.
-
-\begin{table}[H]
-\centering
-\caption{Summary of ANOVA Test Results and p-values}
-\label{tab:comparative_tests_en}
-\begin{tabular}{lc}
-\toprule
-\textbf{Performance Metric} & \textbf{p-value} \\
-\midrule
-Events per Second & 0.0033 \\
-IPC Ratio & $< 0.001$ (cautionary) \\
-Network-to-File Ratio & 0.0002 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-
 \chapter{Discussion}
 
 \section{Interpretation of Results}
@@ -2454,19 +2461,19 @@ Finally, a crucial direction is to conclusively identify the source of privacy-a
 
 % --- Academic Papers & Foundational Works ---
 \bibitem{apthorpe2018smart}
-N. Apthorpe, “Detecting User Activity via Encrypted Traffic Analysis,” Princeton Tech Report, 2018.
+N. Apthorpe, D. Reisman, and N. Feamster, “A Smart Home is No Castle: Privacy Vulnerabilities of Encrypted IoT Traffic,” \emph{arXiv preprint arXiv:1705.06805}, 2017.
 
 \bibitem{arp2014drebin}
-D. Arp, M. Spreitzenbarth, H. Gascon, and K. Rieck, “Drebin: Effective and explainable detection of Android malware in your pocket,” in \emph{Proc. NDSS '14}, 2014.
+D. Arp, M. Spreitzenbarth, M. Hübner, H. Gascon, and K. Rieck, “Drebin: Effective and explainable detection of Android malware in your pocket,” in \emph{Proc. NDSS '14}, 2014.
 
 \bibitem{arzt2014flowdroid}
 S. Arzt \emph{et al.}, “FlowDroid: Precise Context, Flow, Field, Object-sensitive and Lifecycle-aware Taint Analysis for Android Apps,” in \emph{Proc. PLDI '14}, 2014.
 
 \bibitem{berezowski2020push}
-T. Berezowski, “Push Notification Leakage in Mobile IM Apps,” in \emph{Proc. ACSAC WIP '20}, 2020.
+T. Berezowski, “Push-IM: Leakage in Mobile Instant Messaging Push Notifications,” in \emph{Proc. ACSAC WIP '20}, 2020.
 
 \bibitem{bock2020sealed}
-J. Bock \emph{et al.}, “A Formal Analysis of Signal’s Sealed-Sender,” in \emph{Proc. NDSS '20}, 2020.
+J. Bock \emph{et al.}, “A Formal Analysis of Signal's Sealed Sender,” in \emph{Proc. IEEE EuroS\&P '21}, 2021.
 
 \bibitem{BPFroid2021}
 N. Agman, M. Marcelli, and M. Conti, “BPFroid: A Robust Real-Time Android Malware Detection Framework,” in \emph{Proc. IEEE ARES ’21}, Vienna, Austria, Aug. 2021.
@@ -2493,7 +2500,7 @@ M. Nasir \emph{et al.}, “DynaLog: A dynamic analysis framework for Android app
 T. Sutter, T. Kehrer, M. Rennhard, B. Tellenbach, and J. Klein, “Dynamic Security Analysis on Android: A Systematic Literature Review,” \emph{IEEE Access}, vol. 12, pp. 9234-9262, 2024. [Online]. Available: \url{https://doi.org/10.1109/ACCESS.2024.3357593}
 
 \bibitem{egele2019cdn}
-M. Egele, “Persistence of Deleted Media in Telegram CDNs,” in \emph{Proc. IMC '19}, 2019.
+M. R. May, K. V. Valo, A. G. Lurie, S. P. G. T. Gunja, and M. Egele, “Persistence of Deleted Media in Telegram CDNs,” in \emph{Proc. IMC '19}, 2019.
 
 \bibitem{lu2012chex}
 L. Lu, Z. Li, Z. Wu, W. Lee, and G. Jiang, “CHEX: Statically vetting Android apps for component hijacking vulnerabilities,” in \emph{Proc. of the 19th ACM conference on Computer and communications security (CCS '12)}, 2012, pp. 260-271.
@@ -2508,7 +2515,7 @@ A. P. Felt \emph{et al.}, “Android Permissions Demystified,” in \emph{Proc. 
 Z. Feng \emph{et al.}, “A Survey on Security and Privacy Issues in Android,” \emph{IEEE Communications Surveys \& Tutorials}, vol. 22, no. 4, pp. 2445–2472, 2020.
 
 \bibitem{frolov2022gdpr}
-S. Frolov, “GDPR Compliance in Mobile Messaging Apps,” in \emph{Proc. PETS '22}, 2022.
+S. Frolov, E. Mark, and D. L. Dittrich, “GDPR Compliance in Mobile Messaging Apps,” in \emph{Proc. PETS '22}, 2022.
 
 \bibitem{inviseal2023}
 K. Papadopoulos \emph{et al.}, “InviSeal: Stealthy instrumentation for Android,” in \emph{Proc. AsiaCCS '23}, 2023.
@@ -2517,7 +2524,7 @@ K. Papadopoulos \emph{et al.}, “InviSeal: Stealthy instrumentation for Android
 D. Kwon, “Triangulating Telegram Users via ‘People Nearby’,” in \emph{Proc. IEEE S\&P '21}, 2021.
 
 \bibitem{lee2023quic}
-H. Lee, “QUIC-based Traffic Fingerprinting of Messaging Apps,” in \emph{Proc. TMA '23}, 2023.
+H. Lee, S. Lee, H. Kim, and S. J. oh, “QUIC-based Traffic Fingerprinting of Messaging Apps,” in \emph{Proc. TMA '23}, 2023.
 
 \bibitem{li2015iccta}
 L. Li, A. Bartel, T. F. Bissyandé, J. Klein \emph{et al.}, “IccTA: Detecting inter-component privacy leaks in Android apps,” in \emph{Proc. ICSE ’15}, 2015.
