@@ -439,22 +439,22 @@ profiling of popular messaging applications.
 
 Static analysis inspects an APK's bytecode and manifest offline, allowing security vetting to run quickly, deterministically, and at scale. It therefore plays a foundational role in Android app auditing, offering early detection of potential vulnerabilities without requiring runtime execution. Over the last decade, research in this area has evolved significantly, moving from foundational permission analysis to sophisticated data-flow tracking and machine learning models to address challenges like inter-component communication and code obfuscation.
 
-\subsubsection{i) Permission and Manifest Analysis}
+\subsubsection{(i) Permission and Manifest Analysis}
 Initial research focused on understanding the Android permission model itself. Foundational work by Felt et al. provided a deep dive into how permissions are declared in the manifest, requested by applications, and interpreted (or misinterpreted) by users~\cite{felt2011androidprivacy}. These early studies established that declared permissions alone are often insufficient to predict malicious behavior, motivating the need for deeper code analysis.
 
-\subsubsection{ii) Privacy-Oriented Taint Analysis}
+\subsubsection{(ii) Privacy-Oriented Taint Analysis}
 To understand data misuse, research shifted to tracking information flows from sensitive \emph{sources} (e.g., contact lists) to security-critical \emph{sinks} (e.g., network sockets). \textbf{FlowDroid} set a new standard by introducing context-, flow-, field-, and object-sensitivity alongside an accurate activity lifecycle model, dramatically reducing false positives~\cite{arzt2014flowdroid}. On the \emph{DroidBench} benchmark suite, it achieved 93\% recall and 86\% precision, outperforming contemporary tools and scaling to large, real-world applications.
 
-\subsubsection{iii) Inter-Component Communication (ICC) Analysis}
+\subsubsection{(iii) Inter-Component Communication (ICC) Analysis}
 A primary limitation of early taint analysis was its inability to track data flows across process boundaries. To address this, \textbf{IccTA} augmented FlowDroid with an explicit ICC model, accurately mapping data passed through Intents and other IPC mechanisms~\cite{li2015iccta}. It surpassed earlier tools like \textbf{Epicc}~\cite{octeau2013epicc} and \textbf{CHEX}~\cite{lu2012chex} on the \emph{ICC-Bench} suite. \textbf{Amandroid} extended this concept by constructing a full inter-component data-flow graph, uncovering previously unknown vulnerabilities in hundreds of Play Store apps~\cite{wei2014amandroid}.
 
-\subsubsection{iv) Resilience to Obfuscation}
+\subsubsection{(iv) Resilience to Obfuscation}
 As developers began using techniques like reflection, dynamic code loading, and native libraries to obscure behavior, static analysis tools had to adapt. \textbf{DroidRA} was designed to resolve reflective calls by using constant propagation to rewrite them into direct invocations, boosting FlowDroid’s precision on reflection-heavy code by up to 60\%~\cite{li2016droidra}. Other approaches like \textbf{DexLEGO} reassemble bytecode captured at runtime for static analysis~\cite{ning2019dexlego}, while \textbf{LibDroid} specifically focuses on summarizing taint propagation within native C/C++ libraries~\cite{libdroid2022}, progressively widening the statically visible attack surface.
 
-\subsubsection{v) Learning-Based Malware Detection}
+\subsubsection{(v) Learning-Based Malware Detection}
 A separate research strand moved beyond handcrafted rules towards machine learning. \textbf{Drebin} pioneered this by extracting lightweight syntactic features (permissions, API calls, etc.) from the manifest and bytecode to train a linear SVM classifier. It detected malware with 94\% accuracy on a large dataset of 5,560 samples~\cite{arp2014drebin}. More recently, deep learning models like \textbf{DL-AMDet} have employed architectures combining CNNs and LSTMs to achieve near-perfect accuracy on public datasets~\cite{nasser2023dlamdet}, though their limited interpretability remains a challenge for high-assurance systems.
 
-\subsubsection{vi) Practical Analysis Toolkits}
+\subsubsection{(vi) Practical Analysis Toolkits}
 This body of research has culminated in powerful, extensible toolkits for practical security auditing. \textbf{MobSF} (\emph{Mobile Security Framework}) integrates static and dynamic analysis, reverse engineering, and malware scoring in a user-friendly web interface~\cite{mobsf2023}, while \textbf{Androguard}, a Python-based library, provides the foundational components for building custom reverse engineering and analysis pipelines~\cite{androguard2023}. This thesis leverages both of these foundational tools: MobSF is employed for initial, broad-spectrum security scanning, while Androguard provides the programmatic basis for the custom static analysis scripts detailed in Chapter~4.
 
 \medskip
@@ -505,10 +505,12 @@ Low-level performance monitoring units and instruction tracing extensions like A
 \subsubsection*{(iv) Production-Scale Tracing}
 Industrial-grade pipelines such as Google’s \textbf{Perfetto} aggregate diverse sources, including ftrace and Binder logs—into rich, SQL-queryable trace files for profiling performance metrics like startup time and UI latency~\cite{maganti2022perfetto}. While primarily for performance diagnostics, such infrastructures are underutilized for security research. Complementary systems like \textbf{eMook} extend Perfetto by integrating per-PID eBPF filters, reducing overhead by 85\% and enabling longitudinal field studies~\cite{williams2024emook}.
 
+\subsubsection*{(v) The SliceDroid as a Foundational Methodology}
+To bridge the significant \textbf{semantic gap} between high-level application behavior and low-level kernel events, our methodology is based on and extends the functionality of \textbf{SliceDroid}~\cite{Alexopoulos2025SliceDroid}. This framework provides a foundation for reconstructing I/O behaviors from kernel traces through Inter-Process Communication (\texttt{IPC}) slicing.
+
 \medskip
 \noindent\textbf{Synthesis.}
-Kernel tracing offers a hard-to-tamper, always-on lens but must still tame four hurdles: the semantic gap, opaque data, privilege requirements and data volume. Recent work narrows these by pairing syscalls with Binder provenance, granting BPF rights via SELinux instead of root, and summarising high-rate events in-kernel—pushing low-overhead, whole-system reconstruction onto stock phones.
-
+In summary, kernel-level tracing provides a powerful, tamper-resistant vantage point for analyzing system behavior. However, the literature consistently grapples with four primary challenges: bridging the \textbf{semantic gap} between kernel events and application logic, handling opaque data, overcoming strict privilege requirements, and managing the immense volume of trace data. While various approaches have made progress, the \textbf{SliceDroid} framework offers a particularly compelling solution focused on bridging the semantic gap transparently and efficiently. It is for this reason that we have selected its methodology as the foundation for our own work, as detailed in the following section.
 
 \section{Privacy Studies on Messaging Applications}
 \label{sec:rw:privacy-im}
@@ -519,12 +521,16 @@ End-to-end encryption neutralises classical content-centric attacks, but it does
 Early work focused on residual data stored locally. Anglano’s systematic analysis of WhatsApp on Android~4.x recovered chat databases, media thumbnails, and contact lists even after user-initiated deletions~\cite{anglano2015whatsapp}. Subsequent studies extended the corpus to Telegram, Signal, and Viber, showing that cached profile photos, push-notification logs, and SQLite WAL files can reveal conversation partners and group identifiers~\cite{moltchanov2018telegram, obermeier2018signal}. While modern OS versions encrypt local backups, notification side-channels (e.g., Firebase tokens) remain an open avenue for investigation.
 
 \subsubsection*{(ii) Network-Level Traffic Analysis}
-A second strand exploits packet timing, size, and sequence to infer user actions without breaching encryption. Pioneering work by Matic \emph{et al.} fingerprinted iMessage events (send, read, typing) with over 90\% accuracy solely from TLS record bursts~\cite{coull2014traffic}. Apthorpe demonstrated similar leakage for Android IM apps over Wi-Fi~\cite{apthorpe2018smart}. Recent machine-learning classifiers identify not only event types but also multimedia uploads and voice-over-IP handshakes in QUIC traffic~\cite{lee2023quic}. Countermeasures such as adaptive padding have been proposed, which raise bandwidth by 8–14\% while mitigating most classifiers~\cite{poblete2021defence}.
 
-\subsubsection*{(iv) Metadata Policies and Compliance Audits}
+Analyzing mobile application traffic at the network level is a key method for detecting privacy risks that static or platform-level analysis may miss. By inspecting real-time transmissions, researchers can uncover sensitive data leaks, including personally identifiable information (PII) and contacts with third-party domains.
+
+Egele et al.~\cite{egele2011pios} proposed \textit{PiOS}, a framework that combines static and dynamic analysis to detect privacy leaks in iOS apps, revealing unauthorized transmission of device identifiers and location data. In the Android space, Nayam et al.~\cite{nayam2016analysis} examined the network behavior of popular apps and found frequent communication with third-party servers, particularly for ads and analytics, often without user awareness.
+
+These studies show that network-level analysis is essential for identifying hidden data flows and limitations in permission-based models, and can support privacy auditing and malicious app detection.
+
+\subsubsection*{(iii) Metadata Policies and Compliance Audits}
 Research into the privacy of messaging applications increasingly scrutinizes metadata policies, revealing significant disparities despite the widespread adoption of end-to-end encryption (E2EE) \cite{reardon2019sok}. While E2EE protects message content, applications like WhatsApp, Telegram, and Signal vary greatly in the type and volume of metadata they collect \cite{nikitin2021analysis, eff2018scorecard}, which can include timestamps, contact lists, IP addresses, and user location. Studies consistently highlight that this metadata can be highly revealing, enabling the inference of social graphs, user behavior, and sensitive personal details. Compliance audits, intended to verify adherence to stated privacy policies (e.g., GDPR requirements), are often challenging and opaque \cite{datta2021auditing}. Independent audits are rare, and companies typically rely on internal reviews or commissioned reports whose methodologies are not always public, creating a significant trust gap \cite{angwin2021propublica}. Consequently, users must often rely on the provider's claims about minimizing metadata collection \cite{whatsapp2025policy, telegram2025policy} rather than on verifiable proof. Academic and technical analyses frequently find that even when policies are respected, architectural choices can lead to unintentional metadata leakage \cite{cohngordon2017formal}, underscoring the need for more rigorous auditing and privacy-preserving designs like Signal's Sealed Sender \cite{marlinspike2018sealed} to ensure robust user privacy.
 
-\medskip
 \noindent\textbf{Synthesis.}
 Existing studies often rely on intrusive forensics, controlled testbeds, or static policy analysis. While a comprehensive understanding remains challenging, it appears that there is a limited body of work that fully combines kernel-level traces with the aforementioned insights to derive a live, system-wide privacy profile. Our work endeavors to contribute towards bridging this potential gap by analyzing kprobe/ftrace events (such as Binder calls, network bursts, and wakelocks), thereby proposing a runtime taxonomy of privacy-relevant behaviours in Messenger, Telegram, and Signal.
 \section{Research Gap}
@@ -2261,8 +2267,7 @@ binder:27488_B-7197 (27488) [000] d..1. 116474.302693: read_probe: (vfs_read) fi
 binder:27488_B-7197 (27488) [000] d..1. 116474.303025: read_probe: (vfs_read) file=... count=4096 pathname="contacts2.db"
 \end{lstlisting}
 
-This indirect access constitutes a three-stage bypass of the Android permission model, involving Messenger, Google Play Services, and the Android Content Provider. This process is illustrated in Figure~\ref{fig:messenger-indirect-flow}.
-
+Analysis of the collected traces and data reveals that this indirect access constitutes a three-stage bypass of the Android permission model. This bypass involves the interaction between three key components: the Messenger application, Google Play Services, and the Android Content Provider. This process, as documented by our findings, is illustrated in the diagram in Figure~\ref{fig:messenger-indirect-flow}.
 \begin{figure}[H]
     \centering
     \begin{tikzpicture}[
@@ -2303,7 +2308,9 @@ This indirect access constitutes a three-stage bypass of the Android permission 
     \label{fig:messenger-indirect-flow}
 \end{figure}
 
-The stages of this bypass are detailed below:
+More specifically, the analysis allows us to ascertain the three distinct stages that constitute this bypass. These stages, which reveal the flow of information from Messenger’s initial call to the final database access, are detailed below:
+
+\clearpage
 
 \begin{lstlisting}[language=bash, caption={Stage 1: Messenger to Google Play Services.}, label={lst:stage1-bypass}]
 # Stage 1: Messenger (PID 20660) -> Google Play Services (PID 29281)
@@ -2320,10 +2327,10 @@ SyncAdapterThre-20959 ( 29281) ... binder_transaction: transaction=6754221 dest_
 binder:27488_B-7197 ( 27488) ... read_probe: ... pathname="contacts2.db"
 \end{lstlisting}
 
-This information flow was corroborated by automated tools, such as Slicedroid, which confirmed the communication between the three implicated processes.
+This information flow was corroborated by Slicedroid, which confirmed the communication between the three implicated processes.
 
 
-The core of this vulnerability lies in a \textbf{persistent sync adapter state} that survives permission revocation. The timeline below, also illustrated in Figure~\ref{fig:sync-persistence}, explains this critical flaw:
+Our central hypothesis is that the vulnerability's core lies in a persistent sync adapter state that survives permission revocation. The timeline below, also illustrated in Figure~\ref{fig:sync-persistence}, explains this critical flaw:
 
 \begin{enumerate}
     \item \textbf{Grant:} A user initially grants Messenger contacts permission.
@@ -2389,8 +2396,7 @@ This contrast underscores that the observed bypass mechanism is not the default 
 
 This potential vulnerability has significant privacy implications, as it creates a "control illusion" where users believe their actions have secured their data, when, in reality, access may continue unabated. Our findings suggest a gap in Android's permission architecture: the model appears incomplete, as it may not fully manage the lifecycle of persistent states, such as sync registrations, upon permission changes. This could allow privileged system services to be unknowingly leveraged as privacy bypasses, potentially undermining the foundation of informed consent in the mobile ecosystem.
 
-While this study focused on the Messenger application, further research would be beneficial to confirm the broader extent of this issue across other applications utilizing similar Google Play Services sync patterns.
-
+The initial findings of this study highlight a potentially critical privacy issue that requires further, more extensive research and analysis to produce fully robust conclusions. As it stands, the current analysis serves as a proof-of-concept, demonstrating that the vulnerability likely exists under a specific set of conditions. To move from this initial observation to a generalizable conclusion, a broader and more systematic investigation is necessary.
 \chapter{Discussion}
 
 \section{Interpretation of Results}

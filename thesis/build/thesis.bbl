@@ -5,6 +5,12 @@ Yaniv Agman and Danny Hendler.
 \newblock Bpfroid: Robust real time android malware detection framework.
 \newblock 2021.
 
+\bibitem{Alexopoulos2025SliceDroid}
+Nikolaos Alexopoulos, Simon Althaus, and Diomidis Spinellis.
+\newblock {SliceDroid: Towards Reconstructing Android Application I/O Behaviors
+  from Kernel Traces}.
+\newblock \url{https://doi.org/10.5281/zenodo.15784277}, 2025.
+
 \bibitem{dynalog2016}
 Mohammed~K. Alzaylaee, Suleiman~Y. Yerima, and Sakir Sezer.
 \newblock Dynalog: an automated dynamic analysis framework for characterizing
@@ -93,12 +99,6 @@ Katriel Cohn-Gordon, Cas Cremers, Benjamin Dowling, Luke Garratt, and Douglas
 \newblock A formal security analysis of the signal messaging protocol.
 \newblock volume~33, pages 1914--1983. Springer, 2020.
 
-\bibitem{coull2014traffic}
-Scott~E Coull and Kevin~P Dyer.
-\newblock Traffic analysis of encrypted messaging services: Apple imessage and
-  beyond.
-\newblock {\em ACM SIGCOMM Computer Communication Review}, 44(5):5--11, 2014.
-
 \bibitem{williams2024emook}
 Milo Craun, Khizar Hussain, Uddhav Gautam, Zhengjie Ji, Tanuj Rao, and Dan
   Williams.
@@ -130,6 +130,12 @@ A.~Desnos and contributors.
 \newblock {Androguard}.
 \newblock [Online]. Available: \url{https://github.com/androguard/androguard},
   2025.
+
+\bibitem{egele2011pios}
+Manuel Egele, Christopher Kruegel, Engin Kirda, and Giovanni Vigna.
+\newblock {PiOS}: Detecting privacy leaks in {iOS} applications.
+\newblock In {\em Proceedings of the 18th Network and Distributed System
+  Security Symposium (NDSS)}. Internet Society, 2011.
 
 \bibitem{enck2014taintdroid}
 William Enck et~al.
@@ -181,13 +187,6 @@ A.~Greenberg.
 \newblock WIRED, Aug 2023.
 \newblock [Online]. Available:
   \url{https://www.wired.com/story/how-the-signal-knock-off-app-telemessage-got-hacked-in-20-minutes/}.
-
-\bibitem{lee2023quic}
-YA~Joarder and Carol Fung.
-\newblock Exploring quic security and privacy: A comprehensive survey on quic
-  security and privacy vulnerabilities, threats, attacks and future research
-  directions.
-\newblock IEEE, 2024.
 
 \bibitem{obermeier2018signal}
 S~Krishnapriya, VS~Priyanka, and S~Satheesh Kumar.
@@ -256,6 +255,12 @@ A.~R. Nasser, A.~M. Hasan, and A.~J. Humaidi.
 \newblock {DL-AMDet: Deep learning-based malware detector for Android}.
 \newblock {\em Intelligent Systems with Applications}, 21, 2024.
 
+\bibitem{nayam2016analysis}
+Wipawee Nayam, Luck Charoenwatana, Arguy Laolee, and Kunwadee Sripanidkulchai.
+\newblock An analysis of mobile application network behavior.
+\newblock In {\em Proceedings of the 2016 Asian Internet Engineering Conference
+  (AINTEC)}, pages 9--16. ACM, 2016.
+
 \bibitem{ning2019dexlego}
 Z.~Ning and F.~Zhang.
 \newblock {DexLEGO: Reassembleable bytecode extraction for aiding static
@@ -291,13 +296,6 @@ A.~R. Onik, J.~Brown, C.~Walker, and I.~Baggili.
   Applications from a Digital Forensics Perspective}.
 \newblock {\em ACM Computing Surveys}, 57(9), May 2025.
 \newblock [Online]. Available: \url{https://doi.org/10.1145/3727641}.
-
-\bibitem{poblete2021defence}
-Antonio~J Pinheiro, Paulo~Freitas de~Araujo-Filho, Jeandro de~M Bezerra, and
-  Divanilson~R Campelo.
-\newblock Adaptive packet padding approach for smart home networks: A tradeoff
-  between privacy and performance.
-\newblock {\em IEEE Internet of Things Journal}, 8(5):3930--3938, 2020.
 
 \bibitem{arxiv2020metadata}
 Alexandre Pujol, Damien Magoni, Liam Murphy, and Christina Thorpe.

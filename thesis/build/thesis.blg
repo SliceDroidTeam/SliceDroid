@@ -9,7 +9,6 @@ Warning--empty booktitle in cohngordon2017formal
 Warning--empty booktitle in mobsf2023
 Warning--empty booktitle in dynamo2021
 Warning--empty booktitle in qbdiblackhat2020
-Warning--empty booktitle in lee2023quic
 Warning--empty journal in obermeier2018signal
 Warning--empty booktitle in inviseal2023
 Warning--can't use both volume and number fields in inviseal2023
@@ -20,43 +19,43 @@ Warning--empty booktitle in wei2014amandroid
 Warning--empty journal in datta2021auditing
 You've used 76 entries,
             2118 wiz_defined-function locations,
-            892 strings with 18450 characters,
-and the built_in function-call counts, 23668 in all, are:
-= -- 2209
-> -- 1225
-< -- 17
-+ -- 488
-- -- 410
-* -- 1408
-:= -- 3914
-add.period$ -- 242
+            892 strings with 18492 characters,
+and the built_in function-call counts, 23764 in all, are:
+= -- 2216
+> -- 1240
+< -- 18
++ -- 495
+- -- 416
+* -- 1404
+:= -- 3926
+add.period$ -- 244
 call.type$ -- 76
-change.case$ -- 428
+change.case$ -- 431
 chr.to.int$ -- 0
-cite$ -- 91
-duplicate$ -- 902
-empty$ -- 1964
-format.name$ -- 410
-if$ -- 5024
+cite$ -- 90
+duplicate$ -- 907
+empty$ -- 1971
+format.name$ -- 416
+if$ -- 5057
 int.to.chr$ -- 0
 int.to.str$ -- 76
-missing$ -- 50
+missing$ -- 49
 newline$ -- 391
 num.names$ -- 152
-pop$ -- 636
+pop$ -- 648
 preamble$ -- 1
-purify$ -- 352
+purify$ -- 355
 quote$ -- 0
-skip$ -- 684
+skip$ -- 687
 stack$ -- 0
-substring$ -- 901
-swap$ -- 199
-text.length$ -- 17
+substring$ -- 874
+swap$ -- 206
+text.length$ -- 18
 text.prefix$ -- 0
 top$ -- 0
 type$ -- 300
-warning$ -- 15
-while$ -- 201
+warning$ -- 14
+while$ -- 200
 width$ -- 78
-write$ -- 807
-(There were 15 warnings)
+write$ -- 808
+(There were 14 warnings)
