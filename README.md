@@ -12,6 +12,15 @@ A modular toolchain for tracing Android kernel events using kprobes, parsing ftr
 
 ---
 
+## 🛠️ Prerequisites
+```yaml
+- Rooted Android device with Developer settings enabled
+- Python 3.8+ and pip
+- adb for device communication if installation if from source
+```
+
+---
+
 ## 🏃 How to run SlideDroid
 
 ### Source Installation
@@ -19,10 +28,23 @@ Download required packages:
 ```bash
 pip install -r requirements.txt
 ```
-* If you want to run end-to-end example by tracing the android device and inspecting the results:
-    ```bash
-    python run_slicedroid.py
-    ```
+* If you want to run end-to-end example by tracing the android device and inspecting the results.
+Skip steps 1-3 if your device is already connected through adb.
+
+
+    1. **Pair your Android device (Android 11+):**  
+        ```bash
+        adb pair <device-ip>:<pairing-port>
+        ```
+    2. **Enter the pairing code when prompted.**
+    3. **Connect to the device over ADB**
+        ```bash
+        adb connect <device-ip>:<port>
+        ```
+    4. **Run the SliceDroid script**
+        ```bash
+        python run_slicedroid.py
+        ```
 
 * If you want to upload a trace file to be analyzed:
     ```bash
@@ -56,12 +78,22 @@ pip install -r requirements.txt
     docker run --network=host --it slicedroid
     ```
 
-6. Then, you are ready to run slicedroid:
+6. Then, you are a few steps aways from running slicedroid:
     * If you want to trace your device and run the webapp run:
-        ```bash
-        python3 run_slicedroid.py
-        ```
-    * If you want to upload your trace to be analyzed:
+        1. **Pair your Android device (Android 11+):**  
+            ```bash
+            adb pair <device-ip>:<pairing-port>
+            ```
+        2. **Enter the pairing code when prompted.**
+        3. **Connect to the device over ADB**
+            ```bash
+            adb connect <device-ip>:<port>
+            ```
+        4. **Run the SliceDroid script**
+            ```bash
+            python3 run_slicedroid.py
+            ```
+    * Otherwise, if you want to upload your trace to be analyzed:
         ```bash
         python3 webapp/app.py
         ```
@@ -84,14 +116,6 @@ pip install -r requirements.txt
 
 ---
 
-## 🛠️ Prerequisites
-```yaml
-- Rooted Android device
-- Python 3.8+ and pip
-- Optional: adb for device communication
-```
-
----
 
 ## 📊 Sample Output
 Sample visualizations available in `Figures/` folder after processing traces.

@@ -17,6 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY scripts/ scripts
 COPY webapp/ webapp/
+COPY data/ data/
 COPY run_slicedroid.py .
 
 EXPOSE 5000
