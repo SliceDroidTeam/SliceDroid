@@ -13,6 +13,12 @@ A modular toolchain for tracing Android kernel events using kprobes, parsing ftr
 ---
 
 ## 🏃 How to run SlideDroid
+
+### Source Installation
+Download required packages:
+```bash
+pip install -r requirements.txt
+```
 * If you want to run end-to-end example by tracing the android device and inspecting the results:
     ```bash
     python run_slicedroid.py
@@ -24,6 +30,42 @@ A modular toolchain for tracing Android kernel events using kprobes, parsing ftr
     ```
     Then, in the menu, upload the trace.
 ---
+
+### Use PyTrim inside a Docker container
+
+1. Install `docker` (https://docs.docker.com/engine/install/)
+
+2. Clone this repository:
+      ```bash
+      git clone https://github.com/SliceDroidTeam/SLICEDROID_APP
+      ```
+
+3. Enter the source code directory:
+
+      ```bash
+      cd SLICEDROID_APP
+      ```
+
+4.  Build docker image:
+    ```bash
+    docker build -t slicedroid .
+    ```
+
+5. Run docker container:
+    ```bash
+    docker run --network=host --it slicedroid
+    ```
+
+6. Then, you are ready to run slicedroid:
+    * If you want to trace your device and run the webapp run:
+        ```bash
+        python3 run_slicedroid.py
+        ```
+    * If you want to upload your trace to be analyzed:
+        ```bash
+        python3 webapp/app.py
+        ```
+
 
 ## 📁 Project Structure
 ```
