@@ -19,7 +19,7 @@ class Config:
     
     # App configuration
     DEBUG = os.getenv('SYSDROID_DEBUG', 'False').lower() in ('true', '1', 'yes')
-    HOST = os.getenv('SYSDROID_HOST', '127.0.0.1')
+    HOST = os.getenv('SYSDROID_HOST', '0.0.0.0')
     PORT = int(os.getenv('SYSDROID_PORT', '5000'))
     
     # Chart configuration

@@ -350,7 +350,7 @@ time.sleep(5)
 
 # Open the dashboard in the default browser
 print("[*] Opening dashboard in browser...")
-webbrowser.open("http://127.0.0.1:5000")
+webbrowser.open("http://0.0.0.0:5000")
 
 # Wait for the server to exit before letting the script finish
 server_proc.wait()

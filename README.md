@@ -1,4 +1,4 @@
-# 📱 Android Tracing and Analysis Toolkit - SliseDroid App
+# 📱 Android Tracing and Analysis Toolkit - SliceDroid App
 
 A modular toolchain for tracing Android kernel events using kprobes, parsing ftrace logs, and analyzing app behavior with advanced visualization. Ideal for dynamic analysis, app auditing, and research.
 
@@ -39,18 +39,17 @@ Skip steps 1-3 if your device is already connected through adb.
     2. **Enter the pairing code when prompted.**
     3. **Connect to the device over ADB**
         ```bash
-        adb connect <device-ip>:<port>
+        adb connect <device-ip>:<adb-port>
         ```
-    4. **Run the SliceDroid script**
+    4. 
+    * If you want to trace your device and run the webapp run:
         ```bash
-        python run_slicedroid.py
+        python3 run_slicedroid.py
         ```
-
-* If you want to upload a trace file to be analyzed:
-    ```bash
-    python app.py
-    ```
-    Then, in the menu, upload the trace.
+    * Otherwise, if you want to upload your trace to be analyzed:
+        ```bash
+        python3 webapp/app.py
+        ```
 ---
 
 ### Use PyTrim inside a Docker container
@@ -72,27 +71,28 @@ Skip steps 1-3 if your device is already connected through adb.
     ```bash
     docker build -t slicedroid .
     ```
-
-5. Run docker container:
+5. Pair your Android :
     ```bash
-    docker run --network=host --it slicedroid
+    adb pair <device-ip>:<pairing-port>
     ```
 
-6. Then, you are a few steps aways from running slicedroid:
+6. Enter the pairing code or scan QR code when prompted.
+
+7. Connect to the device over ADB
+    ```bash
+    adb connect <device-ip>:<adb-port>
+    ```
+
+8. Run docker container:
+    ```bash
+    docker run -it -p 5000:5000 --env "ANDROID_ADB_SERVER_ADDRESS=host.docker.internal"--add-host=host.docker.internal:host-gateway slicedroid
+    ```
+
+9. Then, you are one step away from running SliceDroid:
     * If you want to trace your device and run the webapp run:
-        1. **Pair your Android device (Android 11+):**  
-            ```bash
-            adb pair <device-ip>:<pairing-port>
-            ```
-        2. **Enter the pairing code when prompted.**
-        3. **Connect to the device over ADB**
-            ```bash
-            adb connect <device-ip>:<port>
-            ```
-        4. **Run the SliceDroid script**
-            ```bash
-            python3 run_slicedroid.py
-            ```
+        ```bash
+        python3 run_slicedroid.py
+        ```
     * Otherwise, if you want to upload your trace to be analyzed:
         ```bash
         python3 webapp/app.py
