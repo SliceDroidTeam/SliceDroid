@@ -1,4 +1,4 @@
-# 📱 Android Tracing and Analysis Toolkit - SliseDroid App
+# 📱 Android Tracing and Analysis Toolkit - SliceDroid App
 
 A modular toolchain for tracing Android kernel events using kprobes, parsing ftrace logs, and analyzing app behavior with advanced visualization. Ideal for dynamic analysis, app auditing, and research.
 
