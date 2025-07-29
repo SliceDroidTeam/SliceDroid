@@ -12,7 +12,7 @@ A modular toolchain for tracing Android kernel events using kprobes, parsing ftr
 
 ---
 
-## 🏃 How to run SlideDroid
+## 🏃 How to run SliceDroid
 
 ### Source Installation
 Download required packages:
