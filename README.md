@@ -52,67 +52,71 @@ Skip steps 1-3 if your device is already connected through adb.
         ```
 ---
 
-### Use PyTrim inside a Docker container
+### Use SliceDroid inside a Docker container
 
-1. Install `docker` (https://docs.docker.com/engine/install/)
+1. **Install Docker** (https://docs.docker.com/engine/install/)
 
-2. Clone this repository:
-      ```bash
-      git clone https://github.com/SliceDroidTeam/SLICEDROID_APP
-      ```
+2. **Clone this repository:**
+   ```bash
+   git clone https://github.com/SliceDroidTeam/SLICEDROID_APP
+   cd SLICEDROID_APP
+   ```
 
-3. Enter the source code directory:
+3. **Build Docker image:**
+   ```bash
+   docker build -t slicedroid .
+   ```
 
-      ```bash
-      cd SLICEDROID_APP
-      ```
+4. **Connect your Android device via USB** and enable USB Debugging
 
-4.  Build docker image:
-    ```bash
-    docker build -t slicedroid .
-    ```
-5. Pair your Android :
-    ```bash
-    adb pair <device-ip>:<pairing-port>
-    ```
+5. **Run Docker container with USB access:**
+   
+   **Option A: Temporary data (lost when container stops)**
+   ```bash
+   docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb -p 5000:5000 slicedroid
+   ```
+   
+   **Option B: Persistent data with volume (recommended)**
+   ```bash
+   docker volume create slicedroid-data
+   docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb -v slicedroid-data:/app/data -p 5000:5000 slicedroid
+   ```
 
-6. Enter the pairing code or scan QR code when prompted.
+6. **Inside the container, run SliceDroid:**
+   ```bash
+   python3 run_slicedroid.py
+   ```
 
-7. Connect to the device over ADB
-    ```bash
-    adb connect <device-ip>:<adb-port>
-    ```
-
-8. Run docker container:
-    ```bash
-    docker run -it -p 5000:5000 --env "ANDROID_ADB_SERVER_ADDRESS=host.docker.internal"--add-host=host.docker.internal:host-gateway slicedroid
-    ```
-
-9. Then, you are one step away from running SliceDroid:
-    * If you want to trace your device and run the webapp run:
-        ```bash
-        python3 run_slicedroid.py
-        ```
-    * Otherwise, if you want to upload your trace to be analyzed:
-        ```bash
-        python3 webapp/app.py
-        ```
+**Note:** The `--privileged` flag and USB volume mounting are required for ADB to access your Android device from within the container. Option B saves device mappings and traces between container runs.
 
 
 ## 📁 Project Structure
 ```
-├── trace_script.sh      # Main shell script for ftrace and kprobe setup
-├── myutils.py           # Utility functions (cleaning, slicing, export)
+├── run_slicedroid.py           # Main orchestrator script
 ├── webapp/
-│   ├── app.py           # Web server backend (Flask/Streamlit/Dash)
-│   ├── templates/       # HTML templates (if Flask)
-│   └── static/          # CSS/JS/assets
-├── Exports/             # Processed CSV/JSON event exports
-├── Figures/             # Generated PDF visualizations
-├── cat2devs.txt         # Device category mapping
-├── README.md            # Project documentation
-└── requirements.txt     # Python dependencies
+│   ├── app.py                  # Flask web dashboard
+│   ├── src/                    # Web app source code
+│   │   ├── services/           # Analysis services
+│   │   ├── static/             # CSS/JS/assets
+│   │   └── templates/          # HTML templates
+├── scripts/
+│   ├── tracer/                 # System call tracing scripts
+│   ├── tracker/                # App mapping utilities
+│   ├── resources_resolver/     # Device mapping scripts
+│   └── network_aggregator.py   # Network analysis
+├── data/                       # Generated at runtime (device-specific)
+│   ├── traces/                 # System call traces
+│   ├── mappings/               # Device mappings
+│   ├── nodes_and_files_data/   # File system mappings
+│   ├── Exports/                # Analysis exports
+│   └── app_mapping.json        # App name mappings
+├── docs/                       # Documentation
+├── Dockerfile                  # Container configuration
+├── requirements.txt            # Python dependencies
+└── README.md                   # Project documentation
 ```
+
+**Note:** The `data/` directory is created automatically when you run SliceDroid and contains device-specific mappings and traces.
 
 ---
 
