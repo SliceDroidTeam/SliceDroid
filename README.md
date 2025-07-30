@@ -52,7 +52,7 @@ Skip steps 1-3 if your device is already connected through adb.
         ```
 ---
 
-### Use PyTrim inside a Docker container
+### Use SliceDroid inside a Docker container
 
 1. Install `docker` (https://docs.docker.com/engine/install/)
 
