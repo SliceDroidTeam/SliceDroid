@@ -1,2 +1,25 @@
+# Ignore documentation
 /docs
 README.md
+
+# Ignore data directory - it's device-specific and generated at runtime
+data/
+
+# Ignore common development files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Ignore platform-specific tools
+platform-tools/
+
+# Ignore temporary files
+*.tmp
+*.log

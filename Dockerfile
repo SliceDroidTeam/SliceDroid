@@ -15,10 +15,15 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY scripts/ scripts
+COPY scripts/ scripts/
 COPY webapp/ webapp/
-COPY data/ data/
 COPY run_slicedroid.py .
+
+# Create empty data directory structure
+RUN mkdir -p data/{traces,mappings,nodes_and_files_data,Exports}
+
+# Create volume for persistent data storage
+VOLUME ["/app/data"]
 
 EXPOSE 5000
 
