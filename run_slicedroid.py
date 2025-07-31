@@ -218,7 +218,7 @@ if should_create_app_mapping():
                 "--output", output_path,
                 "--limit", "50",
                 "--include-system"
-            ], check=True, timeout=120)
+            ], check=True, timeout=500, cwd=os.getcwd())
             print("[*] App mapping completed successfully")
         except subprocess.TimeoutExpired:
             print("[!] App mapping timed out, continuing without app mapping...")
