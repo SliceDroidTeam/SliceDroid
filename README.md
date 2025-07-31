@@ -48,6 +48,16 @@ Skip steps 1-3 if your device is already connected through adb.
         adb connect <device-ip>:5555
         ```
         *Note: After initial pairing, you can skip step 2 and connect directly*
+        
+        **Alternative setup:**
+        ```bash
+        # Enable TCP mode while connected via USB
+        adb tcpip 5555
+        # Find device IP address
+        adb shell ip route | grep wlan
+        # Disconnect USB and connect wirelessly
+        adb connect <device-ip>:5555
+        ```
     4. 
     * If you want to trace your device and run the webapp run:
         ```bash
@@ -114,6 +124,16 @@ Skip steps 1-3 if your device is already connected through adb.
    ```bash
    adb pair <device-ip>:<pairing-port>
    # Enter pairing code when prompted, then retry: adb connect <device-ip>:5555
+   ```
+   
+   **Alternative method:**
+   ```bash
+   # While connected via USB, enable TCP mode
+   adb tcpip 5555
+   # Find device IP address
+   adb shell ip route | grep wlan
+   # Disconnect USB and connect wirelessly
+   adb connect <device-ip>:5555
    ```
    
    **Port clarification:**
