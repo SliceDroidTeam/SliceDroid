@@ -131,7 +131,7 @@ Skip steps 1-3 if your device is already connected through adb.
    **Option B: Persistent data with volume (recommended)**
    ```bash
    docker volume create slicedroid-data
-   docker run -it --network host -v slicedroid-data:/app/data -p 5000:5000 slicedroid
+   docker run -it -v slicedroid-data:/app/data -p 5000:5000 slicedroid
    ```
 
 8. **Inside the container, connect and run SliceDroid:**
