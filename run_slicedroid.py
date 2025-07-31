@@ -169,7 +169,7 @@ def print_banner():
     print(banner)
 
 print_banner()
-print("[*] Starting SYSDROID SliceDroid...")
+print("[*] Starting SliceDroid...")
 
 # Ensure ADB is available
 try:
