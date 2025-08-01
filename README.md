@@ -115,6 +115,18 @@ Sample visualizations available in `Figures/` folder after processing traces.
 
 ---
 
+## 🤝 Contributing
+
+We welcome contributions to SliceDroid! Please see our [Contributing Guide](docs/CONTRIBUTING.md) for:
+
+- Development setup instructions
+- Code standards and guidelines
+- Testing requirements
+- Pull request process
+- Issue reporting templates
+
+---
+
 ## 📄 License
 ```
 
