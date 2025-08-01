@@ -973,10 +973,10 @@ class AdvancedAnalytics:
                 
                 if cat2devs_file.exists():
                     with open(cat2devs_file, 'r') as f:
-                    try:
-                        cat2devs = json.load(f)
-                    except json.JSONDecodeError:
-                        cat2devs = {}
+                        try:
+                            cat2devs = json.load(f)
+                        except json.JSONDecodeError:
+                            cat2devs = {}
                     dev2cat = {}
                     for cat, devs in cat2devs.items():
                         for dev in devs:
