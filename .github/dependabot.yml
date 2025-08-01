@@ -1,0 +1,77 @@
+# Dependabot configuration for SliceDroid
+# Automatically creates pull requests for dependency updates
+
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "SliceDroidTeam"
+    assignees:
+      - "SliceDroidTeam"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+    # Group related updates together to reduce PR noise
+    groups:
+      flask-ecosystem:
+        patterns:
+          - "flask*"
+          - "werkzeug*"
+          - "jinja2*"
+      security-packages:
+        patterns:
+          - "*security*"
+          - "*crypto*"
+          - "*ssl*"
+      development-tools:
+        patterns:
+          - "pytest*"
+          - "black*"
+          - "flake8*"
+          - "pre-commit*"
+
+  # Docker dependencies  
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "SliceDroidTeam"
+    assignees:
+      - "SliceDroidTeam"
+    commit-message:
+      prefix: "docker"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "SliceDroidTeam"
+    assignees:
+      - "SliceDroidTeam"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "github-actions"
