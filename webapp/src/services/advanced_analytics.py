@@ -11,47 +11,9 @@ from io import BytesIO
 from pathlib import Path
 from collections import Counter, defaultdict
 
-# Add the app directory to Python path
-APP_DIR = Path(__file__).parent.parent / 'app'
-sys.path.insert(0, str(APP_DIR))
-
-try:
-    import myutils
-except ImportError:
-    # If myutils is not available, create minimal functionality
-    class MyUtils:
-        @staticmethod
-        def load_file(filename):
-            """Load a file containing device mappings"""
-            result = {}
-            try:
-                with open(filename, 'r') as f:
-                    # Try to load as JSON first
-                    try:
-                        f.seek(0)
-                        content = f.read()
-                        result = json.loads(content)
-                        return result
-                    except json.JSONDecodeError:
-                        # Fall back to text format parsing
-                        f.seek(0)
-                        lines = f.readlines()
-                        current_category = None
-                        for line in lines:
-                            line = line.strip()
-                            if line and not line.startswith('#'):
-                                if ':' in line and not line.startswith('\t'):
-                                    current_category = line.replace(':', '').strip()
-                                    result[current_category] = []
-                                elif line.startswith('\t') and current_category:
-                                    device = line.strip()
-                                    if device.isdigit():
-                                        result[current_category].append(int(device))
-            except:
-                pass
-            return result
-    
-    myutils = MyUtils()
+# Remove the app directory reference as myutils is no longer used
+# APP_DIR = Path(__file__).parent.parent / 'app'
+# sys.path.insert(0, str(APP_DIR))
 
 class AdvancedAnalytics:
     """Advanced analytics for trace data with high-level insights"""
@@ -213,7 +175,11 @@ class AdvancedAnalytics:
         try:
             cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs.txt'
             if cat2devs_file.exists():
-                cat2devs = myutils.load_file(str(cat2devs_file))
+                with open(cat2devs_file, 'r') as f:
+                    try:
+                        cat2devs = json.load(f)
+                    except json.JSONDecodeError:
+                        cat2devs = {}
                 dev2cat = {}
                 for cat, devs in cat2devs.items():
                     for dev in devs:
@@ -1006,7 +972,11 @@ class AdvancedAnalytics:
                     cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs.txt'
                 
                 if cat2devs_file.exists():
-                    cat2devs = myutils.load_file(str(cat2devs_file))
+                    with open(cat2devs_file, 'r') as f:
+                    try:
+                        cat2devs = json.load(f)
+                    except json.JSONDecodeError:
+                        cat2devs = {}
                     dev2cat = {}
                     for cat, devs in cat2devs.items():
                         for dev in devs:

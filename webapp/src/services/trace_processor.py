@@ -359,7 +359,7 @@ class TraceProcessor:
     def _parse_ftrace_log(self, filepath, max_events=None, progress_callback=None):
         """
         Parse ftrace log file and extract events with optional size limiting
-        Full implementation from original myutils.parse_ftrace_log
+        Parse ftrace log and extract events with detailed parsing
         """
         # Regular expression to match Ftrace event log lines with TGID inside parentheses
         trace_pattern = re.compile(r'\s*(?P<process>((\S|\s)+|\<\.\.\.\>))-(?P<tid>\d+)\s+\(\s*(?P<tgid>(\d+|-------))\)\s+\[(?P<cpu>\d+)\]\s+(?P<flags>[\S]+)\s+(?P<timestamp>\d+\.\d+):\s+(?P<event>\S+):\s+(?P<details>.*)')
@@ -462,7 +462,7 @@ class TraceProcessor:
     def _export_events(self, events, csv_path, json_path):
         """
         Export events to CSV and JSON files
-        Full implementation from original myutils.export_events
+        Export events to CSV format with proper formatting
         """
         # Export events to JSON
         with open(json_path, 'w', encoding='utf-8') as json_file:
@@ -486,7 +486,7 @@ class TraceProcessor:
         self.logger.info(f"Exported {len(events)} events to {json_path} and {csv_path}")
 
     def _flatten_event(self, event):
-        """Flatten event for CSV export - from original myutils"""
+        """Flatten event structure for CSV export"""
         flat = {}
         for key, value in event.items():
             if key == "details" and isinstance(value, dict):
