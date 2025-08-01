@@ -55,24 +55,23 @@ git remote add upstream https://github.com/SliceDroidTeam/SLICEDROID_APP.git
 
 ### 2. Environment Setup
 
-**Option A: Local Development**
+**Local Development (Recommended)**
 ```bash
 # Install dependencies
 pip install -r requirements.txt
 
+# Optional: Set up development tools
+pip install black flake8 pytest pre-commit
+
 # Set up pre-commit hooks (recommended)
-pip install pre-commit
 pre-commit install
 ```
 
-**Option B: Docker Development**
-```bash
-# Build development container
-docker build -t slicedroid-dev .
-
-# Run development environment
-docker run -it -v $(pwd):/app slicedroid-dev bash
-```
+**Why Local Development?**
+- **Direct ADB access** to Android devices
+- **Faster development** cycle
+- **Better IDE integration**
+- **Easier debugging** and testing
 
 ### 3. Verify Setup
 
