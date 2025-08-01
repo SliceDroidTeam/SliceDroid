@@ -1,8 +1,31 @@
-#### **Method 1: USB Connection via Docker USB Passthrough (Linux)**
+# 🐳 Docker Setup Guide
 
-4. **Connect your Android device via USB** and enable USB Debugging
+This guide provides detailed instructions for running SliceDroid inside a Docker container with different connection methods depending on your operating system.
 
-5. **Run Docker container with USB access:**
+## Prerequisites
+
+Before starting, ensure you have completed the following from the main README:
+
+1. **Installed Docker** (https://docs.docker.com/engine/install/)
+2. **Cloned this repository** and built the Docker image:
+   ```bash
+   git clone https://github.com/SliceDroidTeam/SLICEDROID_APP
+   cd SLICEDROID_APP
+   docker build -t slicedroid .
+   ```
+3. **Enabled Developer Options and USB Debugging** on your Android device
+
+---
+
+## Connection Methods
+
+### **Method 1: USB Connection via Docker USB Passthrough (Linux)**
+
+This method works best on Linux systems where Docker can directly access USB devices.
+
+1. **Connect your Android device via USB** and enable USB Debugging
+
+2. **Run Docker container with USB access:**
    
    **Option A: Temporary data (lost when container stops)**
    ```bash
@@ -15,22 +38,26 @@
    docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb -v slicedroid-data:/app/data -p 5000:5000 slicedroid
    ```
 
-6. **Inside the container, run SliceDroid:**
+3. **Inside the container, run SliceDroid:**
    ```bash
    python3 run_slicedroid.py
    ```
 
-#### **Method 2: USB Connection via Wireless ADB (Windows/macOS)**
+---
 
-4. **Connect your Android device via USB** and enable USB Debugging
+### **Method 2: Wireless ADB Connection (Windows/macOS/Linux)**
 
-5. **Enable Wireless Debugging on your Android device** (Android 11+)
+This method is recommended for Windows and macOS, or when USB passthrough is not available.
+
+1. **Connect your Android device via USB** and enable USB Debugging
+
+2. **Enable Wireless Debugging on your Android device** (Android 11+)
    - Go to **Settings** → **Developer Options** → **Wireless debugging**
    - Turn on **Wireless debugging**
    - Tap **Pair device with pairing code**
    - Note the **IP address**, **pairing port** (e.g., 37029), and **pairing code**
 
-6. **Connect to the device over ADB:**
+3. **Pair and connect to the device over ADB:**
    ```bash
    adb connect <device-ip>:5555
    ```
@@ -46,7 +73,7 @@
    # While connected via USB, enable TCP mode
    adb tcpip 5555
    # Find device IP address
-   adb shell ip route | grep wlan
+   adb shell ip route
    # Disconnect USB and connect wirelessly
    adb connect <device-ip>:5555
    ```
@@ -56,7 +83,7 @@
    - **Data port** (5555): Used for all subsequent ADB connections
    - **You only need to pair once** — future connections can use `adb connect` directly
 
-7. **Run Docker container (no USB mounting needed):**
+4. **Run Docker container (no USB mounting needed):**
    
    **Option A: Temporary data**
    ```bash
@@ -69,8 +96,17 @@
    docker run -it -v slicedroid-data:/app/data -p 5000:5000 slicedroid
    ```
 
-8. **Inside the container, connect and run SliceDroid:**
+5. **Inside the container, connect and run SliceDroid:**
    ```bash
-   adb connect <device-ip>:<adb-port>
+   adb connect <device-ip>:5555
    python3 run_slicedroid.py
    ```
+
+---
+
+## Troubleshooting
+
+- **USB passthrough issues on Windows/macOS**: Use Method 2 (Wireless ADB) instead
+- **Authentication failures**: Ensure you've completed the pairing step with the pairing port first
+- **Connection drops**: Android may disable wireless debugging after inactivity. Re-enable and reconnect if needed
+- **Port conflicts**: If port 5000 is in use, change the mapping: `-p 5001:5000` and access at `localhost:5001`
