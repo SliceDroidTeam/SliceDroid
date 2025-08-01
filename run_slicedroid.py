@@ -212,6 +212,8 @@ if should_create_app_mapping():
         try:
             print("[*] Analyzing installed apps to extract commercial names...")
             output_path = os.path.join("data", "app_mapping.json")
+            # Ensure data directory exists
+            os.makedirs("data", exist_ok=True)
             subprocess.run([
                 sys.executable, app_mapper_script,
                 "--create", 
