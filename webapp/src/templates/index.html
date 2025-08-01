@@ -59,11 +59,11 @@
                     <div class="full-view">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div class="filter-title mb-0">
-                                <i class="fas fa-filter"></i>
-                                Analysis Filters
+                                <i class="fas fa-download"></i>
+                                Export Options
                             </div>
                             <div class="d-flex gap-2">
-                                <button class="sidebar-toggle" id="sidebar-toggle" title="Hide Filters Panel">
+                                <button class="sidebar-toggle" id="sidebar-toggle" title="Hide Export Panel">
                                     <i class="fas fa-eye-slash"></i>
                                     <span class="ms-1">Hide</span>
                                 </button>
@@ -74,42 +74,6 @@
                         </div>
 
                     <div class="collapse show" id="filters-content">
-
-                    <div class="mb-3">
-                        <label class="form-label">Process ID (PID)</label>
-                        <select class="form-control form-control-modern" id="pid-filter">
-                            <option value="">All Processes</option>
-                            {% for pid in pids %}
-                            <option value="{{ pid }}">PID {{ pid }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Device Filter</label>
-                        <select class="form-control form-control-modern" id="device-filter">
-                            <option value="">All Devices</option>
-                            {% for device in devices %}
-                            <option value="{{ device }}">Device {{ device }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="d-grid gap-2">
-                        <button id="apply-filters" class="btn btn-modern">
-                            <i class="fas fa-play"></i> Apply Filters
-                        </button>
-                        <button id="reset-filters" class="btn btn-outline-secondary">
-                            <i class="fas fa-undo"></i> Reset
-                        </button>
-                    </div>
-
-                    <hr style="border-color: var(--border-color); margin: 1.5rem 0;">
-
-                    <div class="filter-title">
-                        <i class="fas fa-download"></i>
-                        Export Options
-                    </div>
 
                     <div class="d-grid gap-2">
                         <button class="btn btn-success-modern" onclick="exportEvents('json')">

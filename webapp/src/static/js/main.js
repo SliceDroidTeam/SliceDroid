@@ -83,8 +83,6 @@ function setFallbackConfiguration() {
 
 // Setup event listeners
 function setupEventListeners() {
-    $('#apply-filters').click(loadAllData);
-    $('#reset-filters').click(resetFilters);
     $('#zoom-in').click(zoomIn);
     $('#zoom-out').click(zoomOut);
     $('#reset-zoom').click(resetZoom);
@@ -100,26 +98,23 @@ function setupEventListeners() {
 
 }
 
-// Load all data based on current filters
+// Load all data
 function loadAllData() {
-    const pid = $('#pid-filter').val();
-    const device = $('#device-filter').val();
-
     // Show loading state for main sections
     showSectionLoading();
 
     try {
         // Load timeline data
-        loadTimelineData(pid, device);
+        loadTimelineData();
 
         // Load statistics
-        loadDeviceStats(pid);
-        loadEventStats(pid, device);
-        loadStatsSummary(pid, device);
+        loadDeviceStats();
+        loadEventStats();
+        loadStatsSummary();
 
         // Load charts
-        loadDevicePieChart(pid);
-        loadEventPieChart(pid, device);
+        loadDevicePieChart();
+        loadEventPieChart();
 
         // Auto-load advanced analytics
         loadAdvancedAnalytics();
@@ -140,20 +135,10 @@ function showSectionLoading() {
     $('#event-stats-table tbody').html('<tr><td colspan="3" class="text-center"><div class="loading-spinner"></div> Loading...</td></tr>');
 }
 
-function loadStatsSummary(pid, device) {
-    // Build API URL with parameters
-    let url = '/api/device_stats';
-    let params = [];
-    if (pid) params.push(`pid=${pid}`);
-    if (device) params.push(`device=${device}`);
-    if (params.length > 0) url += '?' + params.join('&');
-
-    $.getJSON(url, function(deviceData) {
+function loadStatsSummary() {
+    $.getJSON('/api/device_stats', function(deviceData) {
         // Also get event stats for more comprehensive summary
-        let eventUrl = '/api/event_stats';
-        if (params.length > 0) eventUrl += '?' + params.join('&');
-
-        $.getJSON(eventUrl, function(eventData) {
+        $.getJSON('/api/event_stats', function(eventData) {
             const summaryData = calculateSummaryFromData(deviceData, eventData);
             renderStatsSummary(summaryData);
             renderTopDevicesChart(summaryData.topDevices);
@@ -256,20 +241,10 @@ function renderStatsSummary(data) {
     `);
 }
 
-// Reset all filters
-function resetFilters() {
-    $('#pid-filter').val('');
-    $('#device-filter').val('');
-    loadAllData();
-}
 
 // Timeline functions
-function loadTimelineData(pid, device) {
+function loadTimelineData() {
     let url = '/api/timeline';
-    let params = [];
-    if (pid) params.push(`pid=${pid}`);
-    if (device) params.push(`device=${device}`);
-    if (params.length > 0) url += '?' + params.join('&');
 
     $.getJSON(url, function(data) {
         if (data.error) {
@@ -780,11 +755,8 @@ function renderBehaviorTimelineChart() {
 }
 
 // Statistics functions
-function loadDeviceStats(pid) {
-    let url = '/api/device_stats';
-    if (pid) url += `?pid=${pid}`;
-
-    $.getJSON(url, function(data) {
+function loadDeviceStats() {
+    $.getJSON('/api/device_stats', function(data) {
         if (data && data.error) {
             $('#device-stats-table tbody').html(`<tr><td colspan="4" class="text-center text-danger">Error: ${data.error}</td></tr>`);
             return;
@@ -828,14 +800,8 @@ function renderDeviceStats(data) {
     tableBody.html(html);
 }
 
-function loadEventStats(pid, device) {
-    let url = '/api/event_stats';
-    let params = [];
-    if (pid) params.push(`pid=${pid}`);
-    if (device) params.push(`device=${device}`);
-    if (params.length > 0) url += '?' + params.join('&');
-
-    $.getJSON(url, function(data) {
+function loadEventStats() {
+    $.getJSON('/api/event_stats', function(data) {
         if (data && data.error) {
             $('#event-stats-table tbody').html(`<tr><td colspan="3" class="text-center text-danger">Error: ${data.error}</td></tr>`);
             return;
@@ -881,11 +847,8 @@ function renderEventStats(data) {
 }
 
 // Chart functions
-function loadDevicePieChart(pid) {
-    let url = '/api/device_stats';
-    if (pid) url += `?pid=${pid}`;
-
-    $.getJSON(url, function(data) {
+function loadDevicePieChart() {
+    $.getJSON('/api/device_stats', function(data) {
         if (data.error) {
             showError(`Device chart error: ${data.error}`);
             return;
@@ -914,14 +877,8 @@ function renderDevicePieChart(data) {
     createPieChart('device-chart-container', chartData, 'Device Usage Distribution');
 }
 
-function loadEventPieChart(pid, device) {
-    let url = '/api/event_stats';
-    let params = [];
-    if (pid) params.push(`pid=${pid}`);
-    if (device) params.push(`device=${device}`);
-    if (params.length > 0) url += '?' + params.join('&');
-
-    $.getJSON(url, function(data) {
+function loadEventPieChart() {
+    $.getJSON('/api/event_stats', function(data) {
         if (data.error) {
             showError(`Event chart error: ${data.error}`);
             return;
@@ -954,9 +911,7 @@ function renderEventPieChart(data) {
 
 // Advanced Analytics functionality
 function loadAdvancedAnalytics() {
-    const pid = $('#pid-filter').val();
     let url = '/api/advanced-analytics';
-    if (pid) url += `?pid=${pid}`;
 
     // Show loading
     $('#analytics-loading').show();
@@ -1146,7 +1101,7 @@ function showAnalyticsError(error) {
 }
 
 function loadAdvancedAnalyticsWithConfig() {
-    const pid = $('#analytics-target-pid').val() || $('#pid-filter').val();
+    const pid = $('#analytics-target-pid').val();
     const windowSize = $('#analytics-window-size').val();
     const overlap = $('#analytics-overlap').val();
     
@@ -1194,9 +1149,7 @@ function loadAdvancedAnalyticsWithConfig() {
 
 // Enhanced Network Analysis Functions
 function loadNetworkAnalysis() {
-    const pid = $('#pid-filter').val();
     let url = '/api/network-analysis';
-    if (pid) url += `?pid=${pid}`;
 
     // Show loading
     $('#network-loading').show();
@@ -1465,10 +1418,7 @@ function renderNetworkFlowChart(networkAnalysis) {
         .data(nodes)
         .enter().append('circle')
         .attr('r', 20)
-        .attr('fill', d => {
-            const currentPid = $('#pid-filter').val();
-            return (currentPid && d.pid == currentPid) ? '#ff6b6b' : '#69b3ff';
-        })
+        .attr('fill', '#69b3ff')
         .attr('stroke', '#333')
         .attr('stroke-width', 2)
         .call(d3.drag()
@@ -2533,9 +2483,7 @@ function showNetworkError(error) {
 
 // Enhanced Process Analysis Functions
 function loadProcessAnalysis() {
-    const pid = $('#pid-filter').val();
     let url = '/api/process-analysis';
-    if (pid) url += `?pid=${pid}`;
 
     // Show loading
     $('#process-loading').show();

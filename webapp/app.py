@@ -209,38 +209,6 @@ def get_unique_devices_fast(sample_events, full_events):
     _metadata_cache['devices'] = sorted_devices
     return sorted_devices
 
-def filter_events(events, pid=None, device=None):
-    """Filter events by PID and/or device"""
-    if not isinstance(events, list):
-        return []
-
-    filtered = events
-
-    if pid:
-        try:
-            pid_int = int(pid)
-            filtered = [e for e in filtered if isinstance(e, dict) and 'tgid' in e and e['tgid'] == pid_int]
-        except (ValueError, TypeError):
-            return []
-
-    if device:
-        try:
-            device_int = int(device)
-            def has_matching_device(event):
-                if not isinstance(event, dict) or 'details' not in event:
-                    return False
-                details = event['details']
-                if not isinstance(details, dict):
-                    return False
-                # Check both k_dev and k__dev
-                device_value = details.get('k_dev') or details.get('k__dev')
-                return device_value == device_int
-
-            filtered = [e for e in filtered if has_matching_device(e)]
-        except (ValueError, TypeError):
-            return []
-
-    return filtered
 
 def create_timeline_data(events):
     """Create timeline data for visualization"""
@@ -392,18 +360,7 @@ def timeline_data():
     """API endpoint for timeline data"""
     try:
         events = load_data()
-        pid = request.args.get('pid')
-        device = request.args.get('device')
-
-        # Validate input parameters
-        if pid and not pid.isdigit():
-            return jsonify({'error': 'Invalid PID parameter'}), 400
-        if device and not device.isdigit():
-            return jsonify({'error': 'Invalid device parameter'}), 400
-
-        filtered_events = filter_events(events, pid, device)
-        timeline_data = create_timeline_data(filtered_events)
-
+        timeline_data = create_timeline_data(events)
         return jsonify(timeline_data)
     except Exception as e:
         print(f"Error in timeline_data: {e}")
@@ -414,15 +371,7 @@ def device_stats():
     """API endpoint for device statistics"""
     try:
         events = load_data()
-        pid = request.args.get('pid')
-
-        # Validate input parameters
-        if pid and not pid.isdigit():
-            return jsonify({'error': 'Invalid PID parameter'}), 400
-
-        filtered_events = filter_events(events, pid)
-        stats = create_device_stats(filtered_events)
-
+        stats = create_device_stats(events)
         return jsonify(stats)
     except Exception as e:
         print(f"Error in device_stats: {e}")
@@ -433,18 +382,7 @@ def event_stats():
     """API endpoint for event type statistics"""
     try:
         events = load_data()
-        pid = request.args.get('pid')
-        device = request.args.get('device')
-
-        # Validate input parameters
-        if pid and not pid.isdigit():
-            return jsonify({'error': 'Invalid PID parameter'}), 400
-        if device and not device.isdigit():
-            return jsonify({'error': 'Invalid device parameter'}), 400
-
-        filtered_events = filter_events(events, pid, device)
-        stats = create_event_stats(filtered_events)
-
+        stats = create_event_stats(events)
         return jsonify(stats)
     except Exception as e:
         print(f"Error in event_stats: {e}")
@@ -455,14 +393,7 @@ def device_pie_chart():
     """API endpoint for device usage pie chart"""
     try:
         events = load_data()
-        pid = request.args.get('pid')
-
-        # Validate input parameters
-        if pid and not pid.isdigit():
-            return jsonify({'error': 'Invalid PID parameter'}), 400
-
-        filtered_events = filter_events(events, pid)
-        device_stats = create_device_stats(filtered_events)
+        device_stats = create_device_stats(events)
 
         # Use configurable number of top devices for chart
         top_n = app.config_class.CHART_TOP_N_DEVICES
@@ -485,17 +416,7 @@ def event_pie_chart():
     """API endpoint for event type pie chart"""
     try:
         events = load_data()
-        pid = request.args.get('pid')
-        device = request.args.get('device')
-
-        # Validate input parameters
-        if pid and not pid.isdigit():
-            return jsonify({'error': 'Invalid PID parameter'}), 400
-        if device and not device.isdigit():
-            return jsonify({'error': 'Invalid device parameter'}), 400
-
-        filtered_events = filter_events(events, pid, device)
-        event_stats = create_event_stats(filtered_events)
+        event_stats = create_event_stats(events)
 
         # Use configurable number of top events for chart
         top_n = app.config_class.CHART_TOP_N_EVENTS
@@ -518,15 +439,7 @@ def tcp_stats():
     """API endpoint for TCP statistics"""
     try:
         events = load_data()
-        pid = request.args.get('pid')
-
-        # Validate input parameters
-        if pid and not pid.isdigit():
-            return jsonify({'error': 'Invalid PID parameter'}), 400
-
-        filtered_events = filter_events(events, pid)
-        tcp_events = process_tcp_events(filtered_events)
-
+        tcp_events = process_tcp_events(events)
         return jsonify(tcp_events)
     except Exception as e:
         print(f"Error in tcp_stats: {e}")
@@ -705,40 +618,25 @@ def export_events():
     """Export events data in specified format"""
     try:
         events = load_data()
-        pid = request.args.get('pid')
-        device = request.args.get('device')
         format_type = request.args.get('format', 'json')
         limit = request.args.get('limit')
 
-        # Validate input parameters
-        if pid and not pid.isdigit():
-            return jsonify({'error': 'Invalid PID parameter'}), 400
-        if device and not device.isdigit():
-            return jsonify({'error': 'Invalid device parameter'}), 400
-
-        # Filter events
-        filtered_events = filter_events(events, pid, device)
-
         # Apply limit if specified
+        export_events = events
         if limit:
             try:
                 limit_int = int(limit)
-                filtered_events = filtered_events[:limit_int]
+                export_events = events[:limit_int]
             except ValueError:
                 return jsonify({'error': 'Invalid limit parameter'}), 400
 
         # Generate filename
         timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
-        filename_parts = ['events']
-        if pid:
-            filename_parts.append(f'pid{pid}')
-        if device:
-            filename_parts.append(f'dev{device}')
-        filename_parts.append(timestamp)
+        filename_parts = ['events', timestamp]
 
         if format_type.lower() == 'csv':
             # Create CSV response
-            df = pd.DataFrame(filtered_events)
+            df = pd.DataFrame(export_events)
             output = StringIO()
             df.to_csv(output, index=False)
             output.seek(0)
@@ -751,7 +649,7 @@ def export_events():
         else:
             # JSON response
             filename = '_'.join(filename_parts) + '.json'
-            response = make_response(json.dumps(filtered_events, indent=2))
+            response = make_response(json.dumps(export_events, indent=2))
             response.headers['Content-Type'] = 'application/json'
             response.headers['Content-Disposition'] = f'attachment; filename={filename}'
             return response
