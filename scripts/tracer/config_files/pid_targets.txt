@@ -1,1 +1,2 @@
-e.httpandevents
+:signal_service
+crime.securesms

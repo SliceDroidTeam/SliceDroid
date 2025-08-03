@@ -18,7 +18,7 @@ import threading
 import uuid
 from werkzeug.utils import secure_filename
 from src.services.trace_processor import TraceProcessor
-from src.services.advanced_analytics import AdvancedAnalytics
+from src.services.advanced_analytics.advanced_analytics import AdvancedAnalytics
 from src.services.comprehensive_analyzer import ComprehensiveAnalyzer
 from src.services.app_mapper_service import AppMapperService
 import shutil

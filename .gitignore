@@ -42,3 +42,5 @@ RQ1_evaluation
 stored_traces
 # pid changes from application selection
 scripts/tracer/config_files/pid_targets.txt 
+raw_events.json
+scripts/tracer/config_files/pid_targets.txt

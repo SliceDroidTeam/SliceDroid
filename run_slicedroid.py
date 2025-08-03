@@ -238,10 +238,10 @@ mapping_dir = "data/mappings"
 skip_rdev = False
 if os.path.isdir(mapping_dir):
     rdevs_file = os.path.join(mapping_dir, "rdevs.txt")
-    regularfiles_file = os.path.join(mapping_dir, "regularfiles.txt")
+    regularfiles_file = os.path.join(mapping_dir, "regular_files.txt")
     
     if os.path.exists(rdevs_file) and os.path.exists(regularfiles_file):
-        print("[*] Found existing rdevs.txt and regularfiles.txt, skipping resource resolution script...")
+        print("[*] Found existing rdevs.txt and regular_files.txt, skipping resource resolution script...")
         skip_rdev = True
     else:
         for filename in os.listdir(mapping_dir):
