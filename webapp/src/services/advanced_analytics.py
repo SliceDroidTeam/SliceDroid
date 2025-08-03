@@ -1,5 +1,3 @@
-import os
-import sys
 import json
 import logging
 import numpy as np
@@ -8,8 +6,8 @@ import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend for web
 import base64
 from io import BytesIO
-from pathlib import Path
 from collections import Counter, defaultdict
+from utils import get_device_identifier, is_legitimate_sensitive_access, make_json_serializable
 
 # Remove the app directory reference as myutils is no longer used
 # APP_DIR = Path(__file__).parent.parent / 'app'
@@ -43,20 +41,6 @@ class AdvancedAnalytics:
         
         return logger
     
-    def _make_json_serializable(self, obj):
-        """Convert sets and other non-serializable objects to JSON-serializable format"""
-        if isinstance(obj, set):
-            return list(obj)
-        elif isinstance(obj, (dict, defaultdict, Counter)):
-            # Convert ALL keys to strings to prevent mixed int/str key errors during JSON serialization
-            return {str(key): self._make_json_serializable(value) for key, value in obj.items()}
-        elif isinstance(obj, list):
-            return [self._make_json_serializable(item) for item in obj]
-        elif hasattr(obj, '__dict__'):
-            # Handle objects with attributes
-            return self._make_json_serializable(obj.__dict__)
-        else:
-            return obj
     
     def analyze_trace_data(self, events, target_pid=None, window_size=1000, overlap=200):
         """
@@ -120,7 +104,7 @@ class AdvancedAnalytics:
             }
             
             # Ensure all data is JSON serializable before returning
-            return self._make_json_serializable(analysis)
+            return make_json_serializable(analysis)
             
         except Exception as e:
             self.logger.error(f"Error in advanced analysis: {str(e)}")
@@ -194,7 +178,7 @@ class AdvancedAnalytics:
         for event in events:
             if 'details' in event:
                 # Get device identifier - use stdev+inode for regular files, kdev for device nodes
-                device_id = self._get_device_identifier(event)
+                device_id = get_device_identifier(event)
                 if device_id:
                     device_counts[device_id] += 1
                     
@@ -759,7 +743,7 @@ class AdvancedAnalytics:
                 return None
             
             # Get the appropriate device identifier
-            device_id = self._get_device_identifier(event)
+            device_id = get_device_identifier(event)
             
             if device_id:
                 for data_type, device_list in sensitive_resources.items():
@@ -768,7 +752,7 @@ class AdvancedAnalytics:
                     if device_id_str in device_list:
                         # Verify this is actually accessing sensitive data, not just any file on same device
                         pathname = event.get('details', {}).get('pathname', '').lower()
-                        if self._is_legitimate_sensitive_access(pathname, data_type):
+                        if is_legitimate_sensitive_access(pathname, data_type):
                             mapped_type = 'call_logs' if data_type == 'callogger' else data_type
                             self.logger.debug(f"Confirmed sensitive access: {mapped_type} via device {device_id_str} path {pathname}")
                             return mapped_type
@@ -781,68 +765,6 @@ class AdvancedAnalytics:
             self.logger.warning(f"Error checking sensitive resource: {str(e)}")
             return None
     
-    def _is_legitimate_sensitive_access(self, pathname, data_type):
-        """
-        Validate that the pathname actually represents access to sensitive data
-        This helps prevent false positives from regular files on the same device
-        """
-        if not pathname:
-            return False
-            
-        pathname_lower = pathname.lower()
-        
-        # Define sensitive patterns for each data type
-        sensitive_patterns = {
-            'contacts': ['contacts2.db', 'contacts.db', 'people.db', '/contacts/', 'addressbook'],
-            'sms': ['mmssms.db', 'sms.db', 'mms.db', '/sms/', '/messages/', 'telephony.db'],
-            'calendar': ['calendar.db', 'calendarconfig.db', '/calendar/', 'events.db'],
-            'callogger': ['calllog.db', 'calls.db', '/calllog/', 'call_log.db'],
-            'call_logs': ['calllog.db', 'calls.db', '/calllog/', 'call_log.db']
-        }
-        
-        # Check if pathname contains sensitive patterns for this data type
-        patterns = sensitive_patterns.get(data_type, [])
-        for pattern in patterns:
-            if pattern in pathname_lower:
-                return True
-        
-        # Additional check for Android provider URIs or database files
-        if data_type == 'contacts' and ('com.android.contacts' in pathname_lower or 'contacts' in pathname_lower):
-            return True
-        elif data_type == 'sms' and ('com.android.providers.telephony' in pathname_lower or 'telephony' in pathname_lower):
-            return True
-        elif data_type == 'calendar' and ('com.android.providers.calendar' in pathname_lower or 'calendar' in pathname_lower):
-            return True
-        elif data_type in ['callogger', 'call_logs'] and ('calllog' in pathname_lower or 'calls' in pathname_lower):
-            return True
-        
-        # If pathname is just a device node like '/dev/something', it might not be sensitive data
-        if pathname_lower.startswith('/dev/') and data_type not in pathname_lower:
-            return False
-            
-        # Default to false for unrecognized patterns to reduce false positives
-        return False
-    
-    def _get_device_identifier(self, e):
-        """Get device identifier - use stdev+inode for regular files, kdev for device nodes"""
-        if 'details' not in e:
-            return None
-            
-        kdev = e['details'].get('k_dev') or e['details'].get('k__dev')
-        
-        # For device nodes (kdev != 0), use kdev directly as integer
-        if kdev and kdev != 0:
-            return kdev
-            
-        # For regular files (kdev = 0), use stdev + inode combination
-        stdev = e['details'].get('s_dev_inode')
-        inode = e['details'].get('inode')
-        
-        if stdev and inode:
-            # Create compound identifier matching cat2devs.txt format: "stdev - inode"
-            return f"{stdev} - {inode}"
-            
-        return None
     
     def _add_pathname_based_detection(self, events, sensitive_access):
         """Add pathname-based detection for categories not covered by device+inode"""
@@ -1029,7 +951,7 @@ class AdvancedAnalytics:
                 for event in window:
                     if event.get('tgid') == target_pid and 'details' in event:
                         # Get device identifier - use stdev+inode for regular files, kdev for device nodes
-                        device_id = self._get_device_identifier(event)
+                        device_id = get_device_identifier(event)
                         if device_id and device_id in dev2cat:
                             cat = dev2cat[device_id]
                             # Only add categories that are in our defined event types
@@ -2084,7 +2006,7 @@ class AdvancedAnalytics:
         }
         
         self.logger.info(f"Generated comprehensive report for PID {target_pid}")
-        return self._make_json_serializable(report)
+        return make_json_serializable(report)
     
     def _generate_enhanced_visualization_data(self, events, target_pid, security_analysis, network_analysis, process_analysis):
         """Generate enhanced data optimized for new visualization categories"""
