@@ -53,7 +53,7 @@ class AdvancedAnalytics:
             sensitive_data_analysis = self.descriptives_analyser.analyze_sensitive_data(events)
             temporal_patterns = self.descriptives_analyser.analyze_temporal_patterns(events, target_pid)
             network_analysis = self.network_analyser.analyze_network_events(events)
-            charts = self.chart_creator.generate_charts(events, target_pid, window_size, overlap)
+            charts = self.chart_creator.generate_charts(events, target_pid,network_analysis['data_transfer'], window_size, overlap)
             
             # Add comprehensive analysis for behavior timeline
             comprehensive_analytics = None

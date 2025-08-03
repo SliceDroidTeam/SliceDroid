@@ -15,7 +15,7 @@ class ChartCreator:
         self.config = config_class
         self.behavior_analyser = BehaviourTimelineAnalyser(config_class)
     
-    def generate_charts(self, events, target_pid, window_size=1000, overlap=200):
+    def generate_charts(self, events, target_pid, data_transfer, window_size=1000, overlap=200):
         """Generate base64-encoded charts similar to the notebook"""
         charts = {}
         
@@ -26,7 +26,7 @@ class ChartCreator:
 
             # 2. Category Distribution Chart
             charts['category_distribution'] = self._create_category_chart(events)
-            
+            print("CATEGORY DISTRIBUTION:", charts['category_distribution'])
             # 3. Device Usage Chart
             charts['device_usage'] = self._create_device_chart(events)
             
@@ -34,7 +34,7 @@ class ChartCreator:
             charts['network_activity'] = self._create_network_chart(events)
             
             # 5. Data Transfer Chart (MB) - using the original key for backward compatibility
-            data_transfer_chart = self._create_data_transfer_chart(events)
+            data_transfer_chart = self._create_data_transfer_chart(data_transfer)
             charts['data_transfer'] = data_transfer_chart
             charts['data_transfer_mb'] = data_transfer_chart  # Also add with new key
             
@@ -49,7 +49,7 @@ class ChartCreator:
         except Exception as e:
             self.logger.error(f"Error generating charts: {str(e)}")
             charts['error'] = str(e)
-        
+        print("GENERATED CHARTS:", charts)
         return charts
     
     def _plot_to_base64(self):
@@ -235,19 +235,17 @@ class ChartCreator:
             self.logger.error(f"Error creating network chart: {str(e)}")
             return None
 
-    def _create_data_transfer_chart(self, events):
+    def _create_data_transfer_chart(self, data_transfer):
         """Create data transfer chart showing MB transferred by protocol and process"""
         try:
-            # Get data transfer information
-            data_transfer = self._analyze_data_transfer(events)
             
             # Create a basic chart even if there's no data
-            if not data_transfer or not isinstance(data_transfer, dict):
-                data_transfer = {
-                    'tcp': {'sent_mb': 0.001, 'received_mb': 0.001},
-                    'udp': {'sent_mb': 0.001, 'received_mb': 0.001},
-                    'total': {'sent_mb': 0.002, 'received_mb': 0.002}
-                }
+            #if not data_transfer or not isinstance(data_transfer, dict):
+            #    data_transfer = {
+            #        'tcp': {'sent_mb': 0.001, 'received_mb': 0.001},
+            #        'udp': {'sent_mb': 0.001, 'received_mb': 0.001},
+            #        'total': {'sent_mb': 0.002, 'received_mb': 0.002}
+            #    }
             
             # Create a figure with two subplots - one for protocol summary, one for per-process details
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8), gridspec_kw={'width_ratios': [1, 1.5]})

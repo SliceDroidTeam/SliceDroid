@@ -10,48 +10,50 @@ class BehaviourTimelineAnalyser:
 
     def _load_device_category_mappings(self):
         # Load device category mappings (use OnePlus specific file for more accuracy)
-            try:
-                # Try OnePlus specific mapping first
-                cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs_oneplus.txt'
-                if not cat2devs_file.exists():
-                    # Fallback to generic mapping
-                    cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs.txt'
-                
-                if cat2devs_file.exists():
-                    with open(cat2devs_file, 'r') as f:
-                        try:
-                            cat2devs = json.load(f)
-                        except json.JSONDecodeError:
-                            cat2devs = {}
-                    dev2cat = {}
-                    for cat, devs in cat2devs.items():
-                        for dev in devs:
-                            dev2cat[dev] = cat
-                else:
-                    dev2cat = {}
-            except:
+        try:
+            # Try OnePlus specific mapping first
+            cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs_oneplus.txt'
+            if not cat2devs_file.exists():
+                # Fallback to generic mapping
+                cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs.txt'
+            
+            if cat2devs_file.exists():
+                with open(cat2devs_file, 'r') as f:
+                    try:
+                        cat2devs = json.load(f)
+                    except json.JSONDecodeError:
+                        cat2devs = {}
                 dev2cat = {}
+                for cat, devs in cat2devs.items():
+                    for dev in devs:
+                        dev2cat[dev] = cat
+            else:
+                dev2cat = {}
+        except:
+            dev2cat = {}
+        return dev2cat
     
     def _load_device_category_from_txt(self):
         # Load device categories from cat2devs.txt (unified mapping file)
-            try:
-                cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs.txt'
-                if cat2devs_file.exists():
-                    with open(cat2devs_file, 'r') as f:
-                        category_mapping = json.load(f)
-                    
-                    # Extract sensitive categories for analysis
-                    sensitive_resources = {}
-                    sensitive_categories = ['contacts', 'sms', 'calendar', 'callogger']
-                    for category in sensitive_categories:
-                        if category in category_mapping:
-                            sensitive_resources[category] = category_mapping[category]
-                else:
-                    sensitive_resources = {}
-            except:
+        try:
+            cat2devs_file = self.config.MAPPINGS_DIR / 'cat2devs.txt'
+            if cat2devs_file.exists():
+                with open(cat2devs_file, 'r') as f:
+                    category_mapping = json.load(f)
+                
+                # Extract sensitive categories for analysis
                 sensitive_resources = {}
+                sensitive_categories = ['contacts', 'sms', 'calendar', 'callogger']
+                for category in sensitive_categories:
+                    if category in category_mapping:
+                        sensitive_resources[category] = category_mapping[category]
+            else:
+                sensitive_resources = {}
+        except:
+            sensitive_resources = {}
+        return sensitive_resources
     
-    def _get_env_list(self, sensitive_data_trace, cats2windows):
+    def _get_cats2windows(self, sensitive_data_trace, cats2windows):
         # Add sensitive data events to windows (matching notebook cell 11 logic)
         for i, ev_list in enumerate(cats2windows):
             # Add contacts if detected in this window
@@ -73,22 +75,23 @@ class BehaviourTimelineAnalyser:
             if i < len(sensitive_data_trace['call_logs']) and len(sensitive_data_trace['call_logs'][i]) > 0:
                 if "call_logs" not in ev_list:
                     ev_list.append("call_logs")
-        return ev_list
+        return cats2windows
     
-    def _get_event_markers_and_colors(self):
-        # Define event types, markers, and colors (from notebook)
+    def analyse_for_behavior_timeline_chart(self, events, target_pid, window_size=1000, overlap=200):
+        """Create high-level behavior timeline chart based on notebook cell 11"""
+        # Define event markers and colors at the beginning
         event_markers = {
-            "camera": "o",          # Circle
-            "TCP_SYN_SENT": "^",    # Triangle Up
-            "audio_in": "x",
-            "bluetooth": "1",
-            "nfc": "2",
-            "gnss": "3",
-            "TCP_LAST_ACK": "v",     # Triangle Down
-            "contacts": "*",
-            "sms": "s",
-            "calendar": "D",
-            "call_logs": "p"
+         "camera": "o",          # Circle
+         "TCP_SYN_SENT": "^",    # Triangle Up
+         "audio_in": "x",
+         "bluetooth": "1",
+         "nfc": "2",
+         "gnss": "3",
+         "TCP_LAST_ACK": "v",     # Triangle Down
+         "contacts": "*",
+         "sms": "s",
+         "calendar": "D",
+         "call_logs": "p"
         }
         event_colors = {
             "camera": "blue",
@@ -103,10 +106,7 @@ class BehaviourTimelineAnalyser:
             "calendar": "cyan",
             "call_logs": "olive"
         }
-        return event_markers, event_colors
-    
-    def analyse_for_behavior_timeline_chart(self, events, target_pid, window_size=1000, overlap=200):
-        """Create high-level behavior timeline chart based on notebook cell 11"""
+        
         try:
             dev2cat = self._load_device_category_mappings()
             sensitive_resources = self._load_device_category_from_txt()
@@ -177,16 +177,14 @@ class BehaviourTimelineAnalyser:
                 if end == len(events):
                     break
                 i += step
-            
             # Add TCP events to windows
             for i, tcp_window in enumerate(tcp_events_windows):
                 if tcp_window and i < len(cats2windows):
                     # Add first TCP event of window
                     cats2windows[i].append(tcp_window[0])
             
-            ev_list = self._get_env_list(sensitive_data_trace, cats2windows)
-
-            event_markers, event_colors = self._get_event_markers_and_colors(event_markers, event_colors)
+            cats2windows = self._get_cats2windows(sensitive_data_trace, cats2windows)
+            
             # Prepare data for plotting
             x_values, y_values, markers, colors, annotations = [], [], [], [], []
             
@@ -230,8 +228,9 @@ class BehaviourTimelineAnalyser:
             
             if not x_values:
                 return None
+            print("x_values", x_values, "y_values", y_values, "markers", markers, "colors", colors, "annotations", annotations)
             return (x_values, y_values, markers, colors, annotations, event_types, target_pid, event_markers, N)
-        
+
         except Exception as e:
             self.logger.error(f"Error analysing behavior timeline : {str(e)}")
             return None
