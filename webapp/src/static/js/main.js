@@ -2433,7 +2433,6 @@ function renderProcessTree(processAnalysis) {
     // Create a simple process list view with activity information
     let treeHtml = '<div class="process-tree-list" style="max-height: 350px; overflow-y: auto;">';
     treeHtml += '<div class="row"><div class="col-12">';
-    treeHtml += '<h6><i class="fas fa-list"></i> Process Activity Summary</h6>';
     treeHtml += '</div></div>';
     
     // Sort processes by total events (most active first)
