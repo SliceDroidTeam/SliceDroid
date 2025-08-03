@@ -1,7 +1,7 @@
 import json
 from ..utils import get_device_identifier
 from . import get_logger
-from .utils import check_sensitive_resource
+from .base_utils import check_sensitive_resource
 
 class BehaviourTimelineAnalyser:
     def __init__(self, config):

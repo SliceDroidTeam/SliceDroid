@@ -1,4 +1,4 @@
-from .utils import analyze_socket_types
+from .base_utils import analyze_socket_types
 
 def get_event_size(event):
     """Helper method to extract size information from an event"""

@@ -1,6 +1,6 @@
 from collections import defaultdict
 from . import get_logger
-from .utils import analyze_socket_types
+from .base_utils import analyze_socket_types
 
 class NetworkAnalyser:
     def __init__(self):

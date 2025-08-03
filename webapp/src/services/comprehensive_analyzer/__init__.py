@@ -9,13 +9,13 @@ Modular analysis components for trace data analysis
 - network_analyzer: Network flow analysis
 - process_analyzer: Process genealogy and activity analysis
 - api_analyzer: API pattern analysis
-- main_analyzer: Main orchestrator maintaining backward compatibility
+- comprehensive_analyzer: Main orchestrator maintaining backward compatibility
 
 All components work together through the main ComprehensiveAnalyzer interface
 while maintaining full backward compatibility with existing code.
 """
 
-from .main_analyzer import ComprehensiveAnalyzer
+from .comprehensive_analyzer import ComprehensiveAnalyzer
 from .base_utils import BaseAnalyzer, DeviceUtils, SensitiveDataUtils, EventUtils
 from .event_slicer import EventSlicer
 from .file_analyzer import FileAnalyzer

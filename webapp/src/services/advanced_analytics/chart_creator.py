@@ -7,7 +7,7 @@ from io import BytesIO
 from collections import defaultdict, Counter
 from . import get_logger
 from .behavior_timeline_analyser import BehaviourTimelineAnalyser
-from .utils import analyze_socket_types, categorize_event
+from .base_utils import analyze_socket_types, categorize_event
 
 class ChartCreator:
     def __init__(self, config_class):

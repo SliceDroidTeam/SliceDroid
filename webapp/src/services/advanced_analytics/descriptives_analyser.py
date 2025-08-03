@@ -3,7 +3,7 @@ import json
 import numpy as np
 from ..utils import get_device_identifier
 from . import get_logger
-from .utils import check_sensitive_resource, categorize_event
+from .base_utils import check_sensitive_resource, categorize_event
 
 class DescriptivesAnalyser:
     def __init__(self, config_class):
