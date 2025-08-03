@@ -110,7 +110,6 @@ function loadAllData() {
         // Load statistics
         loadDeviceStats();
         loadEventStats();
-        loadStatsSummary();
 
         // Load charts
         loadDevicePieChart();
@@ -135,110 +134,10 @@ function showSectionLoading() {
     $('#event-stats-table tbody').html('<tr><td colspan="3" class="text-center"><div class="loading-spinner"></div> Loading...</td></tr>');
 }
 
-function loadStatsSummary() {
-    $.getJSON('/api/device_stats', function(deviceData) {
-        // Also get event stats for more comprehensive summary
-        $.getJSON('/api/event_stats', function(eventData) {
-            const summaryData = calculateSummaryFromData(deviceData, eventData);
-            renderStatsSummary(summaryData);
-            renderTopDevicesChart(summaryData.topDevices);
-        }).fail(function() {
-            showError('Failed to load event statistics');
-        });
-    }).fail(function() {
-        showError('Failed to load device statistics');
-    });
-}
-
 // Show error message
 function showError(message) {
     console.error(message);
     showToast('Error', message, 'error');
-}
-
-// Calculate summary statistics from actual data
-function calculateSummaryFromData(deviceData, eventData) {
-    const totalDevices = deviceData.length;
-    const totalEvents = eventData.reduce((sum, item) => sum + item.count, 0);
-
-    // Find most used event type
-    const mostUsedEvent = eventData.length > 0 ? eventData[0] : { event: 'none', count: 0 };
-
-    // Get top devices (limit based on config)
-    const topN = appConfig.top_devices || 5;
-    const topDevices = deviceData.slice(0, topN).map(d => ({
-        device: d.device,
-        count: d.count
-    }));
-
-    return {
-        totalEvents: totalEvents,
-        totalEventTypes: eventData.length,
-        totalUniqueDevices: totalDevices,
-        mostUsedEvent: {
-            name: mostUsedEvent.event,
-            count: mostUsedEvent.count
-        },
-        topDevices: topDevices
-    };
-}
-
-// Function to render the top devices chart
-function renderTopDevicesChart(topDevices) {
-    if (!topDevices || topDevices.length === 0) {
-        $('#top-devices-chart-container').html('<div class="alert alert-info">No data found</div>');
-        return;
-    }
-
-    const chartData = topDevices.map(device => ({
-        label: `Device ${device.device}`,
-        value: device.count
-    }));
-
-    createBarChart('top-devices-chart-container', chartData,
-                  `Top ${appConfig.top_devices || 5} Devices by Usage`,
-                  'Device ID', 'Count');
-}
-
-// Function to render the statistics summary table
-function renderStatsSummary(data) {
-    const tableBody = $('#stats-summary-table tbody');
-    tableBody.empty();
-
-    // Add rows to the table
-    tableBody.append(`
-        <tr>
-            <td><strong>Total Events</strong></td>
-            <td>${data.totalEvents}</td>
-        </tr>
-        <tr>
-            <td><strong>Event Types</strong></td>
-            <td>${data.totalEventTypes}</td>
-        </tr>
-        <tr>
-            <td><strong>Unique Devices</strong></td>
-            <td>${data.totalUniqueDevices}</td>
-        </tr>
-        <tr>
-            <td><strong>Most Used Event</strong></td>
-            <td>${data.mostUsedEvent.name} (${data.mostUsedEvent.count} times)</td>
-        </tr>
-    `);
-
-    // Add top devices as a list in a single row
-    const topN = appConfig.top_devices || 5;
-    let topDevicesHtml = '<ul class="list-unstyled mb-0">';
-    data.topDevices.forEach(device => {
-        topDevicesHtml += `<li>Device ${device.device}: ${device.count} events</li>`;
-    });
-    topDevicesHtml += '</ul>';
-
-    tableBody.append(`
-        <tr>
-            <td><strong>Top ${topN} Devices</strong></td>
-            <td>${topDevicesHtml}</td>
-        </tr>
-    `);
 }
 
 

@@ -102,7 +102,6 @@ function analyzeApp() {
         'timeline-container',
         'device-chart-container',
         'event-chart-container', 
-        'top-devices-chart-container',
         'network-flow-chart',
         'protocol-distribution-chart',
         'process-tree-chart',
