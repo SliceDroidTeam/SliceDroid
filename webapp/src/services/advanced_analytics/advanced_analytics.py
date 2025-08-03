@@ -5,7 +5,7 @@ from .chart_creator import ChartCreator
 from .descriptives_analyser import DescriptivesAnalyser
 from . import get_logger
 from ..comprehensive_analyzer import ComprehensiveAnalyzer
-from .insights_generator import generate_category_insights, generate_device_insights, generate_network_insights, generate_sensitive_data_insights
+from .insights_generator import generate_category_insights, generate_device_insights, generate_network_insights
 
 class AdvancedAnalytics:
     """Advanced analytics for trace data with high-level insights"""
@@ -50,7 +50,6 @@ class AdvancedAnalytics:
             process_analysis = self.descriptives_analyser.analyze_processes(events)
             device_analysis = self.descriptives_analyser.analyze_devices(events)
             category_analysis = self.descriptives_analyser.analyze_categories(events)
-            sensitive_data_analysis = self.descriptives_analyser.analyze_sensitive_data(events)
             temporal_patterns = self.descriptives_analyser.analyze_temporal_patterns(events, target_pid)
             network_analysis = self.network_analyser.analyze_network_events(events)
             charts = self.chart_creator.generate_charts(events, target_pid,network_analysis['data_transfer'], window_size, overlap)
@@ -73,15 +72,13 @@ class AdvancedAnalytics:
                 'device_analysis': device_analysis,
                 'category_analysis': category_analysis,
                 'network_analysis': network_analysis,
-                'sensitive_data_analysis': sensitive_data_analysis,
                 'temporal_patterns': temporal_patterns,
                 'charts': charts,
                 'comprehensive_analytics': comprehensive_analytics,
                 'detailed_insights': self._generate_detailed_insights({
                     'device_analysis': device_analysis,
                     'category_analysis': category_analysis,
-                    'network_analysis': network_analysis,
-                    'sensitive_data_analysis': sensitive_data_analysis
+                    'network_analysis': network_analysis
                 })
             }
             
@@ -115,9 +112,5 @@ class AdvancedAnalytics:
         # Network Analysis Insights
         if analysis_data.get('network_analysis') and not analysis_data['network_analysis'].get('no_network_events'):
             insights['network'] = generate_network_insights(analysis_data['network_analysis'])
-
-        # Sensitive Data Insights
-        if analysis_data.get('sensitive_data_analysis') and analysis_data['sensitive_data_analysis'].get('total_sensitive_events', 0) > 0:
-            insights['sensitive'] = generate_sensitive_data_insights(analysis_data['sensitive_data_analysis'])
 
         return insights

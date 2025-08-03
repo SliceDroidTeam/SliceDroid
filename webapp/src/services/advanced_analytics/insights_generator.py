@@ -263,34 +263,3 @@ def generate_category_insights(category_analysis):
         'insights': insights
     }
 
-def generate_sensitive_data_insights(sensitive_analysis):
-    """Generate sensitive data analysis insights"""
-    insights = []
-    
-    insights.append({
-        'icon': '🔒',
-        'text': f"<strong>{sensitive_analysis['total_sensitive_events']}</strong> potential sensitive data accesses"
-    })
-    
-    emoji_map = {
-        'contacts': '👥',
-        'sms': '💬',
-        'calendar': '📅',
-        'call_logs': '📞',
-        'location': '📍',
-        'camera': '📷',
-        'microphone': '🎤'
-    }
-    
-    for category, count in sensitive_analysis.get('sensitive_data_access', {}).items():
-        if count > 0:
-            emoji = emoji_map.get(category, '📁')
-            insights.append({
-                'icon': emoji,
-                'text': f"{category}: <strong>{count}</strong> accesses"
-            })
-    
-    return {
-        'title': 'Sensitive Data Analysis',
-        'insights': insights
-    }
