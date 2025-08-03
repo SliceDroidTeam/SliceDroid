@@ -2145,12 +2145,6 @@ function renderConnectionTables(networkAnalysis) {
     
     // 2. Render UDP communications table 
     renderUdpCommunications(networkAnalysis);
-    
-    // 3. Render Unix Stream connections table
-    renderUnixStreamConnections(networkAnalysis);
-    
-    // 4. Render Unix Datagram communications table
-    renderUnixDatagramCommunications(networkAnalysis);
 }
 
 function renderTcpConnections(networkAnalysis) {
@@ -2280,60 +2274,6 @@ function renderUdpCommunications(networkAnalysis) {
     } else {
         $('#udp-communications-table').html('<div class="alert alert-info">No UDP communications found</div>');
     }
-}
-
-function renderUnixStreamConnections(networkAnalysis) {
-    if (networkAnalysis && networkAnalysis.unix_stream_connections && networkAnalysis.unix_stream_connections.length > 0) {
-        let streamHtml = '<div class="table-responsive" style="max-height: 300px; overflow-y: auto;"><table class="table table-sm table-striped">';
-        streamHtml += '<thead class="table-dark sticky-top"><tr><th>Time</th><th>Direction</th><th>PID</th><th>To/From PID</th><th>Process</th></tr></thead><tbody>';
-        
-        networkAnalysis.unix_stream_connections.forEach(conn => {
-            const time = new Date(conn.timestamp * 1000).toLocaleTimeString();
-            const peerPid = conn.direction === 'send' ? conn.to_pid : conn.from_pid;
-            const directionIcon = conn.direction === 'send' ? '→' : '←';
-            
-            streamHtml += `<tr>
-                <td><small>${time}</small></td>
-                <td><span class="badge ${conn.direction === 'send' ? 'bg-primary' : 'bg-success'}">${directionIcon} ${conn.direction}</span></td>
-                <td><strong>${conn.pid}</strong></td>
-                <td>${peerPid || 'N/A'}</td>
-                <td><small>${conn.process}</small></td>
-            </tr>`;
-        });
-        
-        streamHtml += '</tbody></table></div>';
-        streamHtml += `<small class="text-muted mt-2 d-block">Total: ${networkAnalysis.unix_stream_connections.length} Unix stream connections</small>`;
-        $('#unix-stream-table').html(streamHtml);
-    } else {
-        $('#unix-stream-table').html('<div class="alert alert-info">No Unix stream connections found</div>');
-    }
-}
-
-function renderUnixDatagramCommunications(networkAnalysis) {
-    if (networkAnalysis && networkAnalysis.unix_dgram_communications && networkAnalysis.unix_dgram_communications.length > 0) {
-        let dgramHtml = '<div class="table-responsive" style="max-height: 300px; overflow-y: auto;"><table class="table table-sm table-striped">';
-        dgramHtml += '<thead class="table-dark sticky-top"><tr><th>Time</th><th>Direction</th><th>PID</th><th>Process</th><th>Inode</th></tr></thead><tbody>';
-        
-        networkAnalysis.unix_dgram_communications.forEach(comm => {
-            const time = new Date(comm.timestamp * 1000).toLocaleTimeString();
-            const directionIcon = comm.direction === 'send' ? '→' : '←';
-            
-            dgramHtml += `<tr>
-                <td><small>${time}</small></td>
-                <td><span class="badge ${comm.direction === 'send' ? 'bg-warning' : 'bg-info'}">${directionIcon} ${comm.direction}</span></td>
-                <td><strong>${comm.pid}</strong></td>
-                <td><small>${comm.process}</small></td>
-                <td>${comm.inode || 'N/A'}</td>
-            </tr>`;
-        });
-        
-        dgramHtml += '</tbody></table></div>';
-        dgramHtml += `<small class="text-muted mt-2 d-block">Total: ${networkAnalysis.unix_dgram_communications.length} Unix datagram communications</small>`;
-        $('#unix-datagram-table').html(dgramHtml);
-    } else {
-        $('#unix-datagram-table').html('<div class="alert alert-info">No Unix datagram communications found</div>');
-    }
-
 }
 
 function renderNetworkHeatmap(networkAnalysis) {
