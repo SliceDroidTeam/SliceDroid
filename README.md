@@ -127,7 +127,7 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## Initial Contributors
 
-- [@nikalexo](https://github.com/nikalexo) – Idea & Design – Research Lead
+- [@nikalexo](https://github.com/nikalexo) – Research Lead – Initial Codebase
 - [@karyotakisg](https://github.com/karyotakisg) – Initial Codebase
 - [@foivospro](https://github.com/foivospro) – Initial Codebase
 - [@vtalos](https://github.com/vtalos) – Initial Codebase
