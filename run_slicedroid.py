@@ -125,21 +125,21 @@ def check_device_connection(adb_command):
 
 def should_create_app_mapping():
     """Check if app_mapping.json is missing or empty"""
-    app_mapping_file = os.path.join("data", "app_mapping.json")
+    app_mapping_file = Path("data") / "app_mapping.json"
     
     # File doesn't exist
-    if not os.path.exists(app_mapping_file):
+    if not app_mapping_file.exists():
         return True
     
     # File exists but is empty or contains empty JSON
     try:
-        with open(app_mapping_file, 'r', encoding='utf-8') as f:
+        with open(str(app_mapping_file), 'r', encoding='utf-8') as f:
             content = f.read().strip()
             if not content or content == '{}' or content == '[]':
                 return True
         
         # Try to parse JSON and check if it has meaningful content
-        with open(app_mapping_file, 'r', encoding='utf-8') as f:
+        with open(str(app_mapping_file), 'r', encoding='utf-8') as f:
             data = json.load(f)
             if not data or len(data) == 0:
                 return True
@@ -211,7 +211,7 @@ if should_create_app_mapping():
     if os.path.exists(app_mapper_script):
         try:
             print("[*] Analyzing installed apps to extract commercial names...")
-            output_path = os.path.join("data", "app_mapping.json")
+            output_path = str(Path("data") / "app_mapping.json")
             # Ensure data directory exists
             os.makedirs("data", exist_ok=True)
             subprocess.run([
