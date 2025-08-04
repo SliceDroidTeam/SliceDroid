@@ -1,27 +1,23 @@
-# 📱 SliceDroid - Behavioral Analysis of Android Applications
+# SliceDroid - Behavioral Analysis of Android Applications
 
 A modular toolchain for tracing Android kernel events with `ftrace`, slicing logs, and analyzing app behavior with integrated visualization. Useful for malware analysis, app auditing, and research.
 
----
 
-## 🚀 Features
+## Features
 
-- 🐚 **Shell tracing script** using `kprobes` and `tracepoints` via `ftrace` for I/O events (IPC, Bluetooth, Camera, Audio, TCP)
-- 🧠 **Python parser** that extracts structured event data from ftrace logs and slices them to extract high-level behaviors
-- 🌐 **Web app UI** to upload `.trace` files and explore results visually
+- **Shell tracing script** using `kprobes` and `tracepoints` via `ftrace` for I/O events (IPC, Bluetooth, Camera, Audio, TCP)
+- **Python parser** that extracts structured event data from ftrace logs and slices them to extract high-level behaviors
+- **Web app UI** to upload `.trace` files and explore results visually
 
----
-
-## 🛠️ Prerequisites
+## Prerequisites
 ```yaml
 - Rooted Android device with Developer settings enabled
 - Python 3.8+ and pip
 - adb for device communication if installing from source
 - A docker version is also available (see below)
 ```
----
 
-## 🏃 How to run SliceDroid
+## How to run SliceDroid
 
 ### Source Installation
 
@@ -70,7 +66,6 @@ Skip steps 1-3 if your device is already connected through adb.
         ```bash
         python3 webapp/app.py
         ```
----
 
 ### Docker Installation (Recommended)
 
@@ -78,9 +73,7 @@ For a containerized setup that works across many platforms:
 
 **Follow the setup guide:** [DOCKER.md](docs/DOCKER.md)
 
----
-
-## 📁 Project Structure
+## Project Structure
 ```
 ├── run_slicedroid.py           # Main orchestrator script
 ├── webapp/
@@ -108,20 +101,14 @@ For a containerized setup that works across many platforms:
 
 **Note:** The `data/` directory is created automatically when you run SliceDroid and contains device-specific mappings and traces.
 
----
-
-## 📊 Sample Output
+## Sample Output
 Sample visualizations are saved in the `Figures/` directory after processing traces.
 
----
-
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions to SliceDroid! Please see our [Contributing Guide](docs/CONTRIBUTING.md).
 
----
-
-## 📄 License
+## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
