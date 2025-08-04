@@ -125,6 +125,13 @@ We welcome contributions to SliceDroid! Please see our [Contributing Guide](docs
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
+## Initial Contributors
+
+- [@nikalexo](https://github.com/nikalexo) – Idea & Design – Research Lead
+- [@karyotakisg](https://github.com/karyotakisg) – Initial Codebase
+- [@foivospro](https://github.com/foivospro) – Initial Codebase
+- [@vtalos](https://github.com/vtalos) – Initial Codebase
+
 ## Acknowledgements
 
 <img src="docs/normal-reproduction-low-resolution.jpg" alt="" width="100"/>
