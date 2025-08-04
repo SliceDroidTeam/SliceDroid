@@ -16,26 +16,18 @@ Before starting, ensure you have completed the following from the main README:
 3. **Enabled Developer Options and USB Debugging** on your Android device
 
 ---
-
 ## Connection Methods
 
 ### **Method 1: USB Connection via Docker USB Passthrough (Linux)**
 
 This method works best on Linux systems where Docker can directly access USB devices.
 
+
 1. **Connect your Android device via USB** and enable USB Debugging
 
 2. **Run Docker container with USB access:**
-   
-   **Option A: Temporary data (lost when container stops)**
    ```bash
-   docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb -p 5000:5000 slicedroid
-   ```
-   
-   **Option B: Persistent data with volume (recommended)**
-   ```bash
-   docker volume create slicedroid-data
-   docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb -v slicedroid-data:/app/data -p 5000:5000 slicedroid
+   docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb -v <path/to/data/folder>:/app/data -p 5000:5000 slicedroid
    ```
 
 3. **Inside the container, run SliceDroid:**
@@ -84,16 +76,8 @@ This method is recommended for Windows and macOS, or when USB passthrough is not
    - **You only need to pair once** — future connections can use `adb connect` directly
 
 4. **Run Docker container (no USB mounting needed):**
-   
-   **Option A: Temporary data**
    ```bash
-   docker run -it --network host -p 5000:5000 slicedroid
-   ```
-   
-   **Option B: Persistent data with volume (recommended)**
-   ```bash
-   docker volume create slicedroid-data
-   docker run -it -v slicedroid-data:/app/data -p 5000:5000 slicedroid
+   docker run -it -v <path/to/data/folder>:/app/data -p 5000:5000 slicedroid
    ```
 
 5. **Inside the container, connect and run SliceDroid:**
@@ -101,6 +85,21 @@ This method is recommended for Windows and macOS, or when USB passthrough is not
    adb connect <device-ip>:5555
    python3 run_slicedroid.py
    ```
+
+---
+
+## Run only the dashboard
+If you already have a `data` folder with cat2devs.txt, app_mappings.json and trace files, you can skip adb connection and just use the dashboard.
+
+1. **Run docker container:**
+```bash
+docker run -it -v <path/to/data/folder>:/app/data -p 5000:5000 slicedroid
+```
+
+2. **Run SliceDroid:**
+```bash
+   python3 run_slicedroid.py
+```
 
 ---
 

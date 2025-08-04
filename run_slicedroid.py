@@ -150,6 +150,105 @@ def should_create_app_mapping():
     
     return False
 
+def open_dashboard():
+    # Open the dashboard in the default browser
+    if not os.path.exists('/.dockerenv'):
+        print("[*] Opening dashboard in browser...")
+        webbrowser.open("http://localhost:5000")
+    print("Please visit http://localhost:5000 in your browser")
+
+def check_necessary_files():
+    """Check if all necessary files exist for dashboard functionality"""
+    required_files = {
+        'app_mapping': os.path.join("data", "app_mapping.json"),
+        'cat2devs': os.path.join("data", "mappings", "cat2devs.txt"),
+        'trace_file': None  # Will check for any .trace file
+    }
+    
+    status = {}
+    
+    # Check app_mapping.json
+    status['app_mapping'] = os.path.exists(required_files['app_mapping'])
+    
+    # Check cat2devs.txt
+    status['cat2devs'] = os.path.exists(required_files['cat2devs'])
+    
+    # Check for any .trace file in traces directory
+    traces_dir = os.path.join("data", "traces")
+    status['trace_file'] = False
+    if os.path.exists(traces_dir):
+        for file in os.listdir(traces_dir):
+            if file.endswith('.trace'):
+                status['trace_file'] = True
+                break
+    
+    return status, all(status.values())
+
+def display_menu():
+    """Display the main menu and get user choice"""
+    file_status, all_files_exist = check_necessary_files()
+    
+    print("\n" + "="*70)
+    print("                           SLICEDROID MENU")
+    print("="*70)
+    
+    # Display file status
+    print("\n📁 Data Files Status:")
+    status_icon = lambda exists: "✅" if exists else "❌"
+    print(f"   {status_icon(file_status['app_mapping'])} App Mapping (app_mapping.json)")
+    print(f"   {status_icon(file_status['cat2devs'])} Device Categories (mappings/cat2devs.txt)")
+    print(f"   {status_icon(file_status['trace_file'])} Trace File (traces/*.trace)")
+    
+    if all_files_exist:
+        print("   🎉 All necessary files are available!")
+    else:
+        print("   ⚠️  Some files are missing")
+    
+    print("\n🚀 Choose your action:")
+    print("┌─────────────────────────────────────────────────────────────────────┐")
+    print("│ 1. 📊 Open Dashboard Only                                           │")
+    print("│    └─ Use existing data files, start web interface immediately     │")
+    print("│                                                                     │")
+    print("│ 2. 📱 Trace Device + Dashboard                                      │")
+    print("│    └─ Capture new trace from device, then start dashboard          │")
+    print("│                                                                     │")
+    print("│ 3. 🔧 Full Setup + Trace + Dashboard                               │")
+    print("│    └─ Complete flow: setup, device analysis, trace, dashboard      │")
+    print("└─────────────────────────────────────────────────────────────────────┘")
+    
+    while True:
+        try:
+            choice = input("\n👉 Enter your choice (1-3): ").strip()
+            if choice in ['1', '2', '3']:
+                return int(choice)
+            else:
+                print("❌ Invalid choice. Please enter 1, 2, or 3.")
+        except KeyboardInterrupt:
+            print("\n\n👋 Goodbye!")
+            sys.exit(0)
+
+def start_dashboard_only():
+    """Start only the web dashboard without any device operations"""
+    print("\n🚀 Starting dashboard in standalone mode...")
+    
+    dashboard = os.path.join("webapp", "app.py")
+    
+    print("[*] Starting web dashboard...")
+    # Start the Flask app as a background process:
+    server_proc = subprocess.Popen(
+        [sys.executable, dashboard],
+        stderr=subprocess.STDOUT
+    )
+
+    # Give Flask a second to spin up
+    time.sleep(5)
+
+    # Open the dashboard in the default browser
+    open_dashboard()
+
+    # Wait for the server to exit before letting the script finish
+    server_proc.wait()
+
 # Main script starts here
 def print_banner():
     """Print ASCII art banner"""
@@ -169,6 +268,20 @@ def print_banner():
     print(banner)
 
 print_banner()
+
+# Display menu and get user choice
+user_choice = display_menu()
+
+if user_choice == 1:
+    start_dashboard_only()
+    sys.exit(0)
+elif user_choice == 2:
+    print("\n📱 Starting device tracing + dashboard flow...")
+    # Will continue with tracing flow below
+elif user_choice == 3:
+    print("\n🔧 Starting full setup flow...")
+    # Will continue with full flow below
+
 print("[*] Starting SliceDroid...")
 
 # Ensure ADB is available
@@ -204,55 +317,59 @@ print(f"[*] Found {len(devices)} connected device(s):")
 for device in devices:
     print(f"    - {device}")
 
-# Create app mapping from connected device if needed
-if should_create_app_mapping():
-    print("[*] App mapping is missing or empty - creating from connected device...")
-    app_mapper_script = os.path.join("scripts", "tracker", "app_mapper.py")
-    if os.path.exists(app_mapper_script):
-        try:
-            print("[*] Analyzing installed apps to extract commercial names...")
-            output_path = os.path.join("data", "app_mapping.json")
-            # Ensure data directory exists
-            os.makedirs("data", exist_ok=True)
-            subprocess.run([
-                sys.executable, app_mapper_script,
-                "--create", 
-                "--output", output_path,
-                "--limit", "50",
-                "--include-system"
-            ], check=True, timeout=500, cwd=os.getcwd())
-            print("[*] App mapping completed successfully")
-        except subprocess.TimeoutExpired:
-            print("[!] App mapping timed out, continuing without app mapping...")
-        except subprocess.CalledProcessError as e:
-            print(f"[!] App mapping failed: {e}, continuing without app mapping...")
-        except Exception as e:
-            print(f"[!] App mapping error: {e}, continuing without app mapping...")
+# Skip app mapping and resource resolution for option 2 (trace + dashboard)
+if user_choice == 3:  # Only do full setup for option 3
+    # Create app mapping from connected device if needed
+    if should_create_app_mapping():
+        print("[*] App mapping is missing or empty - creating from connected device...")
+        app_mapper_script = os.path.join("scripts", "tracker", "app_mapper.py")
+        if os.path.exists(app_mapper_script):
+            try:
+                print("[*] Analyzing installed apps to extract commercial names...")
+                output_path = os.path.join("data", "app_mapping.json")
+                # Ensure data directory exists
+                os.makedirs("data", exist_ok=True)
+                subprocess.run([
+                    sys.executable, app_mapper_script,
+                    "--create", 
+                    "--output", output_path,
+                    "--limit", "50",
+                    "--include-system"
+                ], check=True, timeout=500, cwd=os.getcwd())
+                print("[*] App mapping completed successfully")
+            except subprocess.TimeoutExpired:
+                print("[!] App mapping timed out, continuing without app mapping...")
+            except subprocess.CalledProcessError as e:
+                print(f"[!] App mapping failed: {e}, continuing without app mapping...")
+            except Exception as e:
+                print(f"[!] App mapping error: {e}, continuing without app mapping...")
+        else:
+            print("[!] App mapper script not found, skipping app mapping...")
     else:
-        print("[!] App mapper script not found, skipping app mapping...")
+        print("[*] App mapping already exists and contains data - skipping creation")
+
+    # Check if rdevs.txt and regularfiles.txt exist to skip the script
+    mapping_dir = "data/mappings"
+    skip_rdev = False
+    if os.path.isdir(mapping_dir):
+        rdevs_file = os.path.join(mapping_dir, "rdevs.txt")
+        regularfiles_file = os.path.join(mapping_dir, "regular_files.txt")
+        
+        if os.path.exists(rdevs_file) and os.path.exists(regularfiles_file):
+            print("[*] Found existing rdevs.txt and regular_files.txt, skipping resource resolution script...")
+            skip_rdev = True
+        else:
+            for filename in os.listdir(mapping_dir):
+                if re.match(r"cat2devs.txt", filename):
+                    skip_rdev = True
+                    break
+
+    if not skip_rdev:
+        # Collect st_devs and r_devs
+        stdev_script = os.path.join("scripts", "resources_resolver", "run_stdev_rdev_trace.py")
+        subprocess.run(["python", stdev_script], check=True, stderr=subprocess.STDOUT)
 else:
-    print("[*] App mapping already exists and contains data - skipping creation")
-
-# Check if rdevs.txt and regularfiles.txt exist to skip the script
-mapping_dir = "data/mappings"
-skip_rdev = False
-if os.path.isdir(mapping_dir):
-    rdevs_file = os.path.join(mapping_dir, "rdevs.txt")
-    regularfiles_file = os.path.join(mapping_dir, "regular_files.txt")
-    
-    if os.path.exists(rdevs_file) and os.path.exists(regularfiles_file):
-        print("[*] Found existing rdevs.txt and regular_files.txt, skipping resource resolution script...")
-        skip_rdev = True
-    else:
-        for filename in os.listdir(mapping_dir):
-            if re.match(r"cat2devs.txt", filename):
-                skip_rdev = True
-                break
-
-if not skip_rdev:
-    # Collect st_devs and r_devs
-    stdev_script = os.path.join("scripts", "resources_resolver", "run_stdev_rdev_trace.py")
-    subprocess.run(["python", stdev_script], check=True, stderr=subprocess.STDOUT)
+    print("[*] Skipping app mapping and resource resolution (using existing data)...")
 
 # Push tracing script to the device
 print("[*] Pushing tracing script to device...")
@@ -350,9 +467,8 @@ server_proc = subprocess.Popen(
 # Give Flask a second to spin up
 time.sleep(5)
 
-# Open the dashboard in the default browser
-print("[*] Opening dashboard in browser...")
-webbrowser.open("http://0.0.0.0:5000")
+
+open_dashboard()
 
 # Wait for the server to exit before letting the script finish
 server_proc.wait()

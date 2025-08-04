@@ -19,8 +19,12 @@ COPY scripts/ scripts/
 COPY webapp/ webapp/
 COPY run_slicedroid.py .
 
-# Create empty data directory structure
-RUN mkdir -p data/{traces,mappings,nodes_and_files_data,Exports}
+# Create empty data directory structure using explicit paths
+RUN mkdir -p data && \
+    mkdir -p data/traces && \
+    mkdir -p data/mappings && \
+    mkdir -p data/nodes_and_files_data && \
+    mkdir -p data/Exports
 
 # Create volume for persistent data storage
 VOLUME ["/app/data"]

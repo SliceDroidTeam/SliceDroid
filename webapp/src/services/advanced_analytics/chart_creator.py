@@ -26,7 +26,6 @@ class ChartCreator:
 
             # 2. Category Distribution Chart
             charts['category_distribution'] = self._create_category_chart(events)
-            print("CATEGORY DISTRIBUTION:", charts['category_distribution'])
             # 3. Device Usage Chart
             charts['device_usage'] = self._create_device_chart(events)
             
@@ -49,7 +48,6 @@ class ChartCreator:
         except Exception as e:
             self.logger.error(f"Error generating charts: {str(e)}")
             charts['error'] = str(e)
-        print("GENERATED CHARTS:", charts)
         return charts
     
     def _plot_to_base64(self):
