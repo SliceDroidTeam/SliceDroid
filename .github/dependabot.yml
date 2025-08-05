@@ -12,10 +12,6 @@ updates:
       time: "09:00"
       timezone: "UTC"
     open-pull-requests-limit: 10
-    reviewers:
-      - "SliceDroidTeam"
-    assignees:
-      - "SliceDroidTeam"
     commit-message:
       prefix: "deps"
       include: "scope"
@@ -50,10 +46,6 @@ updates:
       time: "09:00"
       timezone: "UTC"
     open-pull-requests-limit: 5
-    reviewers:
-      - "SliceDroidTeam"
-    assignees:
-      - "SliceDroidTeam"
     commit-message:
       prefix: "docker"
     labels:
@@ -66,10 +58,6 @@ updates:
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 5
-    reviewers:
-      - "SliceDroidTeam"
-    assignees:
-      - "SliceDroidTeam"
     commit-message:
       prefix: "ci"
     labels:
