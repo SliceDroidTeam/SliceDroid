@@ -78,28 +78,52 @@ For a containerized setup that works across many platforms:
 ├── run_slicedroid.py           # Main orchestrator script
 ├── webapp/
 │   ├── app.py                  # Flask web dashboard
-│   ├── src/                    # Web app source code
-│   │   ├── services/           # Analysis services
-│   │   ├── static/             # CSS/JS/assets
-│   │   └── templates/          # HTML templates
+│   ├── .env.example            # Environment configuration template
+│   └── src/                    # Web app source code
+│       ├── services/           # Analysis services
+│       │   ├── advanced_analytics/    # First analysis package
+│       │   ├── comprehensive_analyzer/ # Second analysis package
+│       │   ├── app_mapper_service.py  # App mapping service
+│       │   ├── trace_processor.py     # Trace processing
+│       │   └── utils.py               # Utility functions
+│       ├── static/             # CSS/JS/assets
+│       │   ├── css/            # Stylesheets
+│       │   └── js/             # JavaScript files
+│       ├── templates/          # HTML templates
+│       └── config.py           # Configuration settings
 ├── scripts/
 │   ├── tracer/                 # System call tracing scripts
+│   │   ├── cleaned_trace_sock.sh      # Main tracing script
+│   │   └── config_files/              # Tracing configuration
 │   ├── tracker/                # App mapping utilities
+│   │   └── app_mapper.py              # App name mapping
 │   ├── resources_resolver/     # Device mapping scripts
+│   │   ├── create_cat2_devs.py        # Device categorization
+│   │   ├── find_rdev_stdev_inode.sh   # Device discovery
+│   │   └── run_stdev_rdev_trace.py    # Device mapping runner
 │   └── network_aggregator.py   # Network analysis
 ├── data/                       # Generated at runtime (device-specific)
 │   ├── traces/                 # System call traces
 │   ├── mappings/               # Device mappings
-│   ├── nodes_and_files_data/   # File system mappings
 │   ├── Exports/                # Analysis exports
 │   └── app_mapping.json        # App name mappings
 ├── docs/                       # Documentation
+│   ├── CONTRIBUTING.md         # Contributing guidelines
+│   ├── DOCKER.md               # Docker setup guide
+│   ├── TRACING.md              # Tracing documentation
+│   └── normal-reproduction-low-resolution.jpg # EU funding logo
+├── .github/                    # GitHub configuration
+├── .dockerignore               # Docker ignore rules
+├── .gitignore                  # Git ignore rules
 ├── Dockerfile                  # Container configuration
 ├── requirements.txt            # Python dependencies
+├── LICENSE                     # Apache 2.0 license
 └── README.md                   # Project documentation
 ```
 
 **Note:** The `data/` directory is created automatically when you run SliceDroid and contains device-specific mappings and traces.
+If you want to provide your traces or mappings you can include them in that directory.
+You can skip running device-mappings script each time by choosing option 1 or option 2 from the terminal when running `python run_slicedroid.py`.
 
 ## Sample Output
 Sample visualizations are saved in the `Figures/` directory after processing traces.
