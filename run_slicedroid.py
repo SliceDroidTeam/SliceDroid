@@ -7,10 +7,9 @@ import time
 import re
 import urllib.request
 import zipfile
-import shutil
+import colorama
 import argparse
 import json
-from pathlib import Path
 
 def check_adb_installed():
     """Check if ADB is available in the system PATH"""
@@ -193,27 +192,27 @@ def display_menu():
     print("="*70)
     
     # Display file status
-    print("\n📁 Data Files Status:")
-    status_icon = lambda exists: "✅" if exists else "❌"
+    print("\nData Files Status:")
+    status_icon = lambda exists: colorama.Fore.GREEN + "OK" + colorama.Style.RESET_ALL if exists else colorama.Fore.RED + "Missing" + colorama.Style.RESET_ALL
     print(f"   {status_icon(file_status['app_mapping'])} App Mapping (app_mapping.json)")
     print(f"   {status_icon(file_status['cat2devs'])} Device Categories (mappings/cat2devs.txt)")
     print(f"   {status_icon(file_status['trace_file'])} Trace File (traces/*.trace)")
     
     if all_files_exist:
-        print("   🎉 All necessary files are available!")
+        print(colorama.Fore.GREEN + "All necessary files are available!" + colorama.Style.RESET_ALL)
     else:
-        print("   ⚠️  Some files are missing")
-    
-    print("\n🚀 Choose your action:")
+        print(colorama.Fore.RED + "Some files are missing" + colorama.Style.RESET_ALL)
+
+    print("\nChoose your action:")
     print("┌─────────────────────────────────────────────────────────────────────┐")
-    print("│ 1. 📊 Open Dashboard Only                                           │")
-    print("│    └─ Use existing data files, start web interface immediately     │")
+    print("│ 1. Open Dashboard Only                                              │")
+    print("│    └─ Use existing data files, start web interface immediately      │")
     print("│                                                                     │")
-    print("│ 2. 📱 Trace Device + Dashboard                                      │")
-    print("│    └─ Capture new trace from device, then start dashboard          │")
+    print("│ 2. Trace Device + Dashboard                                         │")
+    print("│    └─ Capture new trace from device, then start dashboard           │")
     print("│                                                                     │")
-    print("│ 3. 🔧 Full Setup + Trace + Dashboard                               │")
-    print("│    └─ Complete flow: setup, device analysis, trace, dashboard      │")
+    print("│ 3. Full Setup + Trace + Dashboard                                   │")
+    print("│    └─ Complete flow: setup, device analysis, trace, dashboard       │")
     print("└─────────────────────────────────────────────────────────────────────┘")
     
     while True:
@@ -222,14 +221,14 @@ def display_menu():
             if choice in ['1', '2', '3']:
                 return int(choice)
             else:
-                print("❌ Invalid choice. Please enter 1, 2, or 3.")
+                print("Invalid choice. Please enter 1, 2, or 3.")
         except KeyboardInterrupt:
-            print("\n\n👋 Goodbye!")
+            print("\n\nGoodbye!")
             sys.exit(0)
 
 def start_dashboard_only():
     """Start only the web dashboard without any device operations"""
-    print("\n🚀 Starting dashboard in standalone mode...")
+    print("\nStarting dashboard in standalone mode...")
     
     dashboard = os.path.join("webapp", "app.py")
     
