@@ -3,7 +3,9 @@
 
 let allApps = [];
 let selectedApp = null;
+let selectedPid = null;
 let lastAnalyzedApp = null;
+let currentAnalysisMode = 'app'; // 'app' or 'pid'
 
 // Initialize app selection functionality
 function initializeAppSelection() {
@@ -12,36 +14,80 @@ function initializeAppSelection() {
 }
 
 function setupAppEventListeners() {
+    // Analysis mode toggle
+    $('input[name="analysis-mode"]').change(function() {
+        currentAnalysisMode = $(this).val();
+        toggleAnalysisMode();
+    });
+
     // App selection dropdown
     $('#app-select').change(function() {
         const selectedPackage = $(this).val();
         selectedApp = selectedPackage;
+        updateAnalyzeButton();
+    });
+    
+    // PID selection dropdown
+    $('#pid-select').change(function() {
+        const selectedPidValue = $(this).val();
+        selectedPid = selectedPidValue ? parseInt(selectedPidValue) : null;
+        updateAnalyzeButton();
+    });
+    
+    // Analyze app button (handles both app and PID analysis)
+    $('#analyze-app').click(analyzeTarget);
+}
+
+function toggleAnalysisMode() {
+    if (currentAnalysisMode === 'app') {
+        $('#app-selection-container').show();
+        $('#pid-selection-container').hide();
+        selectedPid = null;
+        $('#pid-select').val('');
+    } else {
+        $('#app-selection-container').hide();
+        $('#pid-selection-container').show();
+        selectedApp = null;
+        $('#app-select').val('');
+    }
+    updateAnalyzeButton();
+}
+
+function updateAnalyzeButton() {
+    const hasSelection = (currentAnalysisMode === 'app' && selectedApp) || 
+                        (currentAnalysisMode === 'pid' && selectedPid);
+    
+    if (hasSelection) {
+        let hasChanged = false;
+        let statusMessage = '';
         
-        // Enable/disable the analyze button
-        if (selectedPackage) {
-            // Enable button only if app changed or hasn't been analyzed yet
-            const hasAppChanged = selectedPackage !== lastAnalyzedApp;
-            $('#analyze-app').prop('disabled', !hasAppChanged);
-            
-            const app = allApps.find(a => a.package_name === selectedPackage);
+        if (currentAnalysisMode === 'app') {
+            hasChanged = selectedApp !== lastAnalyzedApp;
+            const app = allApps.find(a => a.package_name === selectedApp);
             if (app) {
-                if (hasAppChanged) {
-                    $('#app-status').removeClass('alert-info alert-warning alert-danger').addClass('alert-success')
-                        .html(`<i class="fas fa-check-circle me-2"></i><span><strong>${app.commercial_name}</strong> selected and ready for analysis</span>`);
+                if (hasChanged) {
+                    statusMessage = `<i class="fas fa-check-circle me-2"></i><span><strong>${app.commercial_name}</strong> selected and ready for analysis</span>`;
+                    $('#app-status').removeClass('alert-info alert-warning alert-danger').addClass('alert-success');
                 } else {
-                    $('#app-status').removeClass('alert-info alert-warning alert-danger').addClass('alert-warning')
-                        .html(`<i class="fas fa-info-circle me-2"></i><span><strong>${app.commercial_name}</strong> already analyzed. Select a different app to enable analysis.</span>`);
+                    statusMessage = `<i class="fas fa-info-circle me-2"></i><span><strong>${app.commercial_name}</strong> already analyzed. Select a different target to enable analysis.</span>`;
+                    $('#app-status').removeClass('alert-info alert-success alert-danger').addClass('alert-warning');
                 }
             }
         } else {
-            $('#analyze-app').prop('disabled', true);
-            $('#app-status').removeClass('alert-success alert-warning alert-danger').addClass('alert-info')
-                .html('<i class="fas fa-info-circle me-2"></i><span>Select an application from the dropdown to begin analysis</span>');
+            // PID mode - always allow analysis as PIDs might have different data
+            hasChanged = true;
+            statusMessage = `<i class="fas fa-check-circle me-2"></i><span><strong>PID ${selectedPid}</strong> selected and ready for analysis</span>`;
+            $('#app-status').removeClass('alert-info alert-warning alert-danger').addClass('alert-success');
         }
-    });
-    
-    // Analyze app button (does both generate targets and analyze)
-    $('#analyze-app').click(analyzeApp);
+        
+        $('#analyze-app').prop('disabled', !hasChanged);
+        $('#app-status').html(statusMessage);
+    } else {
+        $('#analyze-app').prop('disabled', true);
+        const modeText = currentAnalysisMode === 'app' ? 'application' : 'process ID';
+        $('#app-status').removeClass('alert-success alert-warning alert-danger').addClass('alert-info')
+            .html(`<i class="fas fa-info-circle me-2"></i><span>Select a ${modeText} to begin analysis</span>`);
+    }
 }
 
 function loadApps() {
@@ -83,6 +129,14 @@ function updateAppDropdown() {
 
 
 
+function analyzeTarget() {
+    if (currentAnalysisMode === 'app') {
+        analyzeApp();
+    } else {
+        analyzePid();
+    }
+}
+
 function analyzeApp() {
     if (!selectedApp) {
         alert('Please select an app first');
@@ -98,26 +152,7 @@ function analyzeApp() {
     analyzeBtn.html('<i class="fas fa-spinner fa-spin"></i> Analyzing...').prop('disabled', true);
     
     // Show loading spinners on all chart containers
-    const chartContainers = [
-        'timeline-container',
-        'device-chart-container',
-        'event-chart-container', 
-        'network-flow-chart',
-        'protocol-distribution-chart',
-        'process-tree-chart',
-        'process-timeline-chart',
-        'behavior-timeline-chart',
-        'category-chart',
-        'network-chart',
-        'device-usage-chart',
-        'process-activity-chart'
-    ];
-    
-    chartContainers.forEach(containerId => {
-        if (document.getElementById(containerId)) {
-            showChartLoading(containerId, `Analyzing ${appName}...`);
-        }
-    });
+    showLoadingOnAllCharts(appName);
     
     // Get process targets from existing app data  
     const selectedAppData = allApps.find(a => a.package_name === selectedApp);
@@ -158,12 +193,7 @@ function analyzeApp() {
             } else {
                 $('#app-status').removeClass('alert-info alert-warning alert-success').addClass('alert-danger')
                     .html(`<i class="fas fa-exclamation-triangle me-2"></i><span>Analysis failed: ${analysisData.error}</span>`);
-                // Clear loading spinners on error
-                chartContainers.forEach(containerId => {
-                    if (document.getElementById(containerId)) {
-                        hideChartLoading(containerId);
-                    }
-                });
+                hideLoadingOnAllCharts();
             }
         },
         error: function(jqXHR) {
@@ -174,16 +204,124 @@ function analyzeApp() {
             $('#app-status').removeClass('alert-info alert-warning alert-success').addClass('alert-danger')
                 .html(`<i class="fas fa-exclamation-triangle me-2"></i><span>${errorMsg}</span>`);
             
-            // Clear loading spinners on error
-            chartContainers.forEach(containerId => {
-                if (document.getElementById(containerId)) {
-                    hideChartLoading(containerId);
-                }
-            });
+            hideLoadingOnAllCharts();
         },
         complete: function() {
             // Restore button text but keep it disabled
             analyzeBtn.html(originalText);
+        }
+    });
+}
+
+function analyzePid() {
+    if (!selectedPid) {
+        alert('Please select a PID first');
+        return;
+    }
+    
+    const analyzeBtn = $('#analyze-app');
+    const originalText = analyzeBtn.html();
+    
+    // Show loading state on button
+    analyzeBtn.html('<i class="fas fa-spinner fa-spin"></i> Analyzing...').prop('disabled', true);
+    
+    // Show loading spinners on all chart containers
+    showLoadingOnAllCharts(`PID ${selectedPid}`);
+    
+    // Perform PID-based analysis
+    $('#app-status').removeClass('alert-info alert-success alert-danger').addClass('alert-warning')
+        .html('<i class="fas fa-spinner fa-spin me-2"></i><span>Performing PID-specific analysis...</span>');
+    
+    $.ajax({
+        url: '/api/apps/analyze-pid',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            target_pid: selectedPid
+        }),
+        success: function(analysisData) {
+            if (analysisData.success) {
+                // Show all analysis sections
+                $('.analysis-only').show();
+                
+                $('#app-status').removeClass('alert-info alert-warning alert-danger').addClass('alert-success')
+                    .html(`
+                        <i class="fas fa-check-circle me-2"></i>
+                        <span>
+                            <strong>Analysis complete for PID ${selectedPid}</strong><br>
+                            <small>Process: ${analysisData.process_name || 'Unknown'} | Events: ${analysisData.events_count}</small><br>
+                            <small><i class="fas fa-sync fa-spin me-1"></i>Refreshing charts...</small>
+                        </span>
+                    `);
+                
+                // Refresh all charts with new data
+                refreshChartsWithNewData();
+                
+            } else {
+                $('#app-status').removeClass('alert-info alert-warning alert-success').addClass('alert-danger')
+                    .html(`<i class="fas fa-exclamation-triangle me-2"></i><span>Analysis failed: ${analysisData.error}</span>`);
+                hideLoadingOnAllCharts();
+            }
+        },
+        error: function(jqXHR) {
+            let errorMsg = 'PID analysis failed';
+            if (jqXHR.responseJSON && jqXHR.responseJSON.error) {
+                errorMsg += ': ' + jqXHR.responseJSON.error;
+            }
+            $('#app-status').removeClass('alert-info alert-warning alert-success').addClass('alert-danger')
+                .html(`<i class="fas fa-exclamation-triangle me-2"></i><span>${errorMsg}</span>`);
+            
+            hideLoadingOnAllCharts();
+        },
+        complete: function() {
+            // Restore button text
+            analyzeBtn.html(originalText);
+        }
+    });
+}
+
+function showLoadingOnAllCharts(targetName) {
+    const chartContainers = [
+        'timeline-container',
+        'device-chart-container',
+        'event-chart-container', 
+        'network-flow-chart',
+        'protocol-distribution-chart',
+        'process-tree-chart',
+        'process-timeline-chart',
+        'behavior-timeline-chart',
+        'category-chart',
+        'network-chart',
+        'device-usage-chart',
+        'process-activity-chart'
+    ];
+    
+    chartContainers.forEach(containerId => {
+        if (document.getElementById(containerId)) {
+            showChartLoading(containerId, `Analyzing ${targetName}...`);
+        }
+    });
+}
+
+function hideLoadingOnAllCharts() {
+    const chartContainers = [
+        'timeline-container',
+        'device-chart-container',
+        'event-chart-container', 
+        'network-flow-chart',
+        'protocol-distribution-chart',
+        'process-tree-chart',
+        'process-timeline-chart',
+        'behavior-timeline-chart',
+        'category-chart',
+        'network-chart',
+        'device-usage-chart',
+        'process-activity-chart'
+    ];
+    
+    chartContainers.forEach(containerId => {
+        if (document.getElementById(containerId)) {
+            hideChartLoading(containerId);
         }
     });
 }

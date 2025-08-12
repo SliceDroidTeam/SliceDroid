@@ -902,6 +902,83 @@ def analyze_app():
         print(f"Error in analyze_app: {e}")
         return jsonify({'error': f'Analysis failed: {str(e)}'}), 500
 
+@app.route('/api/apps/analyze-pid', methods=['POST'])
+def analyze_pid():
+    """API endpoint for processing trace and analyzing specific PID"""
+    try:
+        data = request.get_json()
+        target_pid = data.get('target_pid')
+
+        if not target_pid:
+            print(f"[ERROR] No target_pid provided. Request data: {data}")
+            return jsonify({'error': 'No PID specified'}), 400
+
+        target_pid = int(target_pid)  # Ensure it's an integer
+
+        # Check if trace file exists
+        trace_file = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'uploaded_trace.trace'
+        if not trace_file.exists():
+            return jsonify({'error': 'No trace file found. Please upload a trace file first.'}), 400
+
+        print(f"[DEBUG] Processing trace file for PID: {target_pid}")
+        
+        # Process the trace file fresh each time
+        trace_processor = TraceProcessor(app.config_class)
+        result = trace_processor.process_trace_file(str(trace_file))
+        
+        if not result.get('success', False):
+            return jsonify({'error': f'Failed to process trace: {result.get("error", "Unknown error")}'}), 500
+            
+        # Load the processed events
+        events = load_data()
+        
+        if not events:
+            return jsonify({'error': 'No events found in processed trace'}), 400
+
+        # Verify the PID exists in the events
+        pid_found = False
+        target_process_name = "Unknown"
+        for event in events:
+            if event.get('tgid') == target_pid:
+                pid_found = True
+                target_process_name = event.get('process', 'Unknown')
+                break
+
+        if not pid_found:
+            return jsonify({'error': f'PID {target_pid} not found in trace data'}), 400
+
+        print(f"[DEBUG] Found PID {target_pid} with process name: {target_process_name}")
+
+        # Perform slicing analysis for this specific PID
+        sliced_events = comprehensive_analyzer.slice_events(events, target_pid, asynchronous=True)
+
+        # Save sliced events for the dashboard to use
+        main_events_file = app.config_class.PROCESSED_EVENTS_JSON
+        with open(main_events_file, 'w', encoding='utf-8') as f:
+            json.dump(sliced_events, f, indent=2, ensure_ascii=False)
+
+        # Update global app info for other endpoints to use
+        global _current_app_info
+        _current_app_info.update({
+            'app_id': f'pid_{target_pid}',
+            'app_name': f'PID {target_pid}',
+            'target_pid': target_pid,
+            'process_name': target_process_name
+        })
+        print(f"[DEBUG] Updated current app info for PID: {_current_app_info}")
+
+        return jsonify({
+            'success': True,
+            'target_pid': target_pid,
+            'process_name': target_process_name,
+            'events_count': len(sliced_events),
+            'message': f'Analysis complete for PID {target_pid}. Found {len(sliced_events)} relevant events.'
+        })
+
+    except Exception as e:
+        print(f"Error in analyze_pid: {e}")
+        return jsonify({'error': f'PID analysis failed: {str(e)}'}), 500
+
 @app.route('/api/apps/search')
 def search_apps():
     """API endpoint for searching apps"""
