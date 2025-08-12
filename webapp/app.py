@@ -80,6 +80,14 @@ _data_cache = {}
 _cache_timestamp = None
 _metadata_cache = {}
 
+# Track the currently analyzed app's information
+_current_app_info = {
+    'app_id': None,
+    'app_name': None,
+    'target_pid': None,
+    'process_name': None
+}
+
 def load_data():
     """Load the processed events from JSON file with caching"""
     global _data_cache, _cache_timestamp
@@ -597,6 +605,12 @@ def get_advanced_analytics():
             if not pid.isdigit():
                 return jsonify({'error': 'Invalid PID parameter'}), 400
             target_pid = int(pid)
+        else:
+            # Use the stored target PID from the currently analyzed app
+            global _current_app_info
+            if _current_app_info['target_pid'] is not None:
+                target_pid = _current_app_info['target_pid']
+                print(f"[DEBUG] Using stored target PID: {target_pid} for app: {_current_app_info['app_name']}")
 
         # Validate window parameters
         if overlap >= window_size:
@@ -672,6 +686,11 @@ def get_network_analysis():
             if not pid.isdigit():
                 return jsonify({'error': 'Invalid PID parameter'}), 400
             target_pid = int(pid)
+        else:
+            # Use the stored target PID from the currently analyzed app
+            global _current_app_info
+            if _current_app_info['target_pid'] is not None:
+                target_pid = _current_app_info['target_pid']
 
         # Perform network analysis
         network_analysis = comprehensive_analyzer.analyze_network_flows(events, target_pid)
@@ -697,6 +716,11 @@ def get_process_analysis():
             if not pid.isdigit():
                 return jsonify({'error': 'Invalid PID parameter'}), 400
             target_pid = int(pid)
+        else:
+            # Use the stored target PID from the currently analyzed app
+            global _current_app_info
+            if _current_app_info['target_pid'] is not None:
+                target_pid = _current_app_info['target_pid']
 
         # Perform process genealogy analysis
         process_analysis = comprehensive_analyzer.analyze_process_genealogy(events, target_pid)
@@ -708,6 +732,12 @@ def get_process_analysis():
     except Exception as e:
         print(f"Error in process analysis: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/current-app')
+def get_current_app():
+    """API endpoint for getting current analyzed app information"""
+    global _current_app_info
+    return jsonify(_current_app_info)
 
 @app.route('/api/apps')
 def get_apps():
@@ -847,6 +877,16 @@ def analyze_app():
         main_events_file = app.config_class.PROCESSED_EVENTS_JSON
         with open(main_events_file, 'w', encoding='utf-8') as f:
             json.dump(sliced_events, f, indent=2, ensure_ascii=False)
+
+        # Update global app info for other endpoints to use
+        global _current_app_info
+        _current_app_info.update({
+            'app_id': app_id,
+            'app_name': app_display_name,
+            'target_pid': target_pid,
+            'process_name': target_process_name
+        })
+        print(f"[DEBUG] Updated current app info: {_current_app_info}")
 
         return jsonify({
             'success': True,
