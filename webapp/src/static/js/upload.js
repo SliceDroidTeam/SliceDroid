@@ -284,14 +284,12 @@ function exportEvents(format) {
 }
 
 function exportAnalysis(format) {
-    const pid = document.getElementById('analytics-target-pid').value || document.getElementById('pid-filter').value;
     const windowSize = document.getElementById('analytics-window-size').value || 1000;
     const overlap = document.getElementById('analytics-overlap').value || 200;
 
     // Build parameters
     let params = [];
     params.push(`format=${format}`);
-    if (pid) params.push(`pid=${pid}`);
     params.push(`window_size=${windowSize}`);
     params.push(`overlap=${overlap}`);
 

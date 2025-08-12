@@ -231,18 +231,11 @@
                                     <small class="text-muted">Window overlap</small>
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label">Target PID</label>
-                                    <select class="form-control form-control-modern" id="analytics-target-pid">
-                                        <option value="">Auto-detect</option>
-                                        {% for pid in pids %}
-                                        <option value="{{ pid }}">PID {{ pid }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-3 d-flex align-items-end">
-                                    <button type="button" class="btn btn-primary btn-sm" id="apply-analytics-config">
-                                        <i class="fas fa-play"></i> Run Analysis
-                                    </button>
+                                    <div style="margin-top: 1.875rem;">
+                                        <button type="button" class="btn btn-primary btn-sm" id="apply-analytics-config">
+                                            <i class="fas fa-play"></i> Run Analysis
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -615,8 +608,6 @@
                                         <dd>Number of events analyzed in each window (default: 1000)</dd>
                                         <dt>Overlap</dt>
                                         <dd>Number of overlapping events between windows (default: 200)</dd>
-                                        <dt>Target PID</dt>
-                                        <dd>Specific process ID to focus analysis on (auto-detected if empty)</dd>
                                     </dl>
                                 </div>
                             </div>

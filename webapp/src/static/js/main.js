@@ -859,7 +859,7 @@ function renderAnalyticsSummary(data) {
     // Create summary cards
     const summaryCards = [
         {
-            title: 'Target PID',
+            title: 'Analyzed PID',
             value: data.target_pid || 'N/A',
             icon: 'fas fa-bullseye',
             color: 'primary'
@@ -1000,7 +1000,6 @@ function showAnalyticsError(error) {
 }
 
 function loadAdvancedAnalyticsWithConfig() {
-    const pid = $('#analytics-target-pid').val();
     const windowSize = $('#analytics-window-size').val();
     const overlap = $('#analytics-overlap').val();
     
@@ -1013,7 +1012,6 @@ function loadAdvancedAnalyticsWithConfig() {
     // Build URL with parameters
     let url = '/api/advanced-analytics';
     let params = [];
-    if (pid) params.push(`pid=${pid}`);
     if (windowSize) params.push(`window_size=${windowSize}`);
     if (overlap) params.push(`overlap=${overlap}`);
     
