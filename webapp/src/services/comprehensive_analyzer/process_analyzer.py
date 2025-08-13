@@ -206,13 +206,13 @@ class ProcessAnalyzer(BaseAnalyzer):
                 max_events = activity['total_events']
                 most_active = {'pid': pid, 'events': max_events, 'name': activity['process_name']}
 
-        # Detect suspicious patterns
-        suspicious_patterns = []
+        # Detect interesting patterns
+        interesting_patterns = []
 
         for pid, activity in process_activities.items():
             # High file access activity
             if activity['files_accessed_count'] > 50:
-                suspicious_patterns.append({
+                interesting_patterns.append({
                     'type': 'high_file_access',
                     'description': f'Process {pid} ({activity["process_name"]}) accessed {activity["files_accessed_count"]} different files'
                 })
@@ -222,19 +222,19 @@ class ProcessAnalyzer(BaseAnalyzer):
             if total_rw > 100:
                 read_ratio = activity['read_operations'] / total_rw
                 if read_ratio > 0.9:
-                    suspicious_patterns.append({
+                    interesting_patterns.append({
                         'type': 'excessive_reading',
                         'description': f'Process {pid} has unusually high read activity ({activity["read_operations"]} reads vs {activity["write_operations"]} writes)'
                     })
                 elif read_ratio < 0.1:
-                    suspicious_patterns.append({
+                    interesting_patterns.append({
                         'type': 'excessive_writing',
                         'description': f'Process {pid} has unusually high write activity ({activity["write_operations"]} writes vs {activity["read_operations"]} reads)'
                     })
 
             # High communication activity
             if activity['partners_count'] > 5:
-                suspicious_patterns.append({
+                interesting_patterns.append({
                     'type': 'high_communication_activity',
                     'description': f'Process {pid} communicates with {activity["partners_count"]} different processes'
                 })
@@ -256,7 +256,7 @@ class ProcessAnalyzer(BaseAnalyzer):
             'process_tree_depth': min(3, total_processes),  # Simplified depth
             'most_active_process': most_active,
             'activity_frequency': activity_frequency,
-            'suspicious_patterns': suspicious_patterns,
+            'interesting_patterns': interesting_patterns,
             'unique_processes': total_processes
         }
 
@@ -307,7 +307,7 @@ class ProcessAnalyzer(BaseAnalyzer):
             'process_tree_depth': 0,
             'most_active_parent': None,
             'execution_frequency': 'LOW',
-            'suspicious_patterns': []
+            'interesting_patterns': []
         }
 
         # Calculate tree depth
@@ -346,21 +346,21 @@ class ProcessAnalyzer(BaseAnalyzer):
         else:
             summary['execution_frequency'] = 'LOW'
 
-        # Detect suspicious patterns
+        # Detect interesting patterns
         if summary['process_tree_depth'] > 5:
-            summary['suspicious_patterns'].append({
+            summary['interesting_patterns'].append({
                 'type': 'deep_process_tree',
                 'description': f'Unusually deep process tree (depth: {summary["process_tree_depth"]})'
             })
 
         if summary['most_active_parent'] and summary['most_active_parent']['fork_count'] > 10:
-            summary['suspicious_patterns'].append({
+            summary['interesting_patterns'].append({
                 'type': 'excessive_forking',
                 'description': f'Process {summary["most_active_parent"]["pid"]} created {summary["most_active_parent"]["fork_count"]} child processes'
             })
 
         if total_execution_events > 100:
-            summary['suspicious_patterns'].append({
+            summary['interesting_patterns'].append({
                 'type': 'high_execution_activity',
                 'description': f'High number of execution events ({total_execution_events})'
             })

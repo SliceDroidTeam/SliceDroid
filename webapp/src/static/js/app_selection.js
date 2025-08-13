@@ -86,7 +86,7 @@ function updateAnalyzeButton() {
         $('#analyze-app').prop('disabled', true);
         const modeText = currentAnalysisMode === 'app' ? 'application' : 'process ID';
         $('#app-status').removeClass('alert-success alert-warning alert-danger').addClass('alert-info')
-            .html(`<i class="fas fa-info-circle me-2"></i><span>Select a ${modeText} to begin analysis</span>`);
+            .html(`<i class="fas fa-info-circle me-2"></i><span>Select ${modeText} to begin analysis</span>`);
     }
 }
 

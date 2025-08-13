@@ -871,7 +871,7 @@ function renderAnalyticsSummary(data) {
             color: 'success'
         },
         {
-            title: 'Unique Processes',
+            title: 'Processes',
             value: data.process_analysis?.unique_processes || '0',
             icon: 'fas fa-cogs',
             color: 'info'
@@ -1379,7 +1379,7 @@ function renderNetworkFlowChart(networkAnalysis) {
             .style('z-index', '1000');
 
         tooltip.html(`
-            <strong>Communication Flow</strong><br>
+            <strong>Pid Flow to other Pids or external sources</strong><br>
             From PID: ${d.source.id}<br>
             To PID: ${d.target.id}<br>
             Messages: ${d.count}<br>
@@ -2395,9 +2395,9 @@ function renderProcessSummary(data) {
             icon: 'fas fa-exchange-alt'
         },
         {
-            title: 'Suspicious Patterns',
-            value: summary.suspicious_patterns ? summary.suspicious_patterns.length : 0,
-            type: summary.suspicious_patterns && summary.suspicious_patterns.length > 0 ? 'danger' : 'success',
+            title: 'Interesting Patterns',
+            value: summary.interesting_patterns ? summary.interesting_patterns.length : 0,
+            type: summary.interesting_patterns && summary.interesting_patterns.length > 0 ? 'danger' : 'success',
             icon: 'fas fa-exclamation-triangle'
         }
     ];
@@ -2472,24 +2472,24 @@ function renderProcessTree(processAnalysis) {
 
 
 function renderSuspiciousPatterns(processAnalysis) {
-    const container = $('#process-suspicious-patterns');
+    const container = $('#process-interesting-patterns');
     container.empty();
 
-    if (!processAnalysis || !processAnalysis.summary || !processAnalysis.summary.suspicious_patterns) {
-        container.html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> No suspicious patterns detected</div>');
+    if (!processAnalysis || !processAnalysis.summary || !processAnalysis.summary.interesting_patterns) {
+        container.html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> No interesting patterns detected</div>');
         return;
     }
 
-    const patterns = processAnalysis.summary.suspicious_patterns;
+    const patterns = processAnalysis.summary.interesting_patterns;
     if (patterns.length === 0) {
-        container.html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> No suspicious patterns detected</div>');
+        container.html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> No interesting patterns detected</div>');
         return;
     }
 
     const patternList = $('<div class="pattern-list" style="max-height: 300px; overflow-y: auto;"></div>');
     patterns.forEach(pattern => {
         patternList.append(`
-            <div class="alert alert-warning alert-sm mb-2">
+            <div class="alert alert-info alert-sm mb-2">
                 <strong>${pattern.type}</strong><br>
                 <small>${pattern.description}</small>
             </div>

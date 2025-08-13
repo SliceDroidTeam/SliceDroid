@@ -373,7 +373,7 @@
                         <div class="row mb-5">
                             <div class="col-md-8">
                                 <div class="professional-card p-3 pb-4">
-                                    <h6><i class="fas fa-project-diagram"></i> Communication Flow</h6>
+                                    <h6><i class="fas fa-project-diagram"></i>PIDs flow to other PIDs or external sources</h6>
                                     <div id="network-flow-chart" style="height: 350px;"></div>
                                 </div>
                             </div>
@@ -474,8 +474,15 @@
                         <div class="row">
                             <div class="col-12">
                                 <div class="professional-card p-3">
-                                    <h6><i class="fas fa-exclamation-circle"></i> Suspicious Patterns</h6>
-                                    <div id="process-suspicious-patterns"></div>
+                                    <h6><i class="fas fa-exclamation-circle" title="Interesting Pattern Criteria:
+                                        • Files accessed > 50
+                                        • Read ratio > 90% (read-heavy)
+                                        • Write ratio > 90% (write-heavy)
+                                        • Process communicates with > 5 other PIDs
+                                        • Process tree depth > 5
+                                        • Process has > 100 events
+                                        • Process created > 10 processes"></i> Interesting Patterns</h6>
+                                    <div id="process-interesting-patterns"></div>
                                 </div>
                             </div>
                         </div>
