@@ -105,8 +105,6 @@ class TraceProcessor:
             
             raw_events = self._parse_ftrace_log(trace_file_path, max_events=max_events, progress_callback=progress_callback)
             self.logger.info(f"Parsed {len(raw_events)} raw events from {file_size:.1f}MB file")
-            with open('raw_events.json', 'w', encoding='utf-8') as f:
-                json.dump(raw_events, f, indent=4, ensure_ascii=False)
             if not raw_events:
                 return {
                     'success': False,
