@@ -37,8 +37,7 @@ outputs
 trace.trace
 trace.trace.gz
 data
-pixel_data
-RQ1_evaluation
+check_*
 stored_traces
 # pid changes from application selection
 scripts/tracer/config_files/pid_targets.txt 
