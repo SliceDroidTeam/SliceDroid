@@ -478,17 +478,26 @@ def health_check():
 @app.route('/api/preloaded-file')
 def preloaded_file_info():
     """Return information about the preloaded file if one exists"""
-    default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
-
-    if default_trace_path.exists():
+    # Check for uploaded_trace.trace (previously uploaded file)
+    uploaded_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'uploaded_trace.trace'
+    
+    if uploaded_trace_path.exists():
         return jsonify({
             'preloaded': True,
-            'filename': default_trace_path.name
+            'filename': uploaded_trace_path.name
         })
     else:
-        return jsonify({
-            'preloaded': False
-        })
+        # Fallback to default trace.trace
+        default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
+        if default_trace_path.exists():
+            return jsonify({
+                'preloaded': True,
+                'filename': default_trace_path.name
+            })
+        else:
+            return jsonify({
+                'preloaded': False
+            })
 
 @app.route('/api/upload', methods=['POST'])
 def upload_trace():
@@ -1084,11 +1093,18 @@ def get_category_mapping():
 def preload_trace_file():
     """Check if trace file exists (no automatic processing)"""
     try:
+        # Check for uploaded_trace.trace first (previously uploaded file)
+        uploaded_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'uploaded_trace.trace'
+        if uploaded_trace_path.exists():
+            print(f"Found uploaded trace file: {uploaded_trace_path}")
+            return
+            
+        # Fallback to default trace.trace
         default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
         if default_trace_path.exists():
             print(f"Found default trace file: {default_trace_path}")
         else:
-            print(f"No default trace file found at: {default_trace_path}")
+            print(f"No trace file found at: {uploaded_trace_path} or {default_trace_path}")
     except Exception as e:
         print(f"Error checking trace file: {e}")
 

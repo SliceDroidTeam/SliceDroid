@@ -242,8 +242,8 @@ function checkPreloadedFile() {
 
                 const fileInputContainer = fileInput.parentElement;
                 const preloadInfo = document.createElement('div');
-                preloadInfo.className = 'mt-2 text-info preload-info';
-                preloadInfo.innerHTML = `<i class="fas fa-database"></i> Preloaded: <strong>${data.filename}</strong>`;
+                preloadInfo.className = 'mt-2 text-success preload-info';
+                preloadInfo.innerHTML = `<i class="fas fa-check-circle"></i> Selected: <strong>${data.filename}</strong>`;
                 fileInputContainer.appendChild(preloadInfo);
             }
         })
