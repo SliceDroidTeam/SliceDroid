@@ -4,108 +4,249 @@ This guide provides detailed instructions for running SliceDroid inside a Docker
 
 ## Prerequisites
 
-Before starting, ensure you have completed the following from the main README:
+Before starting, ensure you have:
 
 1. **Installed Docker** (https://docs.docker.com/engine/install/)
-2. **Cloned this repository** and built the Docker image:
-   ```bash
-   git clone https://github.com/SliceDroidTeam/SLICEDROID_APP
-   cd SLICEDROID_APP
-   docker build -t slicedroid .
-   ```
-3. **Enabled Developer Options and USB Debugging** on your Android device
-
----
-## Connection Methods
-
-### **Method 1: USB Connection via Docker USB Passthrough (Linux)**
-
-This method works best on Linux systems where Docker can directly access USB devices.
-
-
-1. **Connect your Android device via USB** and enable USB Debugging
-
-2. **Run Docker container with USB access:**
-   ```bash
-   docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb -v <path/to/data/folder>:/app/data -p 5000:5000 slicedroid
-   ```
-
-3. **Inside the container, run SliceDroid:**
-   ```bash
-   python3 run_slicedroid.py
-   ```
+2. **Git** installed for cloning the repository
+3. **Android device** (only if you want to capture new traces)
 
 ---
 
-### **Method 2: Wireless ADB Connection (Windows/macOS/Linux)**
+## 🚀 **Step-by-Step Instructions: Running SliceDroid (No Host ADB Required)**
 
-This method is recommended for Windows and macOS, or when USB passthrough is not available.
+### **Method A: Full Tracing with Wireless ADB (Device Required)**
 
-1. **Connect your Android device via USB** and enable USB Debugging
+Complete workflow from device tracing to analysis.
 
-2. **Enable Wireless Debugging on your Android device** (Android 11+)
-   - Go to **Settings** → **Developer Options** → **Wireless debugging**
-   - Turn on **Wireless debugging**
-   - Tap **Pair device with pairing code**
-   - Note the **IP address**, **pairing port** (e.g., 37029), and **pairing code**
-
-3. **Pair and connect to the device over ADB:**
-   ```bash
-   adb connect <device-ip>:5555
-   ```
-   
-   *Note: If this fails with "failed to authenticate", first pair using the pairing port:*
-   ```bash
-   adb pair <device-ip>:<pairing-port>
-   # Enter pairing code when prompted, then retry: adb connect <device-ip>:5555
-   ```
-   
-   **Alternative method:**
-   ```bash
-   # While connected via USB, enable TCP mode
-   adb tcpip 5555
-   # Find device IP address
-   adb shell ip route
-   # Disconnect USB and connect wirelessly
-   adb connect <device-ip>:5555
-   ```
-   
-   **Port clarification:**
-   - **Pairing port** (e.g., 37029): Used once for authentication only
-   - **Data port** (5555): Used for all subsequent ADB connections
-   - **You only need to pair once** — future connections can use `adb connect` directly
-
-4. **Run Docker container (no USB mounting needed):**
-   ```bash
-   docker run -it -v <path/to/data/folder>:/app/data -p 5000:5000 slicedroid
-   ```
-
-5. **Inside the container, connect and run SliceDroid:**
-   ```bash
-   adb connect <device-ip>:5555
-   python3 run_slicedroid.py
-   ```
-
----
-
-## Run only the dashboard
-If you already have a `data` folder with cat2devs.txt, app_mappings.json and trace files, you can skip adb connection and just use the dashboard.
-
-1. **Run docker container:**
-```bash
-docker run -it -v <path/to/data/folder>:/app/data -p 5000:5000 slicedroid
+**Step 1: Prepare Android Device**
+```
+1. Enable Developer Options on your Android device
+2. Enable USB Debugging
+3. Enable Wireless Debugging (Android 11+)
+   - Settings → Developer Options → Wireless debugging
+   - Turn ON "Wireless debugging"
+   - Tap "Pair device with pairing code"
+   - Note the IP address, pairing port, and pairing code
 ```
 
-2. **Run SliceDroid:**
-```bash
-   python3 run_slicedroid.py
+**Step 2: Clone and Build**
+
+**Windows:**
+```powershell
+git clone https://github.com/SliceDroidTeam/SLICEDROID_APP
+cd SLICEDROID_APP
+docker build -t slicedroid .
 ```
+
+**Linux/macOS:**
+```bash
+git clone https://github.com/SliceDroidTeam/SLICEDROID_APP
+cd SLICEDROID_APP
+docker build -t slicedroid .
+```
+
+**Step 3: Create Data Directory**
+
+**Windows:**
+```powershell
+mkdir C:\slicedroid-data
+```
+
+**Linux/macOS:**
+```bash
+mkdir ~/slicedroid-data
+```
+
+**Step 4: Run Container with Network Access**
+
+**Windows:**
+```powershell
+# Run container with network access for ADB
+docker run -it -v C:\slicedroid-data:/app/data -p 5000:5000 slicedroid
+```
+
+**Linux/macOS:**
+```bash
+# Run container with network access for ADB
+docker run -it -v ~/slicedroid-data:/app/data -p 5000:5000 slicedroid
+
+# Alternative with host networking (Linux only):
+docker run -it -v ~/slicedroid-data:/app/data --network host slicedroid
+```
+
+**Step 5: Connect Device Inside Container**
+```bash
+# Inside the container, connect to your device
+# First, pair with the device (one-time only):
+adb pair <device-ip>:<pairing-port>
+# Enter the pairing code when prompted
+
+# Then connect for data transfer:
+adb connect <device-ip>:<connect-port>
+
+# Verify connection:
+adb devices
+```
+
+**Step 6: Run SliceDroid**
+```bash
+# Inside the container:
+python3 run_slicedroid.py
+
+# Choose option 2: "Start Device Tracing + Dashboard"
+# Follow the prompts to select apps and start tracing
+```
+
+**Step 7: Access Dashboard**
+- Open browser: `http://localhost:5000`
+- Monitor live tracing or analyze completed traces
+
+---
+
+### **Method B: Using Pre-existing Traces**
+
+Analyze traces you already have from previous sessions.
+
+**Step 1: Prepare Existing Data**
+
+**Windows:**
+```powershell
+# Copy your existing trace files to Windows
+mkdir C:\slicedroid-data\traces
+mkdir C:\slicedroid-data\mappings
+mkdir C:\slicedroid-data\Exports
+
+# Copy your files:
+# - *.trace files → C:\slicedroid-data\traces\
+# - cat2devs.txt → C:\slicedroid-data\mappings\
+# - app_mapping.json → C:\slicedroid-data\
+```
+
+**Linux/macOS:**
+```bash
+# Copy your existing trace files
+mkdir -p ~/slicedroid-data/traces
+mkdir -p ~/slicedroid-data/mappings
+mkdir -p ~/slicedroid-data/Exports
+
+# Copy your files:
+# - *.trace files → ~/slicedroid-data/traces/
+# - cat2devs.txt → ~/slicedroid-data/mappings/
+# - app_mapping.json → ~/slicedroid-data/
+```
+
+**Step 2: Run Container**
+
+**Windows:**
+```powershell
+docker run -it -v C:\slicedroid-data:/app/data -p 5000:5000 slicedroid
+```
+
+**Linux/macOS:**
+```bash
+docker run -it -v ~/slicedroid-data:/app/data -p 5000:5000 slicedroid
+```
+
+**Step 3: Start Analysis**
+```bash
+# Inside container:
+python3 run_slicedroid.py
+# Choose option 1: "Open Dashboard Only"
+```
+
+**Step 4: Upload and Analyze**
+- Go to `http://localhost:5000`
+- Use the upload interface to select your trace files
+- Analyze without any device connection
 
 ---
 
 ## Troubleshooting
 
-- **USB passthrough issues on Windows/macOS**: Use Method 2 (Wireless ADB) instead
+### **Common Issues and Solutions**
+
+**If Docker build fails:**
+
+**Windows:**
+```powershell
+# Try with no cache
+docker build --no-cache -t slicedroid .
+```
+
+**Linux/macOS:**
+```bash
+# Try with no cache
+docker build --no-cache -t slicedroid .
+```
+
+**If port 5000 is busy:**
+
+**Windows:**
+```powershell
+# Use different port
+docker run -it -v C:\slicedroid-data:/app/data -p 5001:5000 slicedroid
+# Then access at http://localhost:5001
+```
+
+**Linux/macOS:**
+```bash
+# Use different port
+docker run -it -v ~/slicedroid-data:/app/data -p 5001:5000 slicedroid
+# Then access at http://localhost:5001
+```
+
+**If volume mapping doesn't work:**
+
+**Windows:**
+```powershell
+# Use absolute paths with forward slashes
+docker run -it -v /c/slicedroid-data:/app/data -p 5000:5000 slicedroid
+
+# Or try with double backslashes
+docker run -it -v C:\\slicedroid-data:/app/data -p 5000:5000 slicedroid
+```
+
+**Linux/macOS:**
+```bash
+# Use absolute paths
+docker run -it -v /home/$USER/slicedroid-data:/app/data -p 5000:5000 slicedroid
+
+# Check permissions
+sudo chown -R $USER:$USER ~/slicedroid-data
+```
+
+**For wireless ADB connection issues:**
+```bash
+# Inside container, if connection drops:
+adb kill-server
+adb start-server
+adb connect <device-ip>:5555
+```
+
+**Android device connection problems:**
 - **Authentication failures**: Ensure you've completed the pairing step with the pairing port first
 - **Connection drops**: Android may disable wireless debugging after inactivity. Re-enable and reconnect if needed
-- **Port conflicts**: If port 5000 is in use, change the mapping: `-p 5001:5000` and access at `localhost:5001`
+- **USB passthrough issues on Windows/macOS**: Use Method B (Wireless ADB) instead
+
+**Container access issues:**
+
+**Windows:**
+```powershell
+# If you can't access the container shell:
+docker exec -it <container-name> /bin/bash
+
+# To see running containers:
+docker ps
+```
+
+**Linux/macOS:**
+```bash
+# If you can't access the container shell:
+docker exec -it <container-name> /bin/bash
+
+# To see running containers:
+docker ps
+
+# If permission issues:
+sudo docker exec -it <container-name> /bin/bash
+```
