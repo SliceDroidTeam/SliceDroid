@@ -489,6 +489,29 @@ body {
     background: var(--border-light);
 }
 
+/* Fix for sticky table headers in Network Analysis section */
+.table-responsive .table thead.sticky-top th {
+    z-index: 999 !important;
+    position: sticky;
+    top: 0;
+}
+
+/* Ensure table headers stay below the main navbar */
+#tcp-connections-table .table thead.sticky-top th,
+#udp-communications-table .table thead.sticky-top th {
+    z-index: 999 !important;
+}
+
+/* Additional Bootstrap sticky override for Network Analysis tables */
+.table thead.table-dark.sticky-top {
+    z-index: 999 !important;
+}
+
+/* Ensure all sticky headers in the network section are properly layered */
+.professional-card .table thead.sticky-top {
+    z-index: 999 !important;
+}
+
 /* Timeline */
 .timeline-container {
     background: var(--background-secondary);
