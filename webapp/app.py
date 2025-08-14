@@ -1,18 +1,14 @@
-from flask import Flask, render_template, request, jsonify, send_file, make_response
+from flask import Flask, render_template, request, jsonify, make_response
 import os
 import json
 import pandas as pd
-import csv
 from io import StringIO
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
-import numpy as np
 import base64
 from io import BytesIO
-import re
 from pathlib import Path
-from src.config import Config
 import tempfile
 import threading
 import uuid
@@ -22,7 +18,6 @@ from src.services.advanced_analytics.advanced_analytics import AdvancedAnalytics
 from src.services.comprehensive_analyzer import ComprehensiveAnalyzer
 from src.services.app_mapper_service import AppMapperService
 import shutil
-import time
 
 def create_app(config_name='default'):
     """Application factory pattern"""

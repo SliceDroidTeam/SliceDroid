@@ -1,11 +1,8 @@
 import os
-import sys
 import json
 import csv
 import re
 import logging
-import tempfile
-import shutil
 import socket
 import struct
 from pathlib import Path

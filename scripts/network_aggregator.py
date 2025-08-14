@@ -10,9 +10,10 @@ import signal
 import sys
 import json
 import os
-from collections import defaultdict, Counter
+from collections import defaultdict
 from datetime import datetime
 import threading
+import argparse
 
 class NetworkAggregator:
     def __init__(self, interface="any", duration=None):
