@@ -1,261 +1,206 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SliceDroid - Security Analysis Platform</title>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>SliceDroid - Security Analysis Platform</title>
 
-    <!-- External Libraries -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/main.css') }}" rel="stylesheet">
-</head>
-<body>
+        <!-- External Libraries -->
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+            rel="stylesheet">
+        <link rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+            rel="stylesheet">
+        <link href="{{ url_for('static', filename='css/main.css') }}"
+            rel="stylesheet">
+    </head>
+    <body>
 
-    <!-- Header -->
-    <header class="main-header">
-        <div class="container-fluid">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <div class="logo-section">
-                        <div class="logo-icon">
-                            <i class="fas fa-shield-alt"></i>
-                        </div>
-                        <div class="brand-text">
-                            <h1>SliceDroid</h1>
-                            <p class="subtitle">Security Analysis Platform</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 text-end">
-                    <div class="status-badge status-ready" id="app-status">
-                        <i class="fas fa-check-circle"></i>
-                        <span>System Ready</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- Fixed Sidebar Toggle Button (appears when sidebar is hidden) -->
-    <button class="sidebar-toggle-fixed d-none" id="sidebar-toggle-fixed" title="Show Filters Panel">
-        <i class="fas fa-filter"></i>
-    </button>
-
-    <div class="container-fluid mt-4">
-        <!-- Filters Sidebar -->
-        <div class="row">
-            <div class="col-md-3" id="sidebar-column">
-                <div class="filters-sidebar" id="filters-sidebar">
-                    <!-- Collapsed view -->
-                    <div class="collapsed-view" style="display: none;">
-                        <button class="collapsed-icon" onclick="toggleSidebar()" title="Show Filters">
-                            <i class="fas fa-filter"></i>
-                        </button>
-                    </div>
-
-                    <!-- Full view -->
-                    <div class="full-view">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div class="filter-title mb-0">
-                                <i class="fas fa-download"></i>
-                                Export Options
+        <!-- Header -->
+        <header class="main-header">
+            <div class="container-fluid">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="logo-section">
+                            <div class="logo-icon">
+                                <i class="fas fa-shield-alt"></i>
                             </div>
-                            <div class="d-flex gap-2">
-                                <button class="sidebar-toggle" id="sidebar-toggle" title="Hide Export Panel">
-                                    <i class="fas fa-eye-slash"></i>
-                                    <span class="ms-1">Hide</span>
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filters-content" aria-expanded="true">
-                                    <i class="fas fa-chevron-up" id="filter-toggle-icon"></i>
-                                </button>
+                            <div class="brand-text">
+                                <h1>SliceDroid</h1>
+                                <p class="subtitle">Security Analysis
+                                    Platform</p>
                             </div>
                         </div>
-
-                    <div class="collapse show" id="filters-content">
-
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-success-modern" onclick="exportEvents('json')">
-                            <i class="fas fa-download"></i> Export JSON
-                        </button>
-                        <button class="btn btn-success-modern" onclick="exportEvents('csv')">
-                            <i class="fas fa-download"></i> Export CSV
-                        </button>
                     </div>
-
-                    </div> <!-- end collapse show -->
-                    </div> <!-- end full-view -->
+                    <div class="col-md-4 text-end">
+                        <div class="status-badge status-ready" id="app-status">
+                            <i class="fas fa-check-circle"></i>
+                            <span>System Ready</span>
+                        </div>
+                    </div>
                 </div>
             </div>
+        </header>
 
-            <div class="col-md-9 main-content" id="main-content">
-                <!-- App Selection Section -->
-                <div class="feature-card">
-                    <div class="card-header-custom">
-                        <div class="card-title-section">
-                            <div class="card-icon">
-                                <i class="fas fa-mobile-alt"></i>
-                            </div>
-                            <h2 class="card-title">App Analysis</h2>
-                        </div>
-                    </div>
+        <!-- Fixed Sidebar Toggle Button (appears when sidebar is hidden) -->
+        <button class="sidebar-toggle-fixed d-none" id="sidebar-toggle-fixed"
+            title="Show Filters Panel">
+            <i class="fas fa-filter"></i>
+        </button>
 
-                    <div class="card-body">
-                        <!-- Analysis Mode Toggle -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <div class="d-flex justify-content-center">
-                                    <div class="btn-group" role="group" aria-label="Analysis Mode">
-                                        <input type="radio" class="btn-check" name="analysis-mode" id="mode-app" value="app" checked>
-                                        <label class="btn btn-outline-primary" for="mode-app">
-                                            <i class="fas fa-mobile-alt me-2"></i>Select by App
-                                        </label>
-                                        
-                                        <input type="radio" class="btn-check" name="analysis-mode" id="mode-pid" value="pid">
-                                        <label class="btn btn-outline-primary" for="mode-pid">
-                                            <i class="fas fa-cogs me-2"></i>Select by PID
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
+        <div class="container-fluid mt-4">
+            <!-- Filters Sidebar -->
+            <div class="row">
+                <div class="col-md-3" id="sidebar-column">
+                    <div class="filters-sidebar" id="filters-sidebar">
+                        <!-- Collapsed view -->
+                        <div class="collapsed-view" style="display: none;">
+                            <button class="collapsed-icon"
+                                onclick="toggleSidebar()" title="Show Filters">
+                                <i class="fas fa-filter"></i>
+                            </button>
                         </div>
 
-                        <div class="row align-items-end">
-                            <div class="col-md-8">
-                                <!-- App Selection Mode -->
-                                <div class="mb-3" id="app-selection-container">
-                                    <label for="app-select" class="form-label fw-semibold">Select Application:</label>
-                                    <select class="form-select form-select-lg" id="app-select">
-                                        <option value="">Loading apps...</option>
-                                    </select>
+                        <!-- Full view -->
+                        <div class="full-view">
+                            <div
+                                class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="filter-title mb-0">
+                                    <i class="fas fa-download"></i>
+                                    Export Options
                                 </div>
-
-                                <!-- PID Selection Mode -->
-                                <div class="mb-3" id="pid-selection-container" style="display: none;">
-                                    <label for="pid-select" class="form-label fw-semibold">Select Process ID (PID):</label>
-                                    <select class="form-select form-select-lg" id="pid-select">
-                                        <option value="">-- Select a PID --</option>
-                                        {% for pid in pids %}
-                                        <option value="{{ pid }}">PID {{ pid }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <button class="btn btn-dark btn-lg w-100" id="analyze-app" disabled>
-                                        <i class="fas fa-chart-line me-2"></i>Start Analysis
+                                <div class="d-flex gap-2">
+                                    <button class="sidebar-toggle"
+                                        id="sidebar-toggle"
+                                        title="Hide Export Panel">
+                                        <i class="fas fa-eye-slash"></i>
+                                        <span class="ms-1">Hide</span>
+                                    </button>
+                                    <button
+                                        class="btn btn-sm btn-outline-secondary"
+                                        type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#filters-content"
+                                        aria-expanded="true">
+                                        <i class="fas fa-chevron-up"
+                                            id="filter-toggle-icon"></i>
                                     </button>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Upload Section -->
-                <div class="feature-card">
-                    <div class="card-header-custom">
-                        <div class="card-title-section">
-                            <div class="card-icon">
-                                <i class="fas fa-cloud-upload-alt"></i>
-                            </div>
-                            <h2 class="card-title">Trace Upload</h2>
-                        </div>
-                    </div>
+                            <div class="collapse show" id="filters-content">
 
-                    <div class="upload-area" id="upload-dropzone">
-                        <div class="upload-icon">
-                            <i class="fas fa-file-upload"></i>
-                        </div>
-                        <h4>Drop your trace file here</h4>
-                        <p class="text-muted">Supports .trace files for analysis</p>
-                        <input type="file" class="form-control d-none" id="trace-file-input" accept=".trace">
-                        <button class="btn btn-modern mt-3" id="select-file-btn">
-                            <i class="fas fa-folder-open"></i> Select File
-                        </button>
-                    </div>
-
-                    <div id="upload-progress" class="mt-4" style="display: none;">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-medium">Processing...</span>
-                            <span id="progress-percentage">0%</span>
-                        </div>
-                        <div class="progress-modern">
-                            <div class="progress-bar-modern" id="progress-bar" style="width: 0%"></div>
-                        </div>
-                        <div class="mt-2">
-                            <small id="upload-status" class="text-muted">Initializing...</small>
-                        </div>
-                    </div>
-
-                    <div id="upload-result" class="mt-4" style="display: none;">
-                        <div class="alert" id="upload-alert"></div>
-                    </div>
-                </div>
-
-                <!-- Timeline Section -->
-                <div class="feature-card analysis-only" style="display: none;">
-                    <div class="card-header-custom">
-                        <div class="card-title-section">
-                            <div class="card-icon">
-                                <i class="fas fa-project-diagram"></i>
-                            </div>
-                            <h2 class="card-title">Event Timeline</h2>
-                        </div>
-                        <div class="btn-group" role="group">
-                            <button id="zoom-in" class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-search-plus"></i> Zoom In
-                            </button>
-                            <button id="zoom-out" class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-search-minus"></i> Zoom Out
-                            </button>
-                            <button id="reset-zoom" class="btn btn-outline-secondary btn-sm">
-                                <i class="fas fa-expand-arrows-alt"></i> Reset
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="timeline-container">
-                        <div id="timeline-container" style="height: 500px;"></div>
-                    </div>
-                </div>
-
-                <!-- Advanced Analytics -->
-                <div class="feature-card analysis-only" style="display: none;">
-                    <div class="card-header-custom">
-                        <div class="card-title-section">
-                            <div class="card-icon">
-                                <i class="fas fa-chart-bar"></i>
-                            </div>
-                            <h2 class="card-title">Results</h2>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#analytics-config">
-                                <i class="fas fa-cog"></i> Configure
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Configuration Panel -->
-                    <div class="collapse mb-4" id="analytics-config">
-                        <div class="professional-card p-3">
-                            <h6><i class="fas fa-sliders-h"></i> Analysis Parameters</h6>
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <label class="form-label">Window Size</label>
-                                    <input type="number" class="form-control form-control-modern" id="analytics-window-size" value="1000" min="100" max="5000">
-                                    <small class="text-muted">Events per window</small>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-success-modern"
+                                        onclick="exportEvents('json')">
+                                        <i class="fas fa-download"></i> Export
+                                        JSON
+                                    </button>
+                                    <button class="btn btn-success-modern"
+                                        onclick="exportEvents('csv')">
+                                        <i class="fas fa-download"></i> Export
+                                        CSV
+                                    </button>
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Overlap</label>
-                                    <input type="number" class="form-control form-control-modern" id="analytics-overlap" value="200" min="0" max="1000">
-                                    <small class="text-muted">Window overlap</small>
+
+                            </div> <!-- end collapse show -->
+                        </div> <!-- end full-view -->
+                    </div>
+                </div>
+
+                <div class="col-md-9 main-content" id="main-content">
+                    <!-- App Selection Section -->
+                    <div class="feature-card">
+                        <div class="card-header-custom">
+                            <div class="card-title-section">
+                                <div class="card-icon">
+                                    <i class="fas fa-mobile-alt"></i>
                                 </div>
-                                <div class="col-md-3">
-                                    <div style="margin-top: 1.875rem;">
-                                        <button type="button" class="btn btn-primary btn-sm" id="apply-analytics-config">
-                                            <i class="fas fa-play"></i> Run Analysis
+                                <h2 class="card-title">App Analysis</h2>
+                            </div>
+                        </div>
+
+                        <div class="card-body">
+                            <!-- Analysis Mode Toggle -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-center">
+                                        <div class="btn-group" role="group"
+                                            aria-label="Analysis Mode">
+                                            <input type="radio"
+                                                class="btn-check"
+                                                name="analysis-mode"
+                                                id="mode-app" value="app"
+                                                checked>
+                                            <label
+                                                class="btn btn-outline-primary"
+                                                for="mode-app">
+                                                <i
+                                                    class="fas fa-mobile-alt me-2"></i>Select
+                                                by App
+                                            </label>
+
+                                            <input type="radio"
+                                                class="btn-check"
+                                                name="analysis-mode"
+                                                id="mode-pid" value="pid">
+                                            <label
+                                                class="btn btn-outline-primary"
+                                                for="mode-pid">
+                                                <i
+                                                    class="fas fa-cogs me-2"></i>Select
+                                                by PID
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row align-items-end">
+                                <div class="col-md-8">
+                                    <!-- App Selection Mode -->
+                                    <div class="mb-3"
+                                        id="app-selection-container">
+                                        <label for="app-select"
+                                            class="form-label fw-semibold">Select
+                                            Application:</label>
+                                        <select
+                                            class="form-select form-select-lg"
+                                            id="app-select">
+                                            <option value>Loading
+                                                apps...</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- PID Selection Mode -->
+                                    <div class="mb-3"
+                                        id="pid-selection-container"
+                                        style="display: none;">
+                                        <label for="pid-select"
+                                            class="form-label fw-semibold">Select
+                                            Process ID (PID):</label>
+                                        <select
+                                            class="form-select form-select-lg"
+                                            id="pid-select">
+                                            <option value>-- Select a PID
+                                                --</option>
+                                            {% for pid in pids %}
+                                            <option value="{{ pid }}">PID {{ pid
+                                                }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <button
+                                            class="btn btn-dark btn-lg w-100"
+                                            id="analyze-app" disabled>
+                                            <i
+                                                class="fas fa-chart-line me-2"></i>Start
+                                            Analysis
                                         </button>
                                     </div>
                                 </div>
@@ -263,339 +208,559 @@
                         </div>
                     </div>
 
-                    <div id="analytics-loading" class="text-center p-5" style="display: none;">
-                        <div class="loading-spinner mx-auto mb-3"></div>
-                        <h5>Processing Statistical Analysis...</h5>
-                        <p class="text-muted">This may take a few moments</p>
-                    </div>
-
-                    <div id="analytics-content" style="display: none;">
-                        <!-- Summary Cards -->
-                        <div class="row mb-4" id="analytics-summary">
-                            <!-- Summary cards will be populated by JavaScript -->
+                    <!-- Upload Section -->
+                    <div class="feature-card">
+                        <div class="card-header-custom">
+                            <div class="card-title-section">
+                                <div class="card-icon">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                </div>
+                                <h2 class="card-title">Trace Upload</h2>
+                            </div>
                         </div>
 
-                        <!-- Behavior Timeline - Full Width -->
-                        <div class="row mb-4">
-                            <div class="col-12">
+                        <div class="upload-area" id="upload-dropzone">
+                            <div class="upload-icon">
+                                <i class="fas fa-file-upload"></i>
+                            </div>
+                            <h4>Drop your trace file here</h4>
+                            <p class="text-muted">Supports .trace files for
+                                analysis</p>
+                            <input type="file" class="form-control d-none"
+                                id="trace-file-input" accept=".trace">
+                            <button class="btn btn-modern mt-3"
+                                id="select-file-btn">
+                                <i class="fas fa-folder-open"></i> Select File
+                            </button>
+                        </div>
+
+                        <div id="upload-progress" class="mt-4"
+                            style="display: none;">
+                            <div
+                                class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-medium">Processing...</span>
+                                <span id="progress-percentage">0%</span>
+                            </div>
+                            <div class="progress-modern">
+                                <div class="progress-bar-modern"
+                                    id="progress-bar" style="width: 0%"></div>
+                            </div>
+                            <div class="mt-2">
+                                <small id="upload-status"
+                                    class="text-muted">Initializing...</small>
+                            </div>
+                        </div>
+
+                        <div id="upload-result" class="mt-4"
+                            style="display: none;">
+                            <div class="alert" id="upload-alert"></div>
+                        </div>
+                    </div>
+
+                    <!-- Timeline Section -->
+                    <div class="feature-card analysis-only"
+                        style="display: none;">
+                        <div class="card-header-custom">
+                            <div class="card-title-section">
+                                <div class="card-icon">
+                                    <i class="fas fa-project-diagram"></i>
+                                </div>
+                                <h2 class="card-title">Event Timeline</h2>
+                            </div>
+                            <div class="btn-group" role="group">
+                                <button id="zoom-in"
+                                    class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-search-plus"></i> Zoom In
+                                </button>
+                                <button id="zoom-out"
+                                    class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-search-minus"></i> Zoom Out
+                                </button>
+                                <button id="reset-zoom"
+                                    class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-expand-arrows-alt"></i>
+                                    Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="timeline-container">
+                            <div id="timeline-container"
+                                style="height: 500px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Analytics -->
+                    <div class="feature-card analysis-only"
+                        style="display: none;">
+                        <div class="card-header-custom">
+                            <div class="card-title-section">
+                                <div class="card-icon">
+                                    <i class="fas fa-chart-bar"></i>
+                                </div>
+                                <h2 class="card-title">Results</h2>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button"
+                                    class="btn btn-outline-secondary btn-sm"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#analytics-config">
+                                    <i class="fas fa-cog"></i> Configure
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Configuration Panel -->
+                        <div class="collapse mb-4" id="analytics-config">
+                            <div class="professional-card p-3">
+                                <h6><i class="fas fa-sliders-h"></i> Analysis
+                                    Parameters</h6>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <label class="form-label">Window
+                                            Size</label>
+                                        <input type="number"
+                                            class="form-control form-control-modern"
+                                            id="analytics-window-size"
+                                            value="1000" min="100" max="5000">
+                                        <small class="text-muted">Events per
+                                            window</small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label
+                                            class="form-label">Overlap</label>
+                                        <input type="number"
+                                            class="form-control form-control-modern"
+                                            id="analytics-overlap" value="200"
+                                            min="0" max="1000">
+                                        <small class="text-muted">Window
+                                            overlap</small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div style="margin-top: 1.875rem;">
+                                            <button type="button"
+                                                class="btn btn-primary btn-sm"
+                                                id="apply-analytics-config">
+                                                <i class="fas fa-play"></i> Run
+                                                Analysis
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="analytics-loading" class="text-center p-5"
+                            style="display: none;">
+                            <div class="loading-spinner mx-auto mb-3"></div>
+                            <h5>Processing Statistical Analysis...</h5>
+                            <p class="text-muted">This may take a few
+                                moments</p>
+                        </div>
+
+                        <div id="analytics-content" style="display: none;">
+                            <!-- Summary Cards -->
+                            <div class="row mb-4" id="analytics-summary">
+                                <!-- Summary cards will be populated by JavaScript -->
+                            </div>
+
+                            <!-- Behavior Timeline - Full Width -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="feature-card">
+                                        <div class="card-header-custom">
+                                            <div class="card-title-section">
+                                                <div class="card-icon">
+                                                    <i
+                                                        class="fas fa-chart-line"></i>
+                                                </div>
+                                                <h2 class="card-title">App
+                                                    Behavior Timeline</h2>
+                                            </div>
+                                            <div class="btn-group" role="group">
+                                                <button id="behavior-zoom-in"
+                                                    class="btn btn-outline-primary btn-sm">
+                                                    <i
+                                                        class="fas fa-search-plus"></i>
+                                                    Zoom In
+                                                </button>
+                                                <button id="behavior-zoom-out"
+                                                    class="btn btn-outline-primary btn-sm">
+                                                    <i
+                                                        class="fas fa-search-minus"></i>
+                                                    Zoom Out
+                                                </button>
+                                                <button id="behavior-reset-zoom"
+                                                    class="btn btn-outline-secondary btn-sm">
+                                                    <i
+                                                        class="fas fa-expand-arrows-alt"></i>
+                                                    Reset
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="timeline-container">
+                                            <div id="behavior-timeline-chart"
+                                                style="height: 300px;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Statistics Grid -->
+                        <div class="row analysis-only" style="display: none;">
+                            <div class="col-md-6">
                                 <div class="feature-card">
                                     <div class="card-header-custom">
                                         <div class="card-title-section">
                                             <div class="card-icon">
-                                                <i class="fas fa-chart-line"></i>
+                                                <i class="fas fa-hdd"></i>
                                             </div>
-                                            <h2 class="card-title">App Behavior Timeline</h2>
-                                        </div>
-                                        <div class="btn-group" role="group">
-                                            <button id="behavior-zoom-in" class="btn btn-outline-primary btn-sm">
-                                                <i class="fas fa-search-plus"></i> Zoom In
-                                            </button>
-                                            <button id="behavior-zoom-out" class="btn btn-outline-primary btn-sm">
-                                                <i class="fas fa-search-minus"></i> Zoom Out
-                                            </button>
-                                            <button id="behavior-reset-zoom" class="btn btn-outline-secondary btn-sm">
-                                                <i class="fas fa-expand-arrows-alt"></i> Reset
-                                            </button>
+                                            <h3 class="card-title">Device
+                                                Statistics</h3>
                                         </div>
                                     </div>
 
-                                    <div class="timeline-container">
-                                        <div id="behavior-timeline-chart" style="height: 300px;"></div>
+                                    <div id="device-chart-container"
+                                        style="height: 350px; margin-bottom: 1rem;"></div>
+
+                                    <div class="table-responsive"
+                                        style="max-height: 400px; overflow-y: auto;">
+                                        <table class="table table-modern"
+                                            id="device-stats-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Device ID</th>
+                                                    <th>Events</th>
+                                                    <th>Paths</th>
+                                                    <th>Details</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- Populated by JavaScript -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="feature-card">
+                                    <div class="card-header-custom">
+                                        <div class="card-title-section">
+                                            <div class="card-icon">
+                                                <i class="fas fa-list-alt"></i>
+                                            </div>
+                                            <h3 class="card-title">Event
+                                                Statistics</h3>
+                                        </div>
+                                    </div>
+
+                                    <div id="event-chart-container"
+                                        style="height: 350px; margin-bottom: 1rem;"></div>
+
+                                    <div class="table-responsive"
+                                        style="max-height: 400px; overflow-y: auto;">
+                                        <table class="table table-modern"
+                                            id="event-stats-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Event Type</th>
+                                                    <th>Count</th>
+                                                    <th>Percentage</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- Populated by JavaScript -->
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Charts Section -->
-                        <div class="charts-grid mb-4">
-                            <div class="chart-item">
-                                <div class="professional-card p-3 h-100">
-                                    <h6><i class="fas fa-chart-pie"></i> Category Distribution</h6>
-                                    <div id="category-chart" style="height: 400px; display: flex; align-items: center; justify-content: center;"></div>
-                                </div>
-                            </div>
-                            <div class="chart-item">
-                                <div class="professional-card p-3 h-100">
-                                    <h6><i class="fas fa-network-wired"></i> Network Activity</h6>
-                                    <div id="network-chart" style="height: 400px;"></div>
-                                </div>
-                            </div>
-                            <div class="chart-item">
-                                <div class="professional-card p-3 h-100">
-                                    <h6><i class="fas fa-hdd"></i> Device Usage</h6>
-                                    <div id="device-usage-chart" style="height: 400px;"></div>
-                                </div>
-                            </div>
-                            <div class="chart-item">
-                                <div class="professional-card p-3 h-100">
-                                    <h6><i class="fas fa-cogs"></i> Process Activity</h6>
-                                    <div id="process-activity-chart" style="height: 400px;"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Detailed Insights -->
-                        <div class="professional-card p-3">
-                            <h6><i class="fas fa-lightbulb"></i> Detailed Analysis</h6>
-                            <div id="detailed-insights"></div>
-                        </div>
-                    </div>
-
-                    <div id="analytics-error" class="alert alert-danger" style="display: none;"></div>
-                </div>
-
-                <!-- Network Analysis Dashboard -->
-                <div class="feature-card analysis-only" style="display: none;">
-                    <div class="card-header-custom">
-                        <div class="card-title-section">
-                            <div class="card-icon">
-                                <i class="fas fa-network-wired"></i>
-                            </div>
-                            <h2 class="card-title">Network Analysis</h2>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <span class="badge" id="network-intensity-badge">No Data</span>
-                        </div>
-                    </div>
-
-                    <div id="network-loading" class="text-center p-3" style="display: none;">
-                        <div class="loading-spinner mx-auto mb-2"></div>
-                        <small>Analyzing network flows...</small>
-                    </div>
-
-                    <div id="network-content" style="display: none;">
-                        <!-- Network Summary Cards -->
-                        <div class="row mb-3" id="network-summary">
-                            <!-- Cards populated by JavaScript -->
-                        </div>
-
-                        <!-- Network Flow Visualization -->
-                        <div class="row mb-5">
-                            <div class="col-md-8">
-                                <div class="professional-card p-3 pb-4">
-                                    <h6><i class="fas fa-project-diagram"></i>PIDs flow to other PIDs or external sources</h6>
-                                    <div id="network-flow-chart" style="height: 350px;"></div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="professional-card p-3 pb-4">
-                                    <h6><i class="fas fa-chart-pie"></i> MB Sent per Protocol</h6>
-                                    <div id="mb-sent-per-protocol-chart" style="height: 350px;"></div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Network Communication Heatmap -->
-                        <div class="row mb-3">
-                            <div class="col-12">
-                                <div class="professional-card p-3">
-                                    <h6><i class="fas fa-fire"></i> Network Communication Heatmap</h6>
-                                    <div id="network-heatmap-chart" style="height: 300px;"></div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Network Data Transfer Visualization -->
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <div class="professional-card p-3">
-                                    <h6><i class="fas fa-exchange-alt"></i> MB Transferred per Protocol</h6>
-                                    <div id="mb-per-protocol-chart" style="height: 300px;"></div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="professional-card p-3">
-                                    <h6><i class="fas fa-chart-pie"></i> MB Received per Protocol</h6>
-                                    <div id="mb-received-per-protocol-chart" style="height: 300px;"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Network Details -->
-                        <div class="row mt-5">
-                            <div class="col-md-6">
-                                <div class="professional-card p-3">
-                                    <h6><i class="fas fa-network-wired"></i> TCP Connections</h6>
-                                    <div id="tcp-connections-table"></div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="professional-card p-3">
-                                    <h6><i class="fas fa-satellite-dish"></i> UDP Communications</h6>
-                                    <div id="udp-communications-table"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="network-error" class="alert alert-info" style="display: block;">
-                        Upload a trace file to view network analysis
-                    </div>
-                </div>
-
-                <!-- Statistics Grid -->
-                <div class="row analysis-only" style="display: none;">
-                    <div class="col-md-6">
-                        <div class="feature-card">
-                            <div class="card-header-custom">
-                                <div class="card-title-section">
-                                    <div class="card-icon">
-                                        <i class="fas fa-hdd"></i>
+                            <!-- Charts Section -->
+                            <div class="charts-grid mb-4">
+                                <div class="chart-item">
+                                    <div class="professional-card p-3 h-100">
+                                        <h6><i class="fas fa-network-wired"></i>
+                                            Network Activity</h6>
+                                        <div id="network-chart"
+                                            style="height: 400px;"></div>
                                     </div>
-                                    <h3 class="card-title">Device Statistics</h3>
                                 </div>
-                            </div>
-
-                            <div id="device-chart-container" style="height: 350px; margin-bottom: 1rem;"></div>
-
-                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                                <table class="table table-modern" id="device-stats-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Device ID</th>
-                                            <th>Events</th>
-                                            <th>Paths</th>
-                                            <th>Details</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Populated by JavaScript -->
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
+                        <div id="analytics-error" class="alert alert-danger"
+                            style="display: none;"></div>
                     </div>
 
-                    <div class="col-md-6">
-                        <div class="feature-card">
-                            <div class="card-header-custom">
-                                <div class="card-title-section">
-                                    <div class="card-icon">
-                                        <i class="fas fa-list-alt"></i>
+                    <!-- Network Analysis Dashboard -->
+                    <div class="feature-card analysis-only"
+                        style="display: none;">
+                        <div class="card-header-custom">
+                            <div class="card-title-section">
+                                <div class="card-icon">
+                                    <i class="fas fa-network-wired"></i>
+                                </div>
+                                <h2 class="card-title">Network Analysis</h2>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <span class="badge"
+                                    id="network-intensity-badge">No Data</span>
+                            </div>
+                        </div>
+
+                        <div id="network-loading" class="text-center p-3"
+                            style="display: none;">
+                            <div class="loading-spinner mx-auto mb-2"></div>
+                            <small>Analyzing network flows...</small>
+                        </div>
+
+                        <div id="network-content" style="display: none;">
+                            <!-- Network Summary Cards -->
+                            <div class="row mb-3" id="network-summary">
+                                <!-- Cards populated by JavaScript -->
+                            </div>
+
+                            <!-- Network Flow Visualization -->
+                            <div class="row mb-5">
+                                <div class="col-md-8">
+                                    <div class="professional-card p-3 pb-4">
+                                        <h6><i
+                                                class="fas fa-project-diagram"></i>PIDs
+                                            flow to other PIDs or external
+                                            sources</h6>
+                                        <div id="network-flow-chart"
+                                            style="height: 350px;"></div>
                                     </div>
-                                    <h3 class="card-title">Event Statistics</h3>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="professional-card p-3 pb-4">
+                                        <h6><i class="fas fa-chart-pie"></i> MB
+                                            Sent per Protocol</h6>
+                                        <div id="mb-sent-per-protocol-chart"
+                                            style="height: 350px;"></div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div id="event-chart-container" style="height: 350px; margin-bottom: 1rem;"></div>
-
-                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                                <table class="table table-modern" id="event-stats-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Event Type</th>
-                                            <th>Count</th>
-                                            <th>Percentage</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Populated by JavaScript -->
-                                    </tbody>
-                                </table>
+                            <!-- Network Communication Heatmap -->
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="professional-card p-3">
+                                        <h6><i class="fas fa-fire"></i> Network
+                                            Communication Heatmap</h6>
+                                        <div id="network-heatmap-chart"
+                                            style="height: 300px;"></div>
+                                    </div>
+                                </div>
                             </div>
+
+                            <!-- Network Data Transfer Visualization -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="professional-card p-3">
+                                        <h6><i class="fas fa-exchange-alt"></i>
+                                            MB Transferred per Protocol</h6>
+                                        <div id="mb-per-protocol-chart"
+                                            style="height: 300px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Network Details -->
+                            <div class="row mt-5">
+                                <div class="col-md-6">
+                                    <div class="professional-card p-3">
+                                        <h6><i class="fas fa-network-wired"></i>
+                                            TCP Connections</h6>
+                                        <div id="tcp-connections-table"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="professional-card p-3">
+                                        <h6><i
+                                                class="fas fa-satellite-dish"></i>
+                                            UDP Communications</h6>
+                                        <div
+                                            id="udp-communications-table"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Detailed Network Analysis - Expanded -->
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="professional-card p-3">
+                                        <h6><i class="fas fa-lightbulb"></i> Detailed
+                                            Analysis</h6>
+                                        <div id="detailed-insights"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="network-error" class="alert alert-info"
+                            style="display: block;">
+                            Upload a trace file to view network analysis
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Floating Action Button -->
-    <button class="fab" data-bs-toggle="modal" data-bs-target="#helpModal" title="Help & Documentation">
-        <i class="fas fa-question"></i>
-    </button>
+        <!-- Floating Action Button -->
+        <button class="fab" data-bs-toggle="modal" data-bs-target="#helpModal"
+            title="Help & Documentation">
+            <i class="fas fa-question"></i>
+        </button>
 
-    <!-- Help Modal -->
-    <div class="modal fade" id="helpModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content" style="border-radius: 6px; border: 1px solid var(--border-color);">
-                <div class="modal-header" style="background: var(--primary-color); color: white; border-radius: 6px 6px 0 0;">
-                    <h5 class="modal-title">
-                        <i class="fas fa-info-circle"></i> SliceDroid Documentation
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="accordion" id="helpAccordion">
-                        <div class="accordion-item" style="border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 1rem;">
-                            <h2 class="accordion-header">
-                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#help-overview">
-                                    <i class="fas fa-info-circle me-2"></i> Platform Overview
-                                </button>
-                            </h2>
-                            <div id="help-overview" class="accordion-collapse collapse show">
-                                <div class="accordion-body">
-                                    <p>SliceDroid is a security analysis platform designed for analyzing Android applications and system daemons.</p>
-                                    <h6>Key Features:</h6>
-                                    <ul>
-                                        <li><strong>Real-time Event Timeline</strong> - Interactive visualization of system events</li>
-                                        <li><strong>Statistical Analysis</strong> - Quantitative behavioral analysis with configurable parameters</li>
-                                        <li><strong>Device & Process Monitoring</strong> - Comprehensive device usage and process statistics</li>
-                                        <li><strong>Export Capabilities</strong> - Multiple export formats for further analysis</li>
-                                    </ul>
+        <!-- Help Modal -->
+        <div class="modal fade" id="helpModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content"
+                    style="border-radius: 6px; border: 1px solid var(--border-color);">
+                    <div class="modal-header"
+                        style="background: var(--primary-color); color: white; border-radius: 6px 6px 0 0;">
+                        <h5 class="modal-title">
+                            <i class="fas fa-info-circle"></i> SliceDroid
+                            Documentation
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white"
+                            data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="accordion" id="helpAccordion">
+                            <div class="accordion-item"
+                                style="border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 1rem;">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button"
+                                        type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#help-overview">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        Platform Overview
+                                    </button>
+                                </h2>
+                                <div id="help-overview"
+                                    class="accordion-collapse collapse show">
+                                    <div class="accordion-body">
+                                        <p>SliceDroid is a security analysis
+                                            platform designed for analyzing
+                                            Android applications and system
+                                            daemons.</p>
+                                        <h6>Key Features:</h6>
+                                        <ul>
+                                            <li><strong>Real-time Event
+                                                    Timeline</strong> -
+                                                Interactive visualization of
+                                                system events</li>
+                                            <li><strong>Statistical
+                                                    Analysis</strong> -
+                                                Quantitative behavioral analysis
+                                                with configurable
+                                                parameters</li>
+                                            <li><strong>Device & Process
+                                                    Monitoring</strong> -
+                                                Comprehensive device usage and
+                                                process statistics</li>
+                                            <li><strong>Export
+                                                    Capabilities</strong> -
+                                                Multiple export formats for
+                                                further analysis</li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="accordion-item" style="border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 1rem;">
-                            <h2 class="accordion-header">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help-upload">
-                                    <i class="fas fa-cloud-upload-alt me-2"></i> File Upload Process
-                                </button>
-                            </h2>
-                            <div id="help-upload" class="accordion-collapse collapse">
-                                <div class="accordion-body">
-                                    <h6>Uploading Trace Files:</h6>
-                                    <ol>
-                                        <li>Drag and drop your <code>.trace</code> file onto the upload area, or click to browse</li>
-                                        <li>Click "Process Trace" to begin analysis</li>
-                                        <li>Monitor the real-time progress indicator</li>
-                                        <li>View results automatically populated across all dashboards</li>
-                                    </ol>
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle"></i>
-                                        <strong>Note:</strong> Large trace files may take several minutes to process. The platform will continue processing in the background.
+                            <div class="accordion-item"
+                                style="border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 1rem;">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed"
+                                        type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#help-upload">
+                                        <i
+                                            class="fas fa-cloud-upload-alt me-2"></i>
+                                        File Upload Process
+                                    </button>
+                                </h2>
+                                <div id="help-upload"
+                                    class="accordion-collapse collapse">
+                                    <div class="accordion-body">
+                                        <h6>Uploading Trace Files:</h6>
+                                        <ol>
+                                            <li>Drag and drop your
+                                                <code>.trace</code> file onto
+                                                the upload area, or click to
+                                                browse</li>
+                                            <li>Click "Process Trace" to begin
+                                                analysis</li>
+                                            <li>Monitor the real-time progress
+                                                indicator</li>
+                                            <li>View results automatically
+                                                populated across all
+                                                dashboards</li>
+                                        </ol>
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle"></i>
+                                            <strong>Note:</strong> Large trace
+                                            files may take several minutes to
+                                            process. The platform will continue
+                                            processing in the background.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item"
+                                style="border: 1px solid var(--border-color); border-radius: 6px;">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed"
+                                        type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#help-analytics">
+                                        <i class="fas fa-chart-bar me-2"></i>
+                                        Statistical Analysis
+                                    </button>
+                                </h2>
+                                <div id="help-analytics"
+                                    class="accordion-collapse collapse">
+                                    <div class="accordion-body">
+                                        <h6>Analysis Parameters:</h6>
+                                        <dl>
+                                            <dt>Window Size</dt>
+                                            <dd>Number of events analyzed in
+                                                each window (default: 1000)</dd>
+                                            <dt>Overlap</dt>
+                                            <dd>Number of overlapping events
+                                                between windows (default:
+                                                200)</dd>
+                                        </dl>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
-                        <div class="accordion-item" style="border: 1px solid var(--border-color); border-radius: 6px;">
-                            <h2 class="accordion-header">
-                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help-analytics">
-                                    <i class="fas fa-chart-bar me-2"></i> Statistical Analysis
-                                </button>
-                            </h2>
-                            <div id="help-analytics" class="accordion-collapse collapse">
-                                <div class="accordion-body">
-                                    <h6>Analysis Parameters:</h6>
-                                    <dl>
-                                        <dt>Window Size</dt>
-                                        <dd>Number of events analyzed in each window (default: 1000)</dd>
-                                        <dt>Overlap</dt>
-                                        <dd>Number of overlapping events between windows (default: 200)</dd>
-                                    </dl>
-                                </div>
-                            </div>
-                        </div>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-modern" data-bs-dismiss="modal">Got it!</button>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-modern"
+                            data-bs-dismiss="modal">Got it!</button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
-    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/upload.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app_selection.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+        <!-- Scripts -->
+        <script
+            src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+        <script
+            src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+        <script
+            src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
+        <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+        <script
+            src="{{ url_for('static', filename='js/app_selection.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 
-</body>
+    </body>
 </html>

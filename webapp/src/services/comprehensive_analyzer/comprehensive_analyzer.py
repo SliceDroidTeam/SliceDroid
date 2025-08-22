@@ -7,7 +7,6 @@ from .base_utils import BaseAnalyzer
 from .event_slicer import EventSlicer
 from .file_analyzer import FileAnalyzer
 from .network_analyzer import NetworkAnalyzer
-from .process_analyzer import ProcessAnalyzer
 
 
 class ComprehensiveAnalyzer(BaseAnalyzer):
@@ -23,7 +22,6 @@ class ComprehensiveAnalyzer(BaseAnalyzer):
         self.event_slicer = EventSlicer(config_class)
         self.file_analyzer = FileAnalyzer(config_class)
         self.network_analyzer = NetworkAnalyzer(config_class)
-        self.process_analyzer = ProcessAnalyzer(config_class)
 
     def slice_events(self, events, t_pid, asynchronous=True):
         """
@@ -53,13 +51,6 @@ class ComprehensiveAnalyzer(BaseAnalyzer):
         Delegates to NetworkAnalyzer component
         """
         return self.network_analyzer.analyze_network_flows(events, target_pid)
-
-    def analyze_process_genealogy(self, events, target_pid=None):
-        """
-        Analyze process patterns and genealogy
-        Delegates to ProcessAnalyzer component
-        """
-        return self.process_analyzer.analyze_process_genealogy(events, target_pid)
 
     # Keep all the private helper methods for backward compatibility
     def _make_json_serializable(self, obj):

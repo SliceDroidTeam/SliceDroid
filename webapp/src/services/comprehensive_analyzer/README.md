@@ -23,13 +23,9 @@ The package is organized into the following modules:
    - Sensitive data detection and device mapping integration
 4. **`network_analyzer.py`** - Network flow analysis
    - `NetworkAnalyzer`: Communication pattern detection
-   - Unix sockets, TCP/UDP analysis, and flow relationship mapping
+   - TCP/UDP analysis, and flow relationship mapping
 
-5. **`process_analyzer.py`** - Process genealogy analysis
-   - `ProcessAnalyzer`: Process activity and communication patterns
-   - IPC relationship mapping and suspicious behavior detection
-
-6. **`main_analyzer.py`** - Main orchestrator
+5. **`main_analyzer.py`** - Main orchestrator
    - `ComprehensiveAnalyzer`: Main interface maintaining backward compatibility
    - Delegates to specialized components while preserving existing API
 
@@ -62,7 +58,7 @@ process_results = analyzer.analyze_process_genealogy(events, target_pid)
 ```python
 from src.services.comprehensive_analyzer import (
     EventSlicer, FileAnalyzer,
-    NetworkAnalyzer, ProcessAnalyzer
+    NetworkAnalyzer
 )
 from src.config import Config
 
@@ -117,7 +113,6 @@ Each component has its own logger for better debugging and monitoring:
 - `EventSlicer`: Event slicing operations
 - `FileAnalyzer`: File analysis operations  
 - `NetworkAnalyzer`: Network analysis
-- `ProcessAnalyzer`: Process analysis
 - `ComprehensiveAnalyzer`: Main coordination
 
 ## Error Handling

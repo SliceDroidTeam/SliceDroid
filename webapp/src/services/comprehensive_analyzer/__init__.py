@@ -19,7 +19,6 @@ from .base_utils import BaseAnalyzer, DeviceUtils, SensitiveDataUtils, EventUtil
 from .event_slicer import EventSlicer
 from .file_analyzer import FileAnalyzer
 from .network_analyzer import NetworkAnalyzer
-from .process_analyzer import ProcessAnalyzer
 
 __all__ = [
     'ComprehensiveAnalyzer',
@@ -30,5 +29,4 @@ __all__ = [
     'EventSlicer',
     'FileAnalyzer',
     'NetworkAnalyzer',
-    'ProcessAnalyzer'
 ]

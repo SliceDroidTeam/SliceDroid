@@ -64,16 +64,33 @@ function createPieChart(containerId, data, title) {
     }
     
     function renderChart() {
-        const width = container.clientWidth || 300;
-        const height = Math.min(container.clientHeight || 300, 350);
-        const radius = Math.min(width, height) / 2 - 20;
+        const width = container.clientWidth || 600;
+        const height = Math.min(container.clientHeight || 350, 350);
+        
+        // Adjust layout for legend
+        const chartWidth = width * 0.6; // 60% for chart
+        const legendWidth = width * 0.4; // 40% for legend
+        const chartHeight = height - 40; // Leave space for title
+        const radius = Math.min(chartWidth, chartHeight) / 2 - 20;
 
-        const svg = d3.select(`#${containerId}`)
+        // Create main container
+        const mainSvg = d3.select(`#${containerId}`)
             .append("svg")
             .attr("width", width)
-            .attr("height", height)
-            .append("g")
-            .attr("transform", `translate(${width / 2}, ${height / 2})`);
+            .attr("height", height);
+
+        // Add title
+        mainSvg.append("text")
+            .attr("x", width / 2)
+            .attr("y", 20)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "16px")
+            .attr("font-weight", "bold")
+            .text(title);
+
+        // Chart group
+        const chartGroup = mainSvg.append("g")
+            .attr("transform", `translate(${chartWidth / 2}, ${height / 2})`);
 
         const color = d3.scaleOrdinal(d3.schemeCategory10);
 
@@ -86,18 +103,10 @@ function createPieChart(containerId, data, title) {
             .outerRadius(radius);
 
         const labelArc = d3.arc()
-            .innerRadius(radius * 0.6)
-            .outerRadius(radius * 0.6);
+            .innerRadius(radius * 0.7)
+            .outerRadius(radius * 0.7);
 
-        // Add title
-        svg.append("text")
-            .attr("text-anchor", "middle")
-            .attr("y", -height/2 + 20)
-            .attr("font-size", "16px")
-            .attr("font-weight", "bold")
-            .text(title);
-
-        const arcs = svg.selectAll(".arc")
+        const arcs = chartGroup.selectAll(".arc")
             .data(pie(data))
             .enter()
             .append("g")
@@ -110,41 +119,99 @@ function createPieChart(containerId, data, title) {
             .style("stroke-width", "2px")
             .style("cursor", "pointer")
             .on("mouseover", function(event, d) {
+                // Highlight the hovered slice
+                d3.select(this).style("opacity", 0.8);
+                
                 // Create tooltip
                 const tooltip = d3.select("body").append("div")
                     .attr("class", "chart-tooltip")
-                .style("position", "absolute")
-                .style("background", "rgba(0,0,0,0.8)")
-                .style("color", "white")
-                .style("padding", "8px 12px")
-                .style("border-radius", "4px")
-                .style("font-size", "12px")
-                .style("pointer-events", "none")
-                .style("z-index", "1000")
-                .style("opacity", 0);
+                    .style("position", "absolute")
+                    .style("background", "rgba(0,0,0,0.9)")
+                    .style("color", "white")
+                    .style("padding", "10px 15px")
+                    .style("border-radius", "6px")
+                    .style("font-size", "13px")
+                    .style("pointer-events", "none")
+                    .style("z-index", "1000")
+                    .style("box-shadow", "0 4px 8px rgba(0,0,0,0.3)")
+                    .style("opacity", 0);
 
-            const percent = ((d.data.value / d3.sum(data, d => d.value)) * 100).toFixed(1);
-            tooltip.html(`<strong>${d.data.label}</strong><br>Count: ${d.data.value}<br>Percentage: ${percent}%`)
-                .style("left", (event.pageX + 10) + "px")
-                .style("top", (event.pageY - 10) + "px")
-                .transition().duration(200).style("opacity", 1);
-        })
-        .on("mouseout", function() {
-            d3.selectAll(".chart-tooltip").remove();
-        });
+                const percent = ((d.data.value / d3.sum(data, d => d.value)) * 100).toFixed(1);
+                tooltip.html(`<strong>${d.data.label}</strong><br>Count: ${d.data.value.toLocaleString()}<br>Percentage: ${percent}%`)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 10) + "px")
+                    .transition().duration(200).style("opacity", 1);
+            })
+            .on("mouseout", function() {
+                // Remove highlight
+                d3.select(this).style("opacity", 1);
+                // Remove tooltip
+                d3.selectAll(".chart-tooltip").remove();
+            });
 
-    // Add labels
-    arcs.append("text")
-        .attr("transform", d => `translate(${labelArc.centroid(d)})`)
-        .attr("text-anchor", "middle")
-        .attr("font-size", "12px")
-        .text(d => {
-            const percent = ((d.data.value / d3.sum(data, d => d.value)) * 100).toFixed(1);
-            return percent > 5 ? `${percent}%` : ''; // Only show label if slice is > 5%
-        });
+        // Add percentage labels on slices (only for larger slices)
+        arcs.append("text")
+            .attr("transform", d => `translate(${labelArc.centroid(d)})`)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "11px")
+            .attr("font-weight", "bold")
+            .attr("fill", "white")
+            .text(d => {
+                const percent = ((d.data.value / d3.sum(data, d => d.value)) * 100).toFixed(1);
+                return percent > 8 ? `${percent}%` : ''; // Only show label if slice is > 8%
+            });
 
-    // Skip legend for device/event charts to avoid overlap - rely on hover tooltips instead
-    // Legend causes overlap issues in the constrained space of the statistics cards
+        // Create legend
+        const legendGroup = mainSvg.append("g")
+            .attr("transform", `translate(${chartWidth + 20}, 40)`);
+
+        const legendItems = legendGroup.selectAll(".legend-item")
+            .data(data)
+            .enter()
+            .append("g")
+            .attr("class", "legend-item")
+            .attr("transform", (d, i) => `translate(0, ${i * 25})`);
+
+        // Legend color boxes
+        legendItems.append("rect")
+            .attr("width", 15)
+            .attr("height", 15)
+            .attr("fill", (d, i) => color(i))
+            .attr("stroke", "#ccc")
+            .attr("stroke-width", 1);
+
+        // Legend text
+        legendItems.append("text")
+            .attr("x", 20)
+            .attr("y", 12)
+            .attr("font-size", "12px")
+            .attr("text-anchor", "start")
+            .text(d => {
+                const percent = ((d.value / d3.sum(data, d => d.value)) * 100).toFixed(1);
+                // Truncate long labels
+                const label = d.label.length > 15 ? d.label.substring(0, 15) + '...' : d.label;
+                return `${label} (${percent}%)`;
+            })
+            .append("title") // Add full text as tooltip
+            .text(d => {
+                const percent = ((d.value / d3.sum(data, d => d.value)) * 100).toFixed(1);
+                return `${d.label}: ${d.value.toLocaleString()} (${percent}%)`;
+            });
+
+        // Add legend interaction
+        legendItems
+            .style("cursor", "pointer")
+            .on("mouseover", function(event, d) {
+                // Highlight corresponding pie slice
+                const index = data.indexOf(d);
+                arcs.filter((arcData, i) => i === index)
+                    .select("path")
+                    .style("opacity", 0.8);
+            })
+            .on("mouseout", function() {
+                // Remove highlight from all slices
+                arcs.selectAll("path").style("opacity", 1);
+            });
     }
     
     // Start the rendering process
@@ -686,7 +753,7 @@ function createNetworkHeatmap(containerId, networkData, title = 'Network Communi
         .text(title);
 
     // Define protocols (y-axis)
-    const protocols = ['TCP', 'UDP', 'Unix Stream', 'Unix Dgram'];
+    const protocols = ['TCP', 'UDP'];
     
     // Get time range (x-axis)
     const timeExtent = d3.extent(networkData.heatmapData, d => d.timeIndex);

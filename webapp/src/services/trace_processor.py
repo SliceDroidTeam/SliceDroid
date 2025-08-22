@@ -284,7 +284,6 @@ class TraceProcessor:
         
         # Network operations (including audio/communication subsystems)
         elif (event_name in ['tcp_sendmsg', 'tcp_recvmsg', 'udp_sendmsg', 'udp_recvmsg',
-                           'unix_stream_sendmsg', 'unix_stream_recvmsg', 'unix_dgram_sendmsg', 'unix_dgram_recvmsg',
                            '__sys_socket', '__sys_connect', '__sys_bind', 'sock_sendmsg', 'inet_sock_set_state'] or
               any(keyword in event_name for keyword in ['audio', 'bolero', 'swrm', 'digital_cdc', 'lpass_hw', 'sock', 'inet'])):
             return 'network'
@@ -302,8 +301,6 @@ class TraceProcessor:
             'read_probe', 'write_probe', 'ioctl_probe',
             # IPC operations
             'inet_sock_set_state', 'binder_transaction', 'binder_transaction_received',
-            'unix_stream_sendmsg', 'unix_stream_recvmsg',
-            'unix_dgram_sendmsg', 'unix_dgram_recvmsg',
             # Network operations
             'tcp_sendmsg', 'tcp_recvmsg', 'udp_sendmsg', 'udp_recvmsg',
             '__sys_socket', '__sys_connect', '__sys_bind', 'sock_sendmsg',
@@ -373,7 +370,7 @@ class TraceProcessor:
                 # Progress reporting for large files
                 line_count += 1
                 if line_count % 50000 == 0:
-                    self.logger.info(f"Processed {line_count} lines, parsed {len(parsed_events)} events")
+                    self.logger.info(f"Parsed {len(parsed_events)} events")
                     if progress_callback:
                         progress_callback(30, f"Parsing... {len(parsed_events)} events processed")
                 
@@ -407,8 +404,6 @@ class TraceProcessor:
                     
                     # Convert IP addresses and sizes for network events
                     if event in ['tcp_sendmsg', 'tcp_recvmsg', 'tcp_connect', 'udp_sendmsg', 'udp_recvmsg']:
-                        # Debug logging
-                        self.logger.info(f"Processing {event} with details: {parsed_details}")
                         
                         # Convert IP addresses to readable format
                         if 'src_ip' in parsed_details and isinstance(parsed_details['src_ip'], int):

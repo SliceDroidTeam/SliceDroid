@@ -228,7 +228,6 @@ class BehaviourTimelineAnalyser:
             
             if not x_values:
                 return None
-            print("x_values", x_values, "y_values", y_values, "markers", markers, "colors", colors, "annotations", annotations)
             return (x_values, y_values, markers, colors, annotations, event_types, target_pid, event_markers, N)
 
         except Exception as e:

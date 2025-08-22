@@ -39,8 +39,7 @@ class NetworkAnalyser:
     
     def analyze_network_events(self, events):
         """Analyze network-related events"""
-        network_events = [e for e in events if 'inet' in e.get('event', '') or 'sock' in e.get('event', '') or 'tcp' in e.get('event', '').lower() or 'udp' in e.get('event', '').lower()]
-        
+        network_events = [e for e in events if e.get('details').get('family') in ('AF_INET', 'AF_INET6') or 'tcp' in e.get('event', '') or 'udp' in e.get('event', '')]
         if not network_events:
             return {'no_network_events': True}
         

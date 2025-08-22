@@ -766,10 +766,32 @@ function renderDevicePieChart(data) {
     // Prepare data for pie chart (top N devices)
     const topN = appConfig.top_devices || 10;
     const topDevices = data.slice(0, topN);
-    const chartData = topDevices.map(item => ({
-        label: `Device ${item.device}`,
-        value: item.count
-    }));
+    
+    // Create more meaningful labels for devices
+    const chartData = topDevices.map(item => {
+        let deviceLabel = `Device ${item.device}`;
+        
+        // Try to infer device type from paths if available
+        if (item.paths && Array.isArray(item.paths) && item.paths.length > 0) {
+            const paths = item.paths;
+            if (paths.some(path => path.includes('/dev/video'))) {
+                deviceLabel = `Camera (${item.device})`;
+            } else if (paths.some(path => path.includes('/dev/snd'))) {
+                deviceLabel = `Audio (${item.device})`;
+            } else if (paths.some(path => path.includes('/dev/input'))) {
+                deviceLabel = `Input (${item.device})`;
+            } else if (paths.some(path => path.includes('/dev/block'))) {
+                deviceLabel = `Storage (${item.device})`;
+            } else if (paths.some(path => path.includes('/dev/net'))) {
+                deviceLabel = `Network (${item.device})`;
+            }
+        }
+        
+        return {
+            label: deviceLabel,
+            value: item.count
+        };
+    });
 
     createPieChart('device-chart-container', chartData, 'Device Usage Distribution');
 }
@@ -796,10 +818,23 @@ function renderEventPieChart(data) {
     // Prepare data for pie chart (top N events)
     const topN = appConfig.top_events || 10;
     const topEvents = data.slice(0, topN);
-    const chartData = topEvents.map(item => ({
-        label: item.event,
-        value: item.count
-    }));
+    
+    // Create more readable labels for event types
+    const chartData = topEvents.map(item => {
+        let eventLabel = item.event;
+        
+        // Format event names to be more readable
+        if (eventLabel) {
+            eventLabel = eventLabel
+                .replace(/_/g, ' ')  // Replace underscores with spaces
+                .replace(/\b\w/g, l => l.toUpperCase());  // Capitalize first letter of each word
+        }
+        
+        return {
+            label: eventLabel,
+            value: item.count
+        };
+    });
 
     createPieChart('event-chart-container', chartData, 'Event Type Distribution');
 }
@@ -920,19 +955,6 @@ function renderAnalyticsCharts(charts, analysisData) {
     } else {
         $('#category-chart').html('<div class="alert alert-info">No category data available</div>');
     }
-
-    if (charts.device_usage) {
-        $('#device-usage-chart').html(`<img src="${charts.device_usage}" class="img-fluid" alt="Device Usage">`);
-    } else {
-        $('#device-usage-chart').html('<div class="alert alert-info">No device usage data available</div>');
-    }
-
-    if (charts.process_activity) {
-        $('#process-activity-chart').html(`<img src="${charts.process_activity}" class="img-fluid" alt="Process Activity">`);
-    } else {
-        $('#process-activity-chart').html('<div class="alert alert-info">No process activity data available</div>');
-    }
-
     if (charts.network_activity) {
         $('#network-chart').html(`<img src="${charts.network_activity}" class="img-fluid" alt="Network Activity">`);
     } else {
@@ -1110,14 +1132,6 @@ function renderNetworkAnalysis(data) {
             setTimeout(() => renderMBPerProtocolChart(data.network_analysis), 500);
         }
         
-        // Render MB received per protocol chart
-        if (document.getElementById('mb-received-per-protocol-chart') && 
-            document.getElementById('mb-received-per-protocol-chart').offsetWidth > 0) {
-            renderMbReceivedPerProtocolChart(data.network_analysis);
-        } else {
-            setTimeout(() => renderMbReceivedPerProtocolChart(data.network_analysis), 500);
-        }
-
         // Render connection tables
         renderConnectionTables(data.network_analysis);
     }, 200);
@@ -1159,23 +1173,11 @@ function renderNetworkSummary(data) {
             type: 'info',
             icon: 'fas fa-broadcast-tower'
         },
-        {
-            title: 'Socket Operations',
-            value: summary.total_socket_operations || 0,
-            type: 'success',
-            icon: 'fas fa-plug'
-        },
-        {
-            title: 'Protocols',
-            value: summary.active_protocols ? summary.active_protocols.length : 0,
-            type: 'warning',
-            icon: 'fas fa-layer-group'
-        }
     ];
 
     summaryCards.forEach(card => {
         summaryContainer.append(`
-            <div class="col-md-3 mb-2">
+            <div class="col-md-5 mb-2">
                 <div class="summary-card ${card.type}">
                     <div class="card-value">${card.value}</div>
                     <div class="card-label">${card.title}</div>
@@ -1491,12 +1493,6 @@ function renderMBSentPerProtocolChart(networkAnalysis) {
     if (data.udp && data.udp.sent_mb > 0) {
         protocolData.push({name: 'UDP', value: data.udp.sent_mb, color: '#28a745'});
     }
-    if (data.unix_stream && data.unix_stream.sent_mb > 0) {
-        protocolData.push({name: 'Unix Stream', value: data.unix_stream.sent_mb, color: '#ffc107'});
-    }
-    if (data.unix_dgram && data.unix_dgram.sent_mb > 0) {
-        protocolData.push({name: 'Unix Dgram', value: data.unix_dgram.sent_mb, color: '#dc3545'});
-    }
     if (data.bluetooth && data.bluetooth.sent_mb > 0) {
         protocolData.push({name: 'Bluetooth', value: data.bluetooth.sent_mb, color: '#6f42c1'});
     }
@@ -1506,9 +1502,7 @@ function renderMBSentPerProtocolChart(networkAnalysis) {
         // Check if we have any network events at all
         if (networkAnalysis.summary && 
             (networkAnalysis.summary.total_tcp_events > 0 || 
-             networkAnalysis.summary.total_udp_events > 0 || 
-             networkAnalysis.summary.total_unix_stream_events > 0 ||
-             networkAnalysis.summary.total_unix_dgram_events > 0)) {
+             networkAnalysis.summary.total_udp_events > 0 )){
             // We have events but no calculated data transfer
             $('#mb-sent-per-protocol-chart').html('<div class="alert alert-info">Network activity detected but no data size information available</div>');
         } else {
@@ -1637,27 +1631,6 @@ function renderMBPerProtocolChart(networkAnalysis) {
         });
     }
     
-    // Add Unix Stream data if available
-    if (data.unix_stream) {
-        chartData.push({
-            protocol: 'Unix Stream', 
-            sent: data.unix_stream.sent_mb || 0, 
-            received: data.unix_stream.received_mb || 0,
-            total: (data.unix_stream.sent_mb || 0) + (data.unix_stream.received_mb || 0),
-            color: '#ffc107'
-        });
-    }
-    
-    // Add Unix Datagram data if available
-    if (data.unix_dgram) {
-        chartData.push({
-            protocol: 'Unix Dgram', 
-            sent: data.unix_dgram.sent_mb || 0, 
-            received: data.unix_dgram.received_mb || 0,
-            total: (data.unix_dgram.sent_mb || 0) + (data.unix_dgram.received_mb || 0),
-            color: '#dc3545'
-        });
-    }
     
     // Add Bluetooth data if available
     if (data.bluetooth) {
@@ -1674,9 +1647,7 @@ function renderMBPerProtocolChart(networkAnalysis) {
         // Check if we have any network events at all
         if (networkAnalysis.summary && 
             (networkAnalysis.summary.total_tcp_events > 0 || 
-             networkAnalysis.summary.total_udp_events > 0 || 
-             networkAnalysis.summary.total_unix_stream_events > 0 ||
-             networkAnalysis.summary.total_unix_dgram_events > 0)) {
+             networkAnalysis.summary.total_udp_events > 0)) {
             // We have events but no calculated data transfer
             container.append('div')
                 .attr('class', 'alert alert-info')
@@ -1814,8 +1785,6 @@ function calculateDataTransfer(networkAnalysis) {
     const result = {
         tcp: { sent_mb: 0, received_mb: 0 },
         udp: { sent_mb: 0, received_mb: 0 },
-        unix_stream: { sent_mb: 0, received_mb: 0 },
-        unix_dgram: { sent_mb: 0, received_mb: 0 },
         bluetooth: { sent_mb: 0, received_mb: 0 }
     };
     
@@ -1850,45 +1819,7 @@ function calculateDataTransfer(networkAnalysis) {
             }
         });
     }
-    
-    // Process Unix stream connections
-    if (networkAnalysis.unix_stream_connections && networkAnalysis.unix_stream_connections.length > 0) {
-        networkAnalysis.unix_stream_connections.forEach(conn => {
-            // Unix stream doesn't have explicit size fields, check in details
-            let sizeMB = 0;
-            if (conn.details && conn.details.size) {
-                sizeMB = parseFloat(conn.details.size) / (1024 * 1024);
-            } else if (conn.details && conn.details.len) {
-                sizeMB = parseFloat(conn.details.len) / (1024 * 1024);
-            }
-            
-            if (conn.direction === 'send') {
-                result.unix_stream.sent_mb += sizeMB;
-            } else if (conn.direction === 'receive') {
-                result.unix_stream.received_mb += sizeMB;
-            }
-        });
-    }
-    
-    // Process Unix datagram communications
-    if (networkAnalysis.unix_dgram_communications && networkAnalysis.unix_dgram_communications.length > 0) {
-        networkAnalysis.unix_dgram_communications.forEach(comm => {
-            // Unix datagram doesn't have explicit size fields, check in details
-            let sizeMB = 0;
-            if (comm.details && comm.details.size) {
-                sizeMB = parseFloat(comm.details.size) / (1024 * 1024);
-            } else if (comm.details && comm.details.len) {
-                sizeMB = parseFloat(comm.details.len) / (1024 * 1024);
-            }
-            
-            if (comm.direction === 'send') {
-                result.unix_dgram.sent_mb += sizeMB;
-            } else if (comm.direction === 'receive') {
-                result.unix_dgram.received_mb += sizeMB;
-            }
-        });
-    }
-    
+      
     // Process Bluetooth activity if available
     if (networkAnalysis.bluetooth_activity && networkAnalysis.bluetooth_activity.length > 0) {
         networkAnalysis.bluetooth_activity.forEach(activity => {
@@ -1911,125 +1842,6 @@ function calculateDataTransfer(networkAnalysis) {
     return result;
 }
 
-function renderMbReceivedPerProtocolChart(networkAnalysis) {
-    const container = d3.select('#mb-received-per-protocol-chart');
-    container.selectAll('*').remove();
-    
-    if (!networkAnalysis) {
-        container.append('div')
-            .attr('class', 'alert alert-info')
-            .text('No network analysis data available');
-        return;
-    }
-    
-    // Calculate data transfer from network events
-    const data = calculateDataTransfer(networkAnalysis);
-    
-    // Create protocol distribution with MB received
-    const protocolData = [];
-    
-    if (data.tcp && data.tcp.received_mb > 0) {
-        protocolData.push({name: 'TCP', value: data.tcp.received_mb, color: '#007bff'});
-    }
-    if (data.udp && data.udp.received_mb > 0) {
-        protocolData.push({name: 'UDP', value: data.udp.received_mb, color: '#28a745'});
-    }
-    if (data.unix_stream && data.unix_stream.received_mb > 0) {
-        protocolData.push({name: 'Unix Stream', value: data.unix_stream.received_mb, color: '#ffc107'});
-    }
-    if (data.unix_dgram && data.unix_dgram.received_mb > 0) {
-        protocolData.push({name: 'Unix Dgram', value: data.unix_dgram.received_mb, color: '#dc3545'});
-    }
-    if (data.bluetooth && data.bluetooth.received_mb > 0) {
-        protocolData.push({name: 'Bluetooth', value: data.bluetooth.received_mb, color: '#6f42c1'});
-    }
-
-    // If no data or all values are 0, show a message
-    if (protocolData.length === 0) {
-        // Check if we have any network events at all
-        if (networkAnalysis.summary && 
-            (networkAnalysis.summary.total_tcp_events > 0 || 
-             networkAnalysis.summary.total_udp_events > 0 || 
-             networkAnalysis.summary.total_unix_stream_events > 0 ||
-             networkAnalysis.summary.total_unix_dgram_events > 0)) {
-            // We have events but no calculated data transfer
-            container.append('div')
-                .attr('class', 'alert alert-info')
-                .text('Network activity detected but no data size information available');
-        } else {
-            // No events at all
-            container.append('div')
-                .attr('class', 'alert alert-info')
-                .text('No network data received detected');
-        }
-        return;
-    }
-
-    // Create pie chart
-    const width = 280;
-    const height = 280;
-    const radius = Math.min(width, height) / 2;
-
-    const svg = container.append('svg')
-        .attr('width', width)
-        .attr('height', height)
-        .append('g')
-        .attr('transform', `translate(${width/2},${height/2})`);
-
-    const pie = d3.pie()
-        .value(d => d.value)
-        .sort(null);
-
-    const arc = d3.arc()
-        .innerRadius(0)
-        .outerRadius(radius - 10);
-
-    const arcs = svg.selectAll('.arc')
-        .data(pie(protocolData))
-        .enter().append('g')
-        .attr('class', 'arc');
-
-    arcs.append('path')
-        .attr('d', arc)
-        .attr('fill', d => d.data.color)
-        .attr('stroke', 'white')
-        .attr('stroke-width', 2)
-        .on('mouseover', function(event, d) {
-            const tooltip = d3.select('body').append('div')
-                .attr('class', 'protocol-tooltip')
-                .style('position', 'absolute')
-                .style('background', 'rgba(0,0,0,0.8)')
-                .style('color', 'white')
-                .style('padding', '8px')
-                .style('border-radius', '4px')
-                .style('font-size', '12px')
-                .style('pointer-events', 'none')
-                .style('z-index', '1000');
-
-            const totalMB = d3.sum(protocolData, d => d.value);
-            const percentage = ((d.data.value / totalMB) * 100).toFixed(1);
-            
-            tooltip.html(`
-                <strong>${d.data.name}</strong><br>
-                MB Received: ${d.data.value.toFixed(2)} MB<br>
-                Percentage: ${percentage}%
-            `)
-            .style('left', (event.pageX + 10) + 'px')
-            .style('top', (event.pageY - 10) + 'px');
-        })
-        .on('mouseout', function() {
-            d3.selectAll('.protocol-tooltip').remove();
-        });
-
-    // Add labels
-    arcs.append('text')
-        .attr('transform', d => `translate(${arc.centroid(d)})`)
-        .attr('text-anchor', 'middle')
-        .attr('font-size', '12px')
-        .attr('font-weight', 'bold')
-        .attr('fill', 'white')
-        .text(d => d.data.value > 0 ? d.data.name : '');
-}
 
 function renderConnectionTables(networkAnalysis) {
     console.log('Rendering connection tables with data:', networkAnalysis);

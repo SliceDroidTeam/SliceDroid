@@ -24,8 +24,6 @@ class NetworkAnalyzer(BaseAnalyzer):
             Dictionary with network flow analysis results
         """
         network_analysis = {
-            'unix_stream_connections': [],
-            'unix_dgram_communications': [],
             'tcp_connections': [],
             'udp_communications': [],
             'socket_operations': [],
@@ -49,79 +47,9 @@ class NetworkAnalyzer(BaseAnalyzer):
             process = event.get('process')
             details = event.get('details', {})
             pid = event.get('tgid')
-            tid = event.get('tid')
-
-            # Unix domain socket stream communications
-            if event_name == 'unix_stream_sendmsg':
-                stream_send = {
-                    'timestamp': timestamp,
-                    'pid': pid,
-                    'tid': tid,
-                    'process': process,
-                    'to_pid': details.get('topid'),
-                    'direction': 'send',
-                    'details': details
-                }
-                network_analysis['unix_stream_connections'].append(stream_send)
-
-                # Track flow relationship
-                if details.get('topid'):
-                    communication_flows.append({
-                        'from_pid': pid,
-                        'to_pid': details.get('topid'),
-                        'type': 'unix_stream',
-                        'direction': 'send',
-                        'timestamp': timestamp
-                    })
-
-            elif event_name == 'unix_stream_recvmsg':
-                stream_recv = {
-                    'timestamp': timestamp,
-                    'pid': pid,
-                    'tid': tid,
-                    'process': process,
-                    'from_pid': details.get('frompid'),
-                    'direction': 'receive',
-                    'details': details
-                }
-                network_analysis['unix_stream_connections'].append(stream_recv)
-
-                # Track flow relationship
-                if details.get('frompid'):
-                    communication_flows.append({
-                        'from_pid': details.get('frompid'),
-                        'to_pid': pid,
-                        'type': 'unix_stream',
-                        'direction': 'receive',
-                        'timestamp': timestamp
-                    })
-
-            # Unix domain socket datagram communications
-            elif event_name == 'unix_dgram_sendmsg':
-                dgram_send = {
-                    'timestamp': timestamp,
-                    'pid': pid,
-                    'tid': tid,
-                    'process': process,
-                    'direction': 'send',
-                    'details': details
-                }
-                network_analysis['unix_dgram_communications'].append(dgram_send)
-
-            elif event_name == 'unix_dgram_recvmsg':
-                dgram_recv = {
-                    'timestamp': timestamp,
-                    'pid': pid,
-                    'tid': tid,
-                    'process': process,
-                    'direction': 'receive',
-                    'inode': details.get('inode'),
-                    'details': details
-                }
-                network_analysis['unix_dgram_communications'].append(dgram_recv)
 
             # TCP communications (if present)
-            elif event_name == 'tcp_sendmsg':
+            if event_name == 'tcp_sendmsg':
                 tcp_send = {
                     'timestamp': timestamp,
                     'pid': pid,
@@ -324,20 +252,12 @@ class NetworkAnalyzer(BaseAnalyzer):
         summary = {
             'total_tcp_events': len(network_analysis['tcp_connections']),
             'total_udp_events': len(network_analysis['udp_communications']),
-            'total_unix_stream_events': len(network_analysis['unix_stream_connections']),
-            'total_unix_dgram_events': len(network_analysis['unix_dgram_communications']),
-            'total_socket_operations': len(network_analysis['socket_operations']),
             'total_bluetooth_events': len(network_analysis['bluetooth_activity']),
             'total_connection_timeline_events': len(network_analysis['connection_timeline']),
             'tcp_send_count': 0,
             'tcp_recv_count': 0,
             'udp_send_count': 0,
             'udp_recv_count': 0,
-            'unix_stream_send_count': 0,
-            'unix_stream_recv_count': 0,
-            'unix_dgram_send_count': 0,
-            'unix_dgram_recv_count': 0,
-            'active_protocols': set(),
             'communication_intensity': 'LOW',
             'unique_flows': len(network_analysis['flow_relationships'])
         }
@@ -356,37 +276,10 @@ class NetworkAnalyzer(BaseAnalyzer):
             else:
                 summary['udp_recv_count'] += 1
 
-        # Count send/receive operations for Unix stream
-        for stream_event in network_analysis['unix_stream_connections']:
-            if stream_event['direction'] == 'send':
-                summary['unix_stream_send_count'] += 1
-            else:
-                summary['unix_stream_recv_count'] += 1
-
-        # Count send/receive operations for Unix datagram
-        for dgram_event in network_analysis['unix_dgram_communications']:
-            if dgram_event['direction'] == 'send':
-                summary['unix_dgram_send_count'] += 1
-            else:
-                summary['unix_dgram_recv_count'] += 1
-
-        # Identify active protocols
-        if summary['total_tcp_events'] > 0 or summary['total_connection_timeline_events'] > 0:
-            summary['active_protocols'].add('TCP')
-        if summary['total_udp_events'] > 0:
-            summary['active_protocols'].add('UDP')
-        if summary['total_unix_stream_events'] > 0:
-            summary['active_protocols'].add('Unix Domain Sockets (Stream)')
-        if summary['total_unix_dgram_events'] > 0:
-            summary['active_protocols'].add('Unix Domain Sockets (Datagram)')
-        if summary['total_bluetooth_events'] > 0:
-            summary['active_protocols'].add('Bluetooth')
 
         # Calculate communication intensity
         total_events = (summary['total_tcp_events'] +
                        summary['total_udp_events'] +
-                       summary['total_unix_stream_events'] +
-                       summary['total_unix_dgram_events'] +
                        summary['total_bluetooth_events'] +
                        summary['total_connection_timeline_events'])
 
@@ -396,7 +289,4 @@ class NetworkAnalyzer(BaseAnalyzer):
             summary['communication_intensity'] = 'MEDIUM'
         else:
             summary['communication_intensity'] = 'LOW'
-
-        summary['active_protocols'] = list(summary['active_protocols'])
-
         return summary

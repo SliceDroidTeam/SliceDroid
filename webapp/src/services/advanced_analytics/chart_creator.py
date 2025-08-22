@@ -23,11 +23,6 @@ class ChartCreator:
             # 1. High-Level Behavior Timeline (from notebook cell 11)
             x_values, y_values, markers, colors, annotations, event_types, target_pid, event_markers, N = self.behavior_analyser.analyse_for_behavior_timeline_chart(events, target_pid, window_size, overlap)
             charts['behavior_timeline'] = self.create_behavior_timeline_chart(x_values, y_values, markers, colors, annotations, event_types, target_pid, event_markers, N)
-
-            # 2. Category Distribution Chart
-            charts['category_distribution'] = self._create_category_chart(events)
-            # 3. Device Usage Chart
-            charts['device_usage'] = self._create_device_chart(events)
             
             # 4. Network Activity Chart
             charts['network_activity'] = self._create_network_chart(events)
@@ -41,9 +36,6 @@ class ChartCreator:
             socket_chart = self._create_socket_type_chart(events)
             charts['socket_types'] = socket_chart
             charts['protocol_socket_types'] = socket_chart  # Also add with new key
-            
-            # 7. Process Activity Chart
-            charts['process_activity'] = self._create_process_chart(events)
             
         except Exception as e:
             self.logger.error(f"Error generating charts: {str(e)}")
@@ -125,72 +117,6 @@ class ChartCreator:
             plt.tight_layout()
             
             return self._plot_to_base64()
-    
-
-
-    def _create_category_chart(self, events):
-        """Create category distribution pie chart"""
-        try:
-            category_counts = defaultdict(int)
-            for event in events:
-                category = categorize_event(event.get('event', ''))
-                category_counts[category] += 1
-            
-            if not category_counts:
-                return None
-            
-            plt.figure(figsize=(8, 8))
-            labels = list(category_counts.keys())
-            sizes = list(category_counts.values())
-            colors = ['#28a745', '#007bff', '#6f42c1', '#fd7e14', '#17a2b8', '#6c757d']
-            
-            plt.pie(sizes, labels=labels, colors=colors[:len(labels)], autopct='%1.1f%%', startangle=90)
-            plt.title('Event Category Distribution')
-            plt.axis('equal')
-            
-            return self._plot_to_base64()
-            
-        except Exception as e:
-            self.logger.error(f"Error creating category chart: {str(e)}")
-            return None
-    
-
-    def _create_device_chart(self, events):
-        """Create device usage bar chart"""
-        try:
-            device_counts = defaultdict(int)
-            for event in events:
-                if 'details' in event:
-                    device = event['details'].get('k_dev') or event['details'].get('k__dev')
-                    if device and device != 0:
-                        device_counts[device] += 1
-            
-            if not device_counts:
-                return None
-            
-            # Top 10 devices - handle mixed int/str device identifiers safely
-            top_devices = sorted(device_counts.items(), key=lambda x: (x[1], str(x[0])), reverse=True)[:10]
-            
-            plt.figure(figsize=(12, 6))
-            devices, counts = zip(*top_devices)
-            
-            plt.bar(range(len(devices)), counts, color='#4682B4')
-            plt.xlabel('Device ID')
-            plt.ylabel('Event Count')
-            plt.title('Top 10 Devices by Usage')
-            plt.xticks(range(len(devices)), [str(d) for d in devices], rotation=45)
-            
-            # Add value labels on bars
-            for i, count in enumerate(counts):
-                plt.text(i, count + max(counts) * 0.01, str(count), ha='center')
-            
-            plt.tight_layout()
-            
-            return self._plot_to_base64()
-            
-        except Exception as e:
-            self.logger.error(f"Error creating device chart: {str(e)}")
-            return None
         
     def _create_network_chart(self, events):
         """Create network activity chart with TCP state transitions"""
@@ -578,33 +504,3 @@ class ChartCreator:
                     transform=plt.gca().transAxes)
             plt.title("Protocol Socket Type Distribution")
             return self._plot_to_base64()
-
-    def _create_process_chart(self, events):
-        """Create process activity chart"""
-        try:
-            process_counts = Counter(e.get('process', 'unknown') for e in events)
-            top_processes = process_counts.most_common(10)
-            
-            if not top_processes:
-                return None
-            
-            plt.figure(figsize=(12, 6))
-            processes, counts = zip(*top_processes)
-            
-            plt.barh(range(len(processes)), counts, color='#fd7e14')
-            plt.xlabel('Event Count')
-            plt.ylabel('Process Name')
-            plt.title('Top 10 Most Active Processes')
-            plt.yticks(range(len(processes)), processes)
-            
-            # Add value labels
-            for i, count in enumerate(counts):
-                plt.text(count + max(counts) * 0.01, i, str(count), va='center')
-            
-            plt.tight_layout()
-            
-            return self._plot_to_base64()
-            
-        except Exception as e:
-            self.logger.error(f"Error creating process chart: {str(e)}")
-            return None

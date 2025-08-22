@@ -287,13 +287,10 @@ function showLoadingOnAllCharts(targetName) {
         'event-chart-container', 
         'network-flow-chart',
         'protocol-distribution-chart',
-        'process-tree-chart',
-        'process-timeline-chart',
         'behavior-timeline-chart',
         'category-chart',
         'network-chart',
         'device-usage-chart',
-        'process-activity-chart'
     ];
     
     chartContainers.forEach(containerId => {
@@ -310,13 +307,10 @@ function hideLoadingOnAllCharts() {
         'event-chart-container', 
         'network-flow-chart',
         'protocol-distribution-chart',
-        'process-tree-chart',
-        'process-timeline-chart',
         'behavior-timeline-chart',
         'category-chart',
         'network-chart',
         'device-usage-chart',
-        'process-activity-chart'
     ];
     
     chartContainers.forEach(containerId => {

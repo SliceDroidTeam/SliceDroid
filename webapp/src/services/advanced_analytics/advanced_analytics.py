@@ -5,7 +5,7 @@ from .chart_creator import ChartCreator
 from .descriptives_analyser import DescriptivesAnalyser
 from . import get_logger
 from ..comprehensive_analyzer import ComprehensiveAnalyzer
-from .insights_generator import generate_category_insights, generate_device_insights, generate_network_insights
+from .insights_generator import generate_network_insights
 
 class AdvancedAnalytics:
     """Advanced analytics for trace data with high-level insights"""
@@ -76,8 +76,6 @@ class AdvancedAnalytics:
                 'charts': charts,
                 'comprehensive_analytics': comprehensive_analytics,
                 'detailed_insights': self._generate_detailed_insights({
-                    'device_analysis': device_analysis,
-                    'category_analysis': category_analysis,
                     'network_analysis': network_analysis
                 })
             }
@@ -99,16 +97,7 @@ class AdvancedAnalytics:
     
     def _generate_detailed_insights(self, analysis_data):
         """Generate detailed insights based on analysis results"""
-        insights = {}
-        
-        # Device Analysis Insights
-        if analysis_data.get('device_analysis'):
-            insights['device'] = generate_device_insights(analysis_data['device_analysis'])
-
-        # Category Analysis Insights
-        if analysis_data.get('category_analysis'):
-            insights['category'] = generate_category_insights(analysis_data['category_analysis'])
-        
+        insights = {}        
         # Network Analysis Insights
         if analysis_data.get('network_analysis') and not analysis_data['network_analysis'].get('no_network_events'):
             insights['network'] = generate_network_insights(analysis_data['network_analysis'])
