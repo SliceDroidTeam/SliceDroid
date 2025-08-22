@@ -1,2 +1,2 @@
-:signal_service
-crime.securesms
+m.facebook.orca
+te_app_settings

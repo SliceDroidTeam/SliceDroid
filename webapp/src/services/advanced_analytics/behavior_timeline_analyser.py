@@ -43,7 +43,7 @@ class BehaviourTimelineAnalyser:
                 
                 # Extract sensitive categories for analysis
                 sensitive_resources = {}
-                sensitive_categories = ['contacts', 'sms', 'calendar', 'callogger']
+                sensitive_categories = ['contacts', 'sms', 'calendar', 'call_logs']
                 for category in sensitive_categories:
                     if category in category_mapping:
                         sensitive_resources[category] = category_mapping[category]

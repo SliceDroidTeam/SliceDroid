@@ -36,7 +36,6 @@ def is_legitimate_sensitive_access(pathname, data_type):
             'contacts': ['contacts2.db', 'contacts.db', 'people.db', '/contacts/', 'addressbook'],
             'sms': ['mmssms.db', 'sms.db', 'mms.db', '/sms/', '/messages/', 'telephony.db'],
             'calendar': ['calendar.db', 'calendarconfig.db', '/calendar/', 'events.db'],
-            'callogger': ['calllog.db', 'calls.db', '/calllog/', 'call_log.db'],
             'call_logs': ['calllog.db', 'calls.db', '/calllog/', 'call_log.db']
         }
         
@@ -53,7 +52,7 @@ def is_legitimate_sensitive_access(pathname, data_type):
             return True
         elif data_type == 'calendar' and ('com.android.providers.calendar' in pathname_lower or 'calendar' in pathname_lower):
             return True
-        elif data_type in ['callogger', 'call_logs'] and ('calllog' in pathname_lower or 'calls' in pathname_lower):
+        elif data_type in ['', 'call_logs'] and ('calllog' in pathname_lower or 'calls' in pathname_lower):
             return True
         
         # If pathname is just a device node like '/dev/something', it might not be sensitive data

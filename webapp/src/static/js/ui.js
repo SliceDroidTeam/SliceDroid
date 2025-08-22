@@ -199,122 +199,6 @@ function hideSecurityTooltip() {
     d3.selectAll(".chart-tooltip").remove();
 }
 
-// Process tree utility
-function expandProcessTree() {
-    if (!processData || !processData.process_analysis) {
-        showToast('Process Tree', 'No process data available to expand', 'warning');
-        return;
-    }
-    
-    const treeContainer = $('#process-tree-chart');
-    const processTree = processData.process_analysis.process_tree;
-    
-    if (!processTree || Object.keys(processTree).length === 0) {
-        showToast('Process Tree', 'No process tree data available', 'info');
-        return;
-    }
-    
-    // Generate expanded tree view
-    let expandedHtml = '<div class="process-tree-expanded">';
-    expandedHtml += '<h6><i class="fas fa-sitemap"></i> Expanded Process Tree</h6>';
-    expandedHtml += '<div class="tree-structure">';
-    
-    // Recursive function to build tree HTML
-    function buildTreeNode(node, level = 0) {
-        const indent = '  '.repeat(level);
-        const pid = node.pid || 'unknown';
-        const info = node.info || {};
-        const name = info.name || 'unknown';
-        const birthTime = info.birth_time ? new Date(info.birth_time * 1000).toLocaleString() : 'unknown';
-        
-        let html = `${indent}<div class="tree-node level-${level}">`;
-        html += `<div class="node-content">`;
-        html += `<strong>PID ${pid}</strong> - ${name}`;
-        if (birthTime !== 'unknown') {
-            html += ` <small class="text-muted">(${birthTime})</small>`;
-        }
-        html += `</div>`;
-        
-        if (node.children && node.children.length > 0) {
-            html += `<div class="node-children">`;
-            for (const child of node.children) {
-                html += buildTreeNode(child, level + 1);
-            }
-            html += `</div>`;
-        }
-        
-        html += `</div>`;
-        return html;
-    }
-    
-    // Build the tree for each root process
-    for (const [rootPid, rootNode] of Object.entries(processTree)) {
-        if (rootNode) {
-            expandedHtml += buildTreeNode(rootNode);
-        }
-    }
-    
-    expandedHtml += '</div>';
-    expandedHtml += '<button class="btn btn-secondary btn-sm mt-2" onclick="collapseProcessTree()">Collapse Tree</button>';
-    expandedHtml += '</div>';
-    
-    // Add CSS for tree styling
-    if (!document.getElementById('tree-styles')) {
-        const styles = document.createElement('style');
-        styles.id = 'tree-styles';
-        styles.textContent = `
-            .process-tree-expanded {
-                max-height: 600px;
-                overflow-y: auto;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                padding: 15px;
-                background: #f8f9fa;
-            }
-            .tree-structure {
-                font-family: monospace;
-                line-height: 1.4;
-            }
-            .tree-node {
-                margin: 2px 0;
-                padding: 2px 0;
-            }
-            .tree-node.level-0 .node-content {
-                font-weight: bold;
-                color: #007bff;
-            }
-            .tree-node.level-1 .node-content {
-                color: #28a745;
-                margin-left: 20px;
-            }
-            .tree-node.level-2 .node-content {
-                color: #ffc107;
-                margin-left: 40px;
-            }
-            .tree-node.level-3 .node-content {
-                color: #dc3545;
-                margin-left: 60px;
-            }
-            .node-children {
-                border-left: 2px solid #eee;
-                margin-left: 10px;
-                padding-left: 10px;
-            }
-        `;
-        document.head.appendChild(styles);
-    }
-    
-    treeContainer.html(expandedHtml);
-    showToast('Process Tree', 'Process tree expanded successfully', 'success');
-}
-
-function collapseProcessTree() {
-    if (processData && processData.process_analysis) {
-        renderProcessTree(processData.process_analysis);
-        showToast('Process Tree', 'Process tree collapsed', 'info');
-    }
-}
-
 // Update app status indicator
 function updateAppStatus(type, message) {
     const statusEl = $('#app-status');
@@ -349,8 +233,6 @@ window.showToast = showToast;
 window.updateProgressBar = updateProgressBar;
 window.showSecurityTooltip = showSecurityTooltip;
 window.hideSecurityTooltip = hideSecurityTooltip;
-window.expandProcessTree = expandProcessTree;
-window.collapseProcessTree = collapseProcessTree;
 window.toggleSidebar = toggleSidebar;
 window.updateAppStatus = updateAppStatus;
 window.initializeUI = initializeUI;

@@ -54,7 +54,7 @@ class FileAnalyzer(BaseAnalyzer):
 
                 # Extract sensitive categories for analysis
                 sensitive_resources = {}
-                sensitive_categories = ['contacts', 'sms', 'calendar', 'callogger']
+                sensitive_categories = ['contacts', 'sms', 'calendar', 'call_logs']
                 for category in sensitive_categories:
                     if category in category_mapping:
                         # Convert all device IDs to strings for consistent comparison

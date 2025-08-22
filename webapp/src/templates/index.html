@@ -228,7 +228,7 @@
                             <div class="card-icon">
                                 <i class="fas fa-chart-bar"></i>
                             </div>
-                            <h2 class="card-title">Advanced Analytics</h2>
+                            <h2 class="card-title">Results</h2>
                         </div>
                         <div class="d-flex gap-2">
                             <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#analytics-config">
@@ -284,7 +284,7 @@
                                             <div class="card-icon">
                                                 <i class="fas fa-chart-line"></i>
                                             </div>
-                                            <h2 class="card-title">Behavior Timeline</h2>
+                                            <h2 class="card-title">App Behavior Timeline</h2>
                                         </div>
                                         <div class="btn-group" role="group">
                                             <button id="behavior-zoom-in" class="btn btn-outline-primary btn-sm">
@@ -430,66 +430,6 @@
 
                     <div id="network-error" class="alert alert-info" style="display: block;">
                         Upload a trace file to view network analysis
-                    </div>
-                </div>
-
-                <!-- Process Analysis Dashboard -->
-                <div class="feature-card analysis-only" style="display: none;">
-                    <div class="card-header-custom">
-                        <div class="card-title-section">
-                            <div class="card-icon">
-                                <i class="fas fa-sitemap"></i>
-                            </div>
-                            <h2 class="card-title">Process Analysis</h2>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-outline-secondary btn-sm" onclick="expandProcessTree()">
-                                <i class="fas fa-expand"></i> Expand Tree
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="process-loading" class="text-center p-3" style="display: none;">
-                        <div class="loading-spinner mx-auto mb-2"></div>
-                        <small>Building process tree...</small>
-                    </div>
-
-                    <div id="process-content" style="display: none;">
-                        <!-- Process Summary Cards -->
-                        <div class="row mb-3" id="process-summary">
-                            <!-- Cards populated by JavaScript -->
-                        </div>
-
-                        <!-- Process Tree Visualization -->
-                        <div class="row mb-3">
-                            <div class="col-12">
-                                <div class="professional-card p-3">
-                                    <h6><i class="fas fa-code-branch"></i> Process Activity Summary</h6>
-                                    <div id="process-tree-chart" style="height: 400px; overflow: auto;"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Suspicious Patterns -->
-                        <div class="row">
-                            <div class="col-12">
-                                <div class="professional-card p-3">
-                                    <h6><i class="fas fa-exclamation-circle" title="Interesting Pattern Criteria:
-                                        • Files accessed > 50
-                                        • Read ratio > 90% (read-heavy)
-                                        • Write ratio > 90% (write-heavy)
-                                        • Process communicates with > 5 other PIDs
-                                        • Process tree depth > 5
-                                        • Process has > 100 events
-                                        • Process created > 10 processes"></i> Interesting Patterns</h6>
-                                    <div id="process-interesting-patterns"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="process-error" class="alert alert-info" style="display: block;">
-                        Upload a trace file to view process analysis
                     </div>
                 </div>
 

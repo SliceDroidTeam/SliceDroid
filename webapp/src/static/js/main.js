@@ -120,7 +120,6 @@ function loadAllData() {
         
         // Load new enhanced analysis
         loadNetworkAnalysis();
-        loadProcessAnalysis();
     } catch (error) {
         console.error('Error loading data:', error);
         showToast('Loading Error', 'Failed to load some data sections', 'error');
@@ -549,7 +548,7 @@ function renderBehaviorTimelineChart() {
         .attr('transform', `translate(${margin.left},${margin.top})`);
 
     // Define categories and colors for behavior timeline (based on legacy SliceDroid code)
-    const categories = ['camera', 'audio_in', 'TCP', 'bluetooth', 'nfc', 'gnss', 'contacts', 'sms', 'calendar', 'call_logs', 'callogger'];
+    const categories = ['camera', 'audio_in', 'TCP', 'bluetooth', 'nfc', 'gnss', 'contacts', 'sms', 'calendar', 'call_logs'];
     const categoryColors = {
         'camera': '#007bff',      // Blue
         'audio_in': '#dc3545',    // Red
@@ -561,7 +560,6 @@ function renderBehaviorTimelineChart() {
         'sms': '#ffc107',         // Yellow
         'calendar': '#17a2b8',    // Cyan
         'call_logs': '#6f42c1',   // Purple
-        'callogger': '#8e44ad'    // Dark purple
     };
 
     // Set up scales
@@ -808,7 +806,6 @@ function renderEventPieChart(data) {
 
 // Upload functionality is now handled in inline script
 
-// Advanced Analytics functionality
 function loadAdvancedAnalytics() {
     let url = '/api/advanced-analytics';
 
@@ -2193,10 +2190,7 @@ function renderNetworkHeatmap(networkAnalysis) {
 
 function prepareNetworkHeatmapData(networkAnalysis) {
     const heatmapData = [];
-    
-    // Get all network events with timestamps
     const allEvents = [];
-    
     // Process TCP events
     if (networkAnalysis.tcp_connections && networkAnalysis.tcp_connections.length > 0) {
         networkAnalysis.tcp_connections.forEach(event => {
@@ -2209,8 +2203,7 @@ function prepareNetworkHeatmapData(networkAnalysis) {
                 });
             }
         });
-    }
-    
+    } 
     // Process UDP events
     if (networkAnalysis.udp_communications && networkAnalysis.udp_communications.length > 0) {
         networkAnalysis.udp_communications.forEach(event => {
@@ -2224,35 +2217,6 @@ function prepareNetworkHeatmapData(networkAnalysis) {
             }
         });
     }
-    
-    // Process Unix Stream events
-    if (networkAnalysis.unix_stream_connections && networkAnalysis.unix_stream_connections.length > 0) {
-        networkAnalysis.unix_stream_connections.forEach(event => {
-            if (event.timestamp) {
-                allEvents.push({
-                    timestamp: event.timestamp,
-                    protocol: 'Unix Stream',
-                    direction: event.direction || 'unknown',
-                    size: (event.details && event.details.size) || 0
-                });
-            }
-        });
-    }
-    
-    // Process Unix Datagram events
-    if (networkAnalysis.unix_dgram_communications && networkAnalysis.unix_dgram_communications.length > 0) {
-        networkAnalysis.unix_dgram_communications.forEach(event => {
-            if (event.timestamp) {
-                allEvents.push({
-                    timestamp: event.timestamp,
-                    protocol: 'Unix Dgram',
-                    direction: event.direction || 'unknown',
-                    size: (event.details && event.details.size) || 0
-                });
-            }
-        });
-    }
-    
     // If no events with timestamps, return empty array
     if (allEvents.length === 0) {
         return [];
@@ -2260,14 +2224,12 @@ function prepareNetworkHeatmapData(networkAnalysis) {
     
     // Sort events by timestamp
     allEvents.sort((a, b) => a.timestamp - b.timestamp);
-    
     // Get start time (t=0)
     const startTime = allEvents[0].timestamp;
-    
     // Group events by protocol and time buckets (1 second intervals)
     const timeGroups = {};
-    const protocols = ['TCP', 'UDP', 'Unix Stream', 'Unix Dgram'];
-    
+    const protocols = ['TCP', 'UDP'];
+
     allEvents.forEach(event => {
         // Calculate time index (seconds from start)
         const timeIndex = Math.floor(event.timestamp - startTime);
@@ -2277,8 +2239,6 @@ function prepareNetworkHeatmapData(networkAnalysis) {
             timeGroups[timeKey] = {
                 'TCP': { count: 0, size: 0 },
                 'UDP': { count: 0, size: 0 },
-                'Unix Stream': { count: 0, size: 0 },
-                'Unix Dgram': { count: 0, size: 0 }
             };
         }
         
@@ -2318,196 +2278,7 @@ function showNetworkError(error) {
     $('#network-error').html(`<strong>Error:</strong> ${error}`).show();
 }
 
-// Enhanced Process Analysis Functions
-function loadProcessAnalysis() {
-    let url = '/api/process-analysis';
-
-    // Show loading
-    $('#process-loading').show();
-    $('#process-content').hide();
-    $('#process-error').hide();
-
-    $.getJSON(url, function(data) {
-        if (data.error) {
-            showProcessError(data.error);
-        } else {
-            processData = data;
-            renderProcessAnalysis(data);
-        }
-    }).fail(function(jqXHR) {
-        const errorMsg = jqXHR.responseJSON?.error || 'No process analysis data available';
-        showProcessError(errorMsg);
-    }).always(function() {
-        $('#process-loading').hide();
-    });
-}
-
-function renderProcessAnalysis(data) {
-    $('#process-content').show();
-    $('#process-error').hide();
-    $('#process-loading').hide();
-
-    // Wait for container to be fully visible before rendering charts
-    setTimeout(() => {
-        // Render summary cards
-        renderProcessSummary(data);
-
-        // Render process tree with container check
-        if (document.getElementById('process-tree-chart') && 
-            document.getElementById('process-tree-chart').offsetWidth > 0) {
-            renderProcessTree(data.process_analysis);
-        } else {
-            setTimeout(() => renderProcessTree(data.process_analysis), 500);
-        }
-
-        // Render suspicious patterns
-        renderSuspiciousPatterns(data.process_analysis);
-    }, 200);
-}
-
-function renderProcessSummary(data) {
-    const summaryContainer = $('#process-summary');
-    summaryContainer.empty();
-
-    if (!data.process_analysis || !data.process_analysis.summary) {
-        summaryContainer.html('<div class="col-12"><div class="alert alert-info">No process summary available</div></div>');
-        return;
-    }
-
-    const summary = data.process_analysis.summary;
-    const summaryCards = [
-        {
-            title: 'Active Processes',
-            value: summary.total_processes || 0,
-            type: 'info',
-            icon: 'fas fa-microchip'
-        },
-        {
-            title: 'File Operations',
-            value: summary.total_file_operations || 0,
-            type: 'success',
-            icon: 'fas fa-file'
-        },
-        {
-            title: 'IPC Events',
-            value: summary.total_ipc_events || 0,
-            type: 'warning',
-            icon: 'fas fa-exchange-alt'
-        },
-        {
-            title: 'Interesting Patterns',
-            value: summary.interesting_patterns ? summary.interesting_patterns.length : 0,
-            type: summary.interesting_patterns && summary.interesting_patterns.length > 0 ? 'danger' : 'success',
-            icon: 'fas fa-exclamation-triangle'
-        }
-    ];
-
-    summaryCards.forEach(card => {
-        summaryContainer.append(`
-            <div class="col-md-3 mb-2">
-                <div class="summary-card ${card.type}">
-                    <div class="card-value">${card.value}</div>
-                    <div class="card-label">${card.title}</div>
-                </div>
-            </div>
-        `);
-    });
-}
-
-function renderProcessTree(processAnalysis) {
-    if (!processAnalysis || !processAnalysis.process_tree) {
-        $('#process-tree-chart').html('<div class="alert alert-info">No process tree data available</div>');
-        return;
-    }
-
-    const processTree = processAnalysis.process_tree;
-    const processKeys = Object.keys(processTree);
-    
-    if (processKeys.length === 0) {
-        $('#process-tree-chart').html('<div class="alert alert-info">No process relationships detected</div>');
-        return;
-    }
-
-    // Create a simple process list view with activity information
-    let treeHtml = '<div class="process-tree-list" style="max-height: 350px; overflow-y: auto;">';
-    treeHtml += '<div class="row"><div class="col-12">';
-    treeHtml += '</div></div>';
-    
-    // Sort processes by total events (most active first)
-    const sortedProcesses = processKeys.sort((a, b) => {
-        const eventsA = processTree[a].total_events || 0;
-        const eventsB = processTree[b].total_events || 0;
-        return eventsB - eventsA;
-    });
-    
-    sortedProcesses.forEach(pid => {
-        const process = processTree[pid];
-        const duration = process.duration ? (process.duration / 1000).toFixed(2) + 's' : 'N/A';
-        const partners = process.communication_partners ? process.communication_partners.length : 0;
-        
-        treeHtml += `
-            <div class="process-item mb-2 p-2 border rounded">
-                <div class="row">
-                    <div class="col-md-6">
-                        <strong>PID ${pid}</strong> - <small>${process.process_name || 'Unknown'}</small>
-                    </div>
-                    <div class="col-md-6 text-end">
-                        <span class="badge bg-primary">${process.total_events || 0} events</span>
-                        <span class="badge bg-info">${duration}</span>
-                        ${partners > 0 ? `<span class="badge bg-warning">${partners} partners</span>` : ''}
-                    </div>
-                </div>
-                ${process.children && process.children.length > 0 ? `
-                    <div class="mt-1">
-                        <small class="text-muted">Communicates with: ${process.children.map(c => `PID ${c.pid}`).join(', ')}</small>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-    });
-    
-    treeHtml += '</div>';
-    $('#process-tree-chart').html(treeHtml);
-}
-
-
-function renderSuspiciousPatterns(processAnalysis) {
-    const container = $('#process-interesting-patterns');
-    container.empty();
-
-    if (!processAnalysis || !processAnalysis.summary || !processAnalysis.summary.interesting_patterns) {
-        container.html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> No interesting patterns detected</div>');
-        return;
-    }
-
-    const patterns = processAnalysis.summary.interesting_patterns;
-    if (patterns.length === 0) {
-        container.html('<div class="alert alert-success"><i class="fas fa-check-circle"></i> No interesting patterns detected</div>');
-        return;
-    }
-
-    const patternList = $('<div class="pattern-list" style="max-height: 300px; overflow-y: auto;"></div>');
-    patterns.forEach(pattern => {
-        patternList.append(`
-            <div class="alert alert-info alert-sm mb-2">
-                <strong>${pattern.type}</strong><br>
-                <small>${pattern.description}</small>
-            </div>
-        `);
-    });
-
-    container.append(patternList);
-}
-
-function showProcessError(error) {
-    $('#process-error').html(`<strong>Error:</strong> ${error}`).show();
-}
-
-// Upload and UI functionality are now handled in separate files
-
 // Make behavior timeline functions globally available for button event handlers
 window.behaviorZoomIn = behaviorZoomIn;
 window.behaviorZoomOut = behaviorZoomOut;
 window.behaviorResetZoom = behaviorResetZoom;
-
-// Note: DOM ready initialization is already handled above

@@ -101,7 +101,7 @@ class SensitiveDataUtils:
                 # Get the appropriate device identifier
                 device_id = DeviceUtils.get_device_identifier(event)
                 if device_id:
-                    for dtype in ['contacts', 'sms', 'calendar', 'callogger']:
+                    for dtype in ['contacts', 'sms', 'calendar', 'call_logs']:
                         if dtype in sensitive_resources:
                             device_list = sensitive_resources[dtype]
                             # Exact string match for device identifiers
@@ -112,7 +112,7 @@ class SensitiveDataUtils:
                                 # Verify this is actually accessing sensitive data, not just any file on same device
                                 pathname = event['details'].get('pathname', '').lower()
                                 if SensitiveDataUtils.is_legitimate_sensitive_access(pathname, dtype):
-                                    sensitive_type = 'call_logs' if dtype == 'callogger' else dtype
+                                    sensitive_type = 'call_logs' if dtype == 'call_logs' else dtype
                                     break
 
                             if sensitive_type:

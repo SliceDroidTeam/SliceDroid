@@ -19,7 +19,7 @@ def check_sensitive_resource(event, sensitive_resources, logger):
                         # Verify this is actually accessing sensitive data, not just any file on same device
                         pathname = event.get('details', {}).get('pathname', '').lower()
                         if is_legitimate_sensitive_access(pathname, data_type):
-                            mapped_type = 'call_logs' if data_type == 'callogger' else data_type
+                            mapped_type = 'call_logs' if data_type == 'call_logs' else data_type
                             logger.debug(f"Confirmed sensitive access: {mapped_type} via device {device_id_str} path {pathname}")
                             return mapped_type
                         else:
