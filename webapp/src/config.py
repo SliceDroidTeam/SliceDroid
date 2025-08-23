@@ -9,27 +9,27 @@ class Config:
     PROJECT_ROOT = BASE_DIR.parent.parent
     
     # Data paths - can be overridden by environment variables
-    DATA_DIR = Path(os.getenv('SYSDROID_DATA_DIR', PROJECT_ROOT / 'data'))
-    EXPORTS_DIR = Path(os.getenv('SYSDROID_EXPORTS_DIR', PROJECT_ROOT / 'data' / 'Exports'))
-    MAPPINGS_DIR = Path(os.getenv('SYSDROID_MAPPINGS_DIR', DATA_DIR / 'mappings'))
-    TRACES_DIR = Path(os.getenv('SYSDROID_TRACES_DIR', DATA_DIR / 'traces'))
+    DATA_DIR = Path(os.getenv('SLICEDROID_DATA_DIR', PROJECT_ROOT / 'data'))
+    EXPORTS_DIR = Path(os.getenv('SLICEDROID_EXPORTS_DIR', PROJECT_ROOT / 'data' / 'Exports'))
+    MAPPINGS_DIR = Path(os.getenv('SLICEDROID_MAPPINGS_DIR', DATA_DIR / 'mappings'))
+    TRACES_DIR = Path(os.getenv('SLICEDROID_TRACES_DIR', DATA_DIR / 'traces'))
     
     # File paths
-    PROCESSED_EVENTS_JSON = Path(os.getenv('SYSDROID_EVENTS_FILE', EXPORTS_DIR / 'processed_events.json'))
-    SLICED_EVENTS_JSON = Path(os.getenv('SYSDROID_SLICED_EVENTS_FILE', EXPORTS_DIR / 'sliced_events.json'))
+    PROCESSED_EVENTS_JSON = Path(os.getenv('SLICEDROID_EVENTS_FILE', EXPORTS_DIR / 'processed_events.json'))
+    SLICED_EVENTS_JSON = Path(os.getenv('SLICEDROID_SLICED_EVENTS_FILE', EXPORTS_DIR / 'sliced_events.json'))
     
     # App configuration
-    DEBUG = os.getenv('SYSDROID_DEBUG', 'False').lower() in ('true', '1', 'yes')
-    HOST = os.getenv('SYSDROID_HOST', '0.0.0.0')
-    PORT = int(os.getenv('SYSDROID_PORT', '5000'))
+    DEBUG = os.getenv('SLICEDROID_DEBUG', 'False').lower() in ('true', '1', 'yes')
+    HOST = os.getenv('SLICEDROID_HOST', '0.0.0.0')
+    PORT = int(os.getenv('SLICEDROID_PORT', '5000'))
     
     # Chart configuration
-    CHART_TOP_N_DEVICES = int(os.getenv('SYSDROID_TOP_DEVICES', '10'))
-    CHART_TOP_N_EVENTS = int(os.getenv('SYSDROID_TOP_EVENTS', '10'))
+    CHART_TOP_N_DEVICES = int(os.getenv('SLICEDROID_TOP_DEVICES', '10'))
+    CHART_TOP_N_EVENTS = int(os.getenv('SLICEDROID_TOP_EVENTS', '10'))
     
     # Timeline configuration
-    TIMELINE_MAX_EVENTS = int(os.getenv('SYSDROID_MAX_TIMELINE_EVENTS', '1000'))
-    TIMELINE_DEFAULT_ZOOM = float(os.getenv('SYSDROID_DEFAULT_ZOOM', '1.0'))
+    TIMELINE_MAX_EVENTS = int(os.getenv('SLICEDROID_MAX_TIMELINE_EVENTS', '1000'))
+    TIMELINE_DEFAULT_ZOOM = float(os.getenv('SLICEDROID_DEFAULT_ZOOM', '1.0'))
     
     # Event categories and their colors
     EVENT_CATEGORIES = {
