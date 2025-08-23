@@ -3,8 +3,6 @@ Base utilities and common functions for comprehensive analysis
 """
 
 import logging
-from pathlib import Path
-from collections import defaultdict
 from ..utils import get_device_identifier, is_legitimate_sensitive_access, make_json_serializable
 
 

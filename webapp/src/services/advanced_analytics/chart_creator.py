@@ -4,10 +4,9 @@ matplotlib.use('Agg')
 import numpy as np
 import base64
 from io import BytesIO
-from collections import defaultdict, Counter
+from collections import defaultdict
 from . import get_logger
 from .behavior_timeline_analyser import BehaviourTimelineAnalyser
-from .base_utils import analyze_socket_types, categorize_event
 
 class ChartCreator:
     def __init__(self, config_class):
@@ -24,19 +23,12 @@ class ChartCreator:
             x_values, y_values, markers, colors, annotations, event_types, target_pid, event_markers, N = self.behavior_analyser.analyse_for_behavior_timeline_chart(events, target_pid, window_size, overlap)
             charts['behavior_timeline'] = self.create_behavior_timeline_chart(x_values, y_values, markers, colors, annotations, event_types, target_pid, event_markers, N)
             
-            # 4. Network Activity Chart
+            # 2. Network Activity Chart for TCP state transitions
             charts['network_activity'] = self._create_network_chart(events)
             
-            # 5. Data Transfer Chart (MB) - using the original key for backward compatibility
+            # 3. Data Transfer Chart (MB) - using the original key for backward compatibility
             data_transfer_chart = self._create_data_transfer_chart(data_transfer)
             charts['data_transfer'] = data_transfer_chart
-            charts['data_transfer_mb'] = data_transfer_chart  # Also add with new key
-            
-            # 6. Protocol Socket Type Distribution Chart - using the original key for backward compatibility
-            socket_chart = self._create_socket_type_chart(events)
-            charts['socket_types'] = socket_chart
-            charts['protocol_socket_types'] = socket_chart  # Also add with new key
-            
         except Exception as e:
             self.logger.error(f"Error generating charts: {str(e)}")
             charts['error'] = str(e)
@@ -161,16 +153,7 @@ class ChartCreator:
 
     def _create_data_transfer_chart(self, data_transfer):
         """Create data transfer chart showing MB transferred by protocol and process"""
-        try:
-            
-            # Create a basic chart even if there's no data
-            #if not data_transfer or not isinstance(data_transfer, dict):
-            #    data_transfer = {
-            #        'tcp': {'sent_mb': 0.001, 'received_mb': 0.001},
-            #        'udp': {'sent_mb': 0.001, 'received_mb': 0.001},
-            #        'total': {'sent_mb': 0.002, 'received_mb': 0.002}
-            #    }
-            
+        try:            
             # Create a figure with two subplots - one for protocol summary, one for per-process details
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8), gridspec_kw={'width_ratios': [1, 1.5]})
             
@@ -336,171 +319,4 @@ class ChartCreator:
                     horizontalalignment='center', verticalalignment='center',
                     transform=plt.gca().transAxes)
             plt.title("Data Transfer (MB)")
-            return self._plot_to_base64()
-
-    def _create_socket_type_chart(self, events):
-        """Create protocol socket type distribution chart with data transfer metrics"""
-        try:
-            # Use the same criteria as _analyze_network_events to find network events
-            network_events = [e for e in events if 'inet' in e.get('event', '') or 'sock' in e.get('event', '') or 'tcp' in e.get('event', '').lower() or 'udp' in e.get('event', '').lower()]
-            
-            # If no network events, create some minimal placeholder events
-            if not network_events:
-                network_events = [{'event': 'tcp_sendmsg', 'details': {'size': 1024}}]
-                
-            # Extract socket type information directly from network events
-            socket_types = analyze_socket_types(network_events)
-            
-            # Always ensure we have at least TCP and UDP entries
-            if not socket_types or socket_types['total_sockets'] == 0:
-                socket_types = {
-                    'total_sockets': 2,
-                    'types': {
-                        'SOCK_STREAM': {
-                            'count': 1,
-                            'data_bytes': 1024,
-                            'data_mb': 0.001,
-                            'description': 'TCP'
-                        },
-                        'SOCK_DGRAM': {
-                            'count': 1,
-                            'data_bytes': 1024,
-                            'data_mb': 0.001,
-                            'description': 'UDP'
-                        }
-                    }
-                }
-            
-            # Create a figure with two subplots for socket types and protocol details
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8), gridspec_kw={'width_ratios': [1.5, 1]})
-            
-            # First subplot: Socket Type Distribution with Data Transfer
-            socket_labels = []
-            socket_counts = []
-            socket_data_mb = []
-            socket_colors = []
-            
-            color_map = {
-                'SOCK_STREAM': '#4287f5',  # TCP - blue
-                'SOCK_DGRAM': '#42f5a7',   # UDP - green
-                'SOCK_RAW': '#f54242',     # RAW - red
-                'SOCK_SEQPACKET': '#f5a742', # SEQPACKET - orange
-                'SOCK_RDM': '#a742f5',     # RDM - purple
-                'SOCK_PACKET': '#f542e6',  # PACKET - pink
-                'unknown': '#b0b0b0'       # Unknown - gray
-            }
-            
-            # Sort socket types by count
-            sorted_types = sorted(socket_types['types'].items(), key=lambda x: x[1]['count'], reverse=True)
-            
-            if not sorted_types:
-                # If still no socket types, create a default entry
-                socket_labels = ["SOCK_STREAM (TCP)"]
-                socket_counts = [1]  # Minimal count
-                socket_data_mb = [0.001]  # Minimal data
-                socket_colors = [color_map['SOCK_STREAM']]
-            else:
-                for socket_type, data in sorted_types:
-                    socket_labels.append(f"{socket_type} ({data['description']})")
-                    socket_counts.append(max(1, data['count']))  # Ensure at least 1 for visibility
-                    socket_data_mb.append(max(0.001, data['data_mb']))  # Ensure some minimal value for visibility
-                    socket_colors.append(color_map.get(socket_type, '#b0b0b0'))
-            
-            # Create horizontal bars for socket counts
-            y_pos = np.arange(len(socket_labels))
-            ax1.barh(y_pos, socket_counts, color=socket_colors, alpha=0.7)
-            
-            # Add data transfer annotations
-            for i, (count, data_mb) in enumerate(zip(socket_counts, socket_data_mb)):
-                if data_mb >= 0.01:  # Only show if significant
-                    ax1.text(count + 1, i, f"{data_mb:.2f} MB", va='center')
-                else:
-                    ax1.text(count + 1, i, "< 0.01 MB", va='center')
-            
-            ax1.set_yticks(y_pos)
-            ax1.set_yticklabels(socket_labels)
-            ax1.set_xlabel('Socket Count')
-            ax1.set_title('Socket Type Distribution')
-            
-            # Second subplot: Protocol Data Transfer Details
-            # Create a table with detailed protocol information
-            protocol_data = []
-            
-            # Extract protocol information from socket types
-            for socket_type, data in socket_types['types'].items():
-                # Include all protocols, even with minimal data
-                protocol_name = data['description']
-                protocol_data.append({
-                    'protocol': f"{socket_type} ({protocol_name})",
-                    'count': max(1, data.get('count', 1)),
-                    'data_mb': max(0.001, data.get('data_mb', 0.001))
-                })
-            
-            # Sort by data transfer amount
-            protocol_data.sort(key=lambda x: x['data_mb'], reverse=True)
-            
-            # Ensure we have at least one protocol
-            if not protocol_data:
-                protocol_data = [{
-                    'protocol': 'SOCK_STREAM (TCP)',
-                    'count': 1,
-                    'data_mb': 0.001
-                }]
-            
-            # Create a table for protocol data
-            cell_text = []
-            for p in protocol_data:
-                cell_text.append([
-                    p['protocol'],
-                    f"{p['count']}",
-                    f"{p['data_mb']:.2f} MB"
-                ])
-            
-            # Add a row for totals
-            total_count = sum(p['count'] for p in protocol_data)
-            total_mb = sum(p['data_mb'] for p in protocol_data)
-            
-            cell_text.append([
-                'TOTAL',
-                f"{total_count}",
-                f"{total_mb:.2f} MB"
-            ])
-            
-            # Create table
-            column_labels = ['Protocol', 'Count', 'Data Transfer']
-            ax2.axis('tight')
-            ax2.axis('off')
-            table = ax2.table(
-                cellText=cell_text,
-                colLabels=column_labels,
-                loc='center',
-                cellLoc='center'
-            )
-            
-            # Style the table
-            table.auto_set_font_size(False)
-            table.set_fontsize(9)
-            table.scale(1.2, 1.5)
-            
-            # Highlight the total row
-            for j in range(len(column_labels)):
-                table[(len(cell_text), j)].set_facecolor('#f2f2f2')
-                table[(len(cell_text), j)].set_text_props(weight='bold')
-            
-            # Set title
-            ax2.set_title('Protocol Data Transfer', pad=20)
-            
-            plt.tight_layout()
-            plt.suptitle('Protocol Socket Type Distribution', fontsize=16, y=1.05)
-            
-            return self._plot_to_base64()
-            
-        except Exception as e:
-            self.logger.error(f"Error creating socket type chart: {str(e)}")
-            # Create a simple fallback chart
-            plt.figure(figsize=(10, 6))
-            plt.text(0.5, 0.5, f"Protocol Socket Type Distribution (Error: {str(e)})", 
-                    horizontalalignment='center', verticalalignment='center',
-                    transform=plt.gca().transAxes)
-            plt.title("Protocol Socket Type Distribution")
             return self._plot_to_base64()

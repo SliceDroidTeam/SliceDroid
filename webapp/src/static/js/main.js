@@ -1115,15 +1115,6 @@ function renderNetworkAnalysis(data) {
         } else {
             setTimeout(() => renderNetworkHeatmap(data.network_analysis), 500);
         }
-
-        // Render MB sent per protocol pie chart
-        if (document.getElementById('mb-sent-per-protocol-chart') && 
-            document.getElementById('mb-sent-per-protocol-chart').offsetWidth > 0) {
-            renderMBSentPerProtocolChart(data.network_analysis);
-        } else {
-            setTimeout(() => renderMBSentPerProtocolChart(data.network_analysis), 500);
-        }
-        
         // Render MB transferred per protocol chart
         if (document.getElementById('mb-per-protocol-chart') && 
             document.getElementById('mb-per-protocol-chart').offsetWidth > 0) {
@@ -1473,113 +1464,6 @@ function renderNetworkFlowChart(networkAnalysis) {
         d.fx = null;
         d.fy = null;
     }
-}
-
-function renderMBSentPerProtocolChart(networkAnalysis) {
-    if (!networkAnalysis) {
-        $('#mb-sent-per-protocol-chart').html('<div class="alert alert-info">No network analysis data available</div>');
-        return;
-    }
-    
-    // Calculate data transfer from network events
-    const data = calculateDataTransfer(networkAnalysis);
-    
-    // Create protocol distribution with MB sent
-    const protocolData = [];
-    
-    if (data.tcp && data.tcp.sent_mb > 0) {
-        protocolData.push({name: 'TCP', value: data.tcp.sent_mb, color: '#007bff'});
-    }
-    if (data.udp && data.udp.sent_mb > 0) {
-        protocolData.push({name: 'UDP', value: data.udp.sent_mb, color: '#28a745'});
-    }
-    if (data.bluetooth && data.bluetooth.sent_mb > 0) {
-        protocolData.push({name: 'Bluetooth', value: data.bluetooth.sent_mb, color: '#6f42c1'});
-    }
-
-    // If no data or all values are 0, show a message
-    if (protocolData.length === 0) {
-        // Check if we have any network events at all
-        if (networkAnalysis.summary && 
-            (networkAnalysis.summary.total_tcp_events > 0 || 
-             networkAnalysis.summary.total_udp_events > 0 )){
-            // We have events but no calculated data transfer
-            $('#mb-sent-per-protocol-chart').html('<div class="alert alert-info">Network activity detected but no data size information available</div>');
-        } else {
-            // No events at all
-            $('#mb-sent-per-protocol-chart').html('<div class="alert alert-info">No network data sent detected</div>');
-        }
-        return;
-    }
-
-    // Clear previous chart
-    d3.select('#mb-sent-per-protocol-chart').html('');
-
-    // Create pie chart
-    const width = 280;
-    const height = 280;
-    const radius = Math.min(width, height) / 2;
-
-    const svg = d3.select('#mb-sent-per-protocol-chart')
-        .append('svg')
-        .attr('width', width)
-        .attr('height', height)
-        .append('g')
-        .attr('transform', `translate(${width/2},${height/2})`);
-
-    const pie = d3.pie()
-        .value(d => d.value)
-        .sort(null);
-
-    const arc = d3.arc()
-        .innerRadius(0)
-        .outerRadius(radius - 10);
-
-    const arcs = svg.selectAll('.arc')
-        .data(pie(protocolData))
-        .enter().append('g')
-        .attr('class', 'arc');
-
-    arcs.append('path')
-        .attr('d', arc)
-        .attr('fill', d => d.data.color)
-        .attr('stroke', 'white')
-        .attr('stroke-width', 2)
-        .on('mouseover', function(event, d) {
-            const tooltip = d3.select('body').append('div')
-                .attr('class', 'protocol-tooltip')
-                .style('position', 'absolute')
-                .style('background', 'rgba(0,0,0,0.8)')
-                .style('color', 'white')
-                .style('padding', '8px')
-                .style('border-radius', '4px')
-                .style('font-size', '12px')
-                .style('pointer-events', 'none')
-                .style('z-index', '1000');
-
-            const totalMB = d3.sum(protocolData, d => d.value);
-            const percentage = ((d.data.value / totalMB) * 100).toFixed(1);
-            
-            tooltip.html(`
-                <strong>${d.data.name}</strong><br>
-                MB Sent: ${d.data.value.toFixed(2)} MB<br>
-                Percentage: ${percentage}%
-            `)
-            .style('left', (event.pageX + 10) + 'px')
-            .style('top', (event.pageY - 10) + 'px');
-        })
-        .on('mouseout', function() {
-            d3.selectAll('.protocol-tooltip').remove();
-        });
-
-    // Add labels
-    arcs.append('text')
-        .attr('transform', d => `translate(${arc.centroid(d)})`)
-        .attr('text-anchor', 'middle')
-        .attr('font-size', '12px')
-        .attr('font-weight', 'bold')
-        .attr('fill', 'white')
-        .text(d => d.data.value > 0 ? d.data.name : '');
 }
 
 function renderMBPerProtocolChart(networkAnalysis) {
