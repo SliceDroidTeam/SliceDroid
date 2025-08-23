@@ -78,7 +78,6 @@ For a containerized setup that works across many platforms:
 ├── run_slicedroid.py           # Main orchestrator script
 ├── webapp/
 │   ├── app.py                  # Flask web dashboard
-│   ├── .env.example            # Environment configuration template
 │   └── src/                    # Web app source code
 │       ├── services/           # Analysis services
 │       │   ├── advanced_analytics/    # First analysis package
