@@ -956,7 +956,7 @@ function renderAnalyticsCharts(charts, analysisData) {
         $('#category-chart').html('<div class="alert alert-info">No category data available</div>');
     }
     if (charts.network_activity) {
-        $('#network-chart').html(`<img src="${charts.network_activity}" class="img-fluid" alt="Network Activity">`);
+        $('#network-chart').html(`<img src="${charts.network_activity}" class="img-fluid" alt="Network Activity" style="max-width: 100%; max-height: 100%; object-fit: contain;">`);
     } else {
         $('#network-chart').html('<div class="alert alert-info">No network activity data available</div>');
     }
@@ -1000,12 +1000,12 @@ function createInsightSection(id, title, content) {
     return `
         <div class="accordion-item">
             <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#collapse${id}" aria-expanded="false">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapse${id}" aria-expanded="true">
                     ${title}
                 </button>
             </h2>
-            <div id="collapse${id}" class="accordion-collapse collapse" data-bs-parent="#insightsAccordion">
+            <div id="collapse${id}" class="accordion-collapse collapse show" data-bs-parent="#insightsAccordion">
                 <div class="accordion-body">
                     ${content}
                 </div>
@@ -1595,9 +1595,14 @@ function renderMBPerProtocolChart(networkAnalysis) {
     
     // Calculate data transfer from network events
     const data = calculateDataTransfer(networkAnalysis);
-    const margin = {top: 20, right: 30, bottom: 40, left: 50};
-    const width = 400 - margin.left - margin.right;
-    const height = 280 - margin.top - margin.bottom;
+    
+    // Ensure container has proper width before calculating dimensions
+    const containerElement = document.getElementById('mb-per-protocol-chart');
+    const containerWidth = containerElement.clientWidth || containerElement.offsetWidth || 400;
+    
+    const margin = {top: 30, right: 30, bottom: 70, left: 60};
+    const width = Math.max(300, containerWidth - margin.left - margin.right);
+    const height = 400 - margin.top - margin.bottom;
     
     const svg = container.append('svg')
         .attr('width', width + margin.left + margin.right)

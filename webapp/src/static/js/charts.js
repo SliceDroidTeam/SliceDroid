@@ -733,7 +733,7 @@ function createNetworkHeatmap(containerId, networkData, title = 'Network Communi
     const margin = { top: 30, right: 50, bottom: 60, left: 120 };
     const container = document.getElementById(containerId);
     const width = container.clientWidth - margin.left - margin.right;
-    const height = container.clientHeight - margin.top - margin.bottom;
+    const height = Math.min(300, container.clientHeight || 300) - margin.top - margin.bottom;
 
     // Create SVG
     const svg = d3.select(`#${containerId}`)
