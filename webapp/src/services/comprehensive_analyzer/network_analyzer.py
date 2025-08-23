@@ -29,7 +29,6 @@ class NetworkAnalyzer(BaseAnalyzer):
             'socket_operations': [],
             'bluetooth_activity': [],
             'connection_timeline': [],
-            'flow_relationships': [],
             'summary': {}
         }
 
@@ -198,54 +197,10 @@ class NetworkAnalyzer(BaseAnalyzer):
                 }
                 network_analysis['socket_operations'].append(socket_op)
 
-        # Process communication flows
-        network_analysis['flow_relationships'] = self._process_communication_flows(communication_flows)
-
         # Analyze patterns
         network_analysis['summary'] = self._analyze_network_patterns(network_analysis)
 
         return self._make_json_serializable(network_analysis)
-
-    def _process_communication_flows(self, communication_flows):
-        """Process communication flows to identify relationships"""
-        flow_summary = {}
-
-        for flow in communication_flows:
-            from_pid = flow['from_pid']
-            to_pid = flow['to_pid']
-            flow_type = flow['type']
-
-            # Handle external destinations (TCP connections to internet)
-            if to_pid == 'external':
-                destination = flow.get('destination', 'unknown')
-                flow_id = f"{from_pid}->external({destination})"
-            else:
-                flow_id = f"{from_pid}->{to_pid}"
-
-            if flow_id not in flow_summary:
-                flow_summary[flow_id] = {
-                    'from_pid': from_pid,
-                    'to_pid': to_pid,
-                    'types': set(),
-                    'count': 0,
-                    'first_seen': flow['timestamp'],
-                    'last_seen': flow['timestamp']
-                }
-
-                # Add destination for external flows
-                if to_pid == 'external':
-                    flow_summary[flow_id]['destination'] = flow.get('destination', 'unknown')
-                    flow_summary[flow_id]['direction'] = flow.get('direction', 'outbound')
-
-            flow_summary[flow_id]['types'].add(flow_type)
-            flow_summary[flow_id]['count'] += 1
-            flow_summary[flow_id]['last_seen'] = max(flow_summary[flow_id]['last_seen'], flow['timestamp'])
-
-        # Convert sets to lists for JSON serialization
-        for flow_id in flow_summary:
-            flow_summary[flow_id]['types'] = list(flow_summary[flow_id]['types'])
-
-        return flow_summary
 
     def _analyze_network_patterns(self, network_analysis):
         """Analyze network communication patterns"""
@@ -258,8 +213,7 @@ class NetworkAnalyzer(BaseAnalyzer):
             'tcp_recv_count': 0,
             'udp_send_count': 0,
             'udp_recv_count': 0,
-            'communication_intensity': 'LOW',
-            'unique_flows': len(network_analysis['flow_relationships'])
+            'communication_intensity': 'LOW'
         }
 
         # Count send/receive operations for TCP

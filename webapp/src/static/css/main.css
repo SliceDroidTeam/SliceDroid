@@ -825,21 +825,6 @@ body {
     pointer-events: none;
 }
 
-/* Network Flow Styles */
-.network-node {
-    cursor: pointer;
-}
-
-.network-link {
-    stroke: var(--accent-color);
-    stroke-width: 1.5px;
-    opacity: 0.7;
-}
-
-.tcp-flow { stroke: #28a745; }
-.udp-flow { stroke: #17a2b8; }
-.bluetooth-flow { stroke: #6f42c1; }
-
 /* Chart Controls */
 .chart-controls {
     display: flex;
