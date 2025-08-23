@@ -16,6 +16,7 @@ class Config:
     
     # File paths
     PROCESSED_EVENTS_JSON = Path(os.getenv('SYSDROID_EVENTS_FILE', EXPORTS_DIR / 'processed_events.json'))
+    SLICED_EVENTS_JSON = Path(os.getenv('SYSDROID_SLICED_EVENTS_FILE', EXPORTS_DIR / 'sliced_events.json'))
     
     # App configuration
     DEBUG = os.getenv('SYSDROID_DEBUG', 'False').lower() in ('true', '1', 'yes')

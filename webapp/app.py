@@ -84,10 +84,11 @@ _current_app_info = {
 }
 
 def load_data():
-    """Load the processed events from JSON file with caching"""
+    """Load the sliced events from JSON file with caching"""
     global _data_cache, _cache_timestamp
 
-    events_file = app.config_class.PROCESSED_EVENTS_JSON
+    # Always load from sliced events file for dashboard
+    events_file = app.config_class.SLICED_EVENTS_JSON
 
     try:
         if not Path(events_file).exists():
@@ -743,6 +744,52 @@ def get_current_app():
     global _current_app_info
     return jsonify(_current_app_info)
 
+@app.route('/api/system-status')
+def get_system_status():
+    """API endpoint to check the status of both event files"""
+    try:
+        raw_events_file = app.config_class.PROCESSED_EVENTS_JSON
+        sliced_events_file = app.config_class.SLICED_EVENTS_JSON
+        
+        raw_events_exists = Path(raw_events_file).exists()
+        sliced_events_exists = Path(sliced_events_file).exists()
+        
+        raw_events_count = 0
+        sliced_events_count = 0
+        
+        if raw_events_exists:
+            try:
+                with open(raw_events_file, 'r', encoding='utf-8') as f:
+                    raw_events = json.load(f)
+                    raw_events_count = len(raw_events) if isinstance(raw_events, list) else 0
+            except:
+                pass
+                
+        if sliced_events_exists:
+            try:
+                with open(sliced_events_file, 'r', encoding='utf-8') as f:
+                    sliced_events = json.load(f)
+                    sliced_events_count = len(sliced_events) if isinstance(sliced_events, list) else 0
+            except:
+                pass
+        
+        return jsonify({
+            'raw_events': {
+                'file': str(raw_events_file),
+                'exists': raw_events_exists,
+                'count': raw_events_count
+            },
+            'sliced_events': {
+                'file': str(sliced_events_file),
+                'exists': sliced_events_exists,
+                'count': sliced_events_count
+            },
+            'dashboard_source': 'sliced_events.json'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/apps')
 def get_apps():
     """API endpoint for getting available apps"""
@@ -842,9 +889,9 @@ def analyze_app():
         if not result.get('success', False):
             return jsonify({'error': f'Failed to process trace: {result.get("error", "Unknown error")}'}), 500
             
-        # Load the processed events
-        events = load_data()
-        print(f"[DEBUG] Loaded {len(events)} events from processed trace")
+        # Use events directly from trace processor result (more efficient)
+        events = result.get('events', [])
+        print(f"[DEBUG] Loaded {len(events)} events from trace processor")
         
         if not events:
             return jsonify({'error': 'No events found in processed trace'}), 400
@@ -877,9 +924,9 @@ def analyze_app():
         app_name = app_mapper.get_app_by_package(app_id)
         app_display_name = app_name.commercial_name if app_name else app_id
 
-        # Save sliced events for the dashboard to use
-        main_events_file = app.config_class.PROCESSED_EVENTS_JSON
-        with open(main_events_file, 'w', encoding='utf-8') as f:
+        # Save sliced events to the dedicated sliced events file
+        sliced_events_file = app.config_class.SLICED_EVENTS_JSON
+        with open(sliced_events_file, 'w', encoding='utf-8') as f:
             json.dump(sliced_events, f, indent=2, ensure_ascii=False)
 
         # Update global app info for other endpoints to use
@@ -933,8 +980,8 @@ def analyze_pid():
         if not result.get('success', False):
             return jsonify({'error': f'Failed to process trace: {result.get("error", "Unknown error")}'}), 500
             
-        # Load the processed events
-        events = load_data()
+        # Use events directly from trace processor result (more efficient)
+        events = result.get('events', [])
         
         if not events:
             return jsonify({'error': 'No events found in processed trace'}), 400
@@ -956,9 +1003,9 @@ def analyze_pid():
         # Perform slicing analysis for this specific PID
         sliced_events = comprehensive_analyzer.slice_events(events, target_pid, asynchronous=True)
 
-        # Save sliced events for the dashboard to use
-        main_events_file = app.config_class.PROCESSED_EVENTS_JSON
-        with open(main_events_file, 'w', encoding='utf-8') as f:
+        # Save sliced events to the dedicated sliced events file
+        sliced_events_file = app.config_class.SLICED_EVENTS_JSON
+        with open(sliced_events_file, 'w', encoding='utf-8') as f:
             json.dump(sliced_events, f, indent=2, ensure_ascii=False)
 
         # Update global app info for other endpoints to use

@@ -159,7 +159,8 @@ class TraceProcessor:
                 'csv_file': str(csv_output_path),
                 'json_file': str(json_output_path),
                 'events_count': len(processed_events),
-                'target_pid': t_pid
+                'target_pid': t_pid,
+                'events': processed_events  # Return the events directly
             }
 
         except Exception as e:
