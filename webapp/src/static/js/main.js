@@ -1100,13 +1100,6 @@ function renderNetworkAnalysis(data) {
         // Render summary cards
         renderNetworkSummary(data);
 
-        // Render network communication heatmap
-        if (document.getElementById('network-heatmap-chart') && 
-            document.getElementById('network-heatmap-chart').offsetWidth > 0) {
-            renderNetworkHeatmap(data.network_analysis);
-        } else {
-            setTimeout(() => renderNetworkHeatmap(data.network_analysis), 500);
-        }
         // Render MB transferred per protocol chart
         if (document.getElementById('mb-per-protocol-chart') && 
             document.getElementById('mb-per-protocol-chart').offsetWidth > 0) {
@@ -1577,109 +1570,9 @@ function renderUdpCommunications(networkAnalysis) {
     }
 }
 
-function renderNetworkHeatmap(networkAnalysis) {
-    if (!networkAnalysis) {
-        $('#network-heatmap-chart').html('<div class="alert alert-info">No network analysis data available</div>');
-        return;
-    }
-    
-    // Prepare heatmap data from network events
-    const heatmapData = prepareNetworkHeatmapData(networkAnalysis);
-    
-    if (heatmapData.length === 0) {
-        $('#network-heatmap-chart').html('<div class="alert alert-info">No temporal network data available for heatmap</div>');
-        return;
-    }
-    
-    // Create the heatmap visualization
-    createNetworkHeatmap('network-heatmap-chart', { heatmapData });
-}
 
-function prepareNetworkHeatmapData(networkAnalysis) {
-    const heatmapData = [];
-    const allEvents = [];
-    // Process TCP events
-    if (networkAnalysis.tcp_connections && networkAnalysis.tcp_connections.length > 0) {
-        networkAnalysis.tcp_connections.forEach(event => {
-            if (event.timestamp) {
-                allEvents.push({
-                    timestamp: event.timestamp,
-                    protocol: 'TCP',
-                    direction: event.direction || 'unknown',
-                    size: event.size || event.len || 0
-                });
-            }
-        });
-    } 
-    // Process UDP events
-    if (networkAnalysis.udp_communications && networkAnalysis.udp_communications.length > 0) {
-        networkAnalysis.udp_communications.forEach(event => {
-            if (event.timestamp) {
-                allEvents.push({
-                    timestamp: event.timestamp,
-                    protocol: 'UDP',
-                    direction: event.direction || 'unknown',
-                    size: event.len || 0
-                });
-            }
-        });
-    }
-    // If no events with timestamps, return empty array
-    if (allEvents.length === 0) {
-        return [];
-    }
-    
-    // Sort events by timestamp
-    allEvents.sort((a, b) => a.timestamp - b.timestamp);
-    // Get start time (t=0)
-    const startTime = allEvents[0].timestamp;
-    // Group events by protocol and time buckets (1 second intervals)
-    const timeGroups = {};
-    const protocols = ['TCP', 'UDP'];
 
-    allEvents.forEach(event => {
-        // Calculate time index (seconds from start)
-        const timeIndex = Math.floor(event.timestamp - startTime);
-        const timeKey = `${timeIndex}`;
-        
-        if (!timeGroups[timeKey]) {
-            timeGroups[timeKey] = {
-                'TCP': { count: 0, size: 0 },
-                'UDP': { count: 0, size: 0 },
-            };
-        }
-        
-        // Increment count and add size for this protocol and time bucket
-        timeGroups[timeKey][event.protocol].count++;
-        timeGroups[timeKey][event.protocol].size += parseFloat(event.size) || 0;
-    });
-    
-    // Convert grouped data to heatmap format
-    Object.keys(timeGroups).forEach(timeKey => {
-        const timeIndex = parseInt(timeKey);
-        
-        protocols.forEach(protocol => {
-            const count = timeGroups[timeKey][protocol].count;
-            if (count > 0) {
-                // Calculate intensity based on event count and data size
-                const size = timeGroups[timeKey][protocol].size;
-                // Normalize intensity: log scale to handle wide range of values
-                const intensity = count > 0 ? Math.log10(count + 1) : 0;
-                
-                heatmapData.push({
-                    timeIndex: timeIndex,
-                    timeFormatted: `t=${timeIndex}s`,
-                    protocol: protocol,
-                    count: count,
-                    size: size,
-                    intensity: intensity
-                });
-            }
-        });
-    });
-    
-    return heatmapData;
-}
+
 
 function showNetworkError(error) {
     $('#network-error').html(`<strong>Error:</strong> ${error}`).show();
