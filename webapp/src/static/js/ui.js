@@ -64,27 +64,6 @@ function initializeSidebarToggle() {
 }
 
 function initializeTimelineControls() {
-    // Event Timeline zoom controls
-    const zoomInBtn = document.getElementById('zoom-in');
-    const zoomOutBtn = document.getElementById('zoom-out');
-    const resetZoomBtn = document.getElementById('reset-zoom');
-    
-    if (zoomInBtn) {
-        zoomInBtn.addEventListener('click', () => {
-            if (typeof zoomIn === 'function') zoomIn();
-        });
-    }
-    if (zoomOutBtn) {
-        zoomOutBtn.addEventListener('click', () => {
-            if (typeof zoomOut === 'function') zoomOut();
-        });
-    }
-    if (resetZoomBtn) {
-        resetZoomBtn.addEventListener('click', () => {
-            if (typeof resetZoom === 'function') resetZoom();
-        });
-    }
-
     // Behavior Timeline zoom controls
     const behaviorZoomInBtn = document.getElementById('behavior-zoom-in');
     const behaviorZoomOutBtn = document.getElementById('behavior-zoom-out');

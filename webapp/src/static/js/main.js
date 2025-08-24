@@ -1,6 +1,4 @@
 // Global variables
-let timelineData = [];
-let zoomLevel = 1;
 let behaviorTimelineData = [];
 let behaviorZoomLevel = 1;
 let eventColors = {};
@@ -56,7 +54,6 @@ function loadConfiguration() {
         console.log('Configuration loaded successfully:', config);
         appConfig = config;
         eventColors = config.event_categories || {};
-        zoomLevel = config.default_zoom || 1;
     })
     .fail(function(jqXHR, textStatus, errorThrown) {
         console.error('Failed to load configuration:', textStatus, errorThrown, jqXHR);
@@ -83,10 +80,6 @@ function setFallbackConfiguration() {
 
 // Setup event listeners
 function setupEventListeners() {
-    $('#zoom-in').click(zoomIn);
-    $('#zoom-out').click(zoomOut);
-    $('#reset-zoom').click(resetZoom);
-
     // Upload functionality is now handled in inline script
 
     // Advanced analytics
@@ -104,9 +97,6 @@ function loadAllData() {
     showSectionLoading();
 
     try {
-        // Load timeline data
-        loadTimelineData();
-
         // Load statistics
         loadDeviceStats();
         loadEventStats();
@@ -128,7 +118,6 @@ function loadAllData() {
 
 function showSectionLoading() {
     // Add loading indicators to main sections
-    $('#timeline-container').html('<div class="text-center p-4"><div class="loading-spinner"></div><p class="mt-2">Loading timeline...</p></div>');
     $('#device-stats-table tbody').html('<tr><td colspan="5" class="text-center"><div class="loading-spinner"></div> Loading...</td></tr>');
     $('#event-stats-table tbody').html('<tr><td colspan="3" class="text-center"><div class="loading-spinner"></div> Loading...</td></tr>');
 }
@@ -137,190 +126,6 @@ function showSectionLoading() {
 function showError(message) {
     console.error(message);
     showToast('Error', message, 'error');
-}
-
-
-// Timeline functions
-function loadTimelineData() {
-    let url = '/api/timeline';
-
-    $.getJSON(url, function(data) {
-        if (data.error) {
-            showError(`Timeline error: ${data.error}`);
-            return;
-        }
-        timelineData = data;
-        renderTimeline();
-    }).fail(function(jqXHR) {
-        const errorMsg = jqXHR.responseJSON?.error || 'Failed to load timeline data';
-        showError(errorMsg);
-    });
-}
-
-function renderTimeline() {
-    // Clear existing timeline
-    d3.select('#timeline-container').html('');
-
-    if (timelineData.length === 0) {
-        d3.select('#timeline-container')
-            .append('div')
-            .attr('class', 'alert alert-info')
-            .text('No data found for the selected filters.');
-        return;
-    }
-
-    // Set up dimensions
-    const margin = {top: 20, right: 20, bottom: 50, left: 100};
-    const width = document.getElementById('timeline-container').clientWidth - margin.left - margin.right;
-    const height = document.getElementById('timeline-container').clientHeight - margin.top - margin.bottom;
-
-    // Create SVG
-    const svg = d3.select('#timeline-container')
-        .append('svg')
-        .attr('width', width + margin.left + margin.right)
-        .attr('height', height + margin.top + margin.bottom)
-        .append('g')
-        .attr('transform', `translate(${margin.left},${margin.top})`);
-
-    // Apply zoom scaling
-    const visibleDataCount = Math.ceil(timelineData.length / zoomLevel);
-    const visibleData = timelineData.slice(0, visibleDataCount);
-
-    // Set up scales
-    const x = d3.scaleLinear()
-        .domain([0, visibleDataCount])
-        .range([0, width]);
-
-    // Group data by category for easier display
-    const categoryGroups = {};
-    const categories = ['read', 'write', 'ioctl', 'binder', 'network', 'other'];
-
-    visibleData.forEach(event => {
-        if (!categoryGroups[event.category]) {
-            categoryGroups[event.category] = [];
-        }
-        categoryGroups[event.category].push(event);
-    });
-
-    // Calculate y positions for each category
-    const y = d3.scaleBand()
-        .domain(categories)
-        .range([0, height])
-        .padding(0.1);
-
-    // Add background stripes for categories
-    categories.forEach(category => {
-        svg.append('rect')
-            .attr('x', 0)
-            .attr('y', y(category))
-            .attr('width', width)
-            .attr('height', y.bandwidth())
-            .attr('fill', '#f8f9fa')
-            .attr('stroke', '#eee');
-    });
-
-    // Add category labels
-    svg.selectAll('.category-label')
-        .data(categories)
-        .enter()
-        .append('text')
-        .attr('class', 'category-label')
-        .attr('x', -10)
-        .attr('y', d => y(d) + y.bandwidth() / 2)
-        .attr('text-anchor', 'end')
-        .attr('dominant-baseline', 'middle')
-        .text(d => d.charAt(0).toUpperCase() + d.slice(1));
-
-    // Draw events
-    Object.keys(categoryGroups).forEach(category => {
-        svg.selectAll(`.dot-${category}`)
-            .data(categoryGroups[category])
-            .enter()
-            .append('circle')
-            .attr('class', `dot-${category}`)
-            .attr('cx', d => x(d.time))
-            .attr('cy', d => y(d.category) + y.bandwidth() / 2)
-            .attr('r', 4)
-            .attr('fill', eventColors[category])
-            .on('mouseover', function(event, d) {
-                showTooltip(event, d);
-            })
-            .on('mouseout', hideTooltip);
-    });
-
-    // Add x-axis
-    svg.append('g')
-        .attr('transform', `translate(0,${height})`)
-        .call(d3.axisBottom(x).ticks(10).tickFormat(d3.format('d')));
-
-    // Add x-axis label
-    svg.append('text')
-        .attr('x', width / 2)
-        .attr('y', height + 40)
-        .attr('text-anchor', 'middle')
-        .text('Timeline of events');
-
-    // Create tooltip div if it doesn't exist
-    if (!d3.select('#timeline-tooltip').node()) {
-        d3.select('body').append('div')
-            .attr('id', 'timeline-tooltip')
-            .style('position', 'absolute')
-            .style('background', 'white')
-            .style('border', '1px solid #ddd')
-            .style('border-radius', '4px')
-            .style('padding', '10px')
-            .style('box-shadow', '0 0 10px rgba(0,0,0,0.1)')
-            .style('pointer-events', 'none')
-            .style('opacity', 0)
-            .style('z-index', 1000);
-    }
-}
-
-function showTooltip(event, d) {
-    const tooltip = d3.select('#timeline-tooltip');
-    tooltip.transition().duration(200).style('opacity', 0.9);
-
-    // Format device and pathname information
-    let deviceInfo = '';
-    if (d.device !== null && d.device !== 0) {
-        deviceInfo = `<strong>Device:</strong> ${d.device}<br>`;
-    }
-
-    let pathnameInfo = '';
-    if (d.pathname) {
-        pathnameInfo = `<strong>Path:</strong> ${d.pathname}<br>`;
-    }
-
-    tooltip.html(`
-        <strong>Event:</strong> ${d.event}<br>
-        <strong>Category:</strong> ${d.category}<br>
-        <strong>PID:</strong> ${d.pid || 'N/A'}<br>
-        <strong>TID:</strong> ${d.tid || 'N/A'}<br>
-        ${deviceInfo}
-        ${pathnameInfo}
-    `)
-    .style('left', (event.pageX + 10) + 'px')
-    .style('top', (event.pageY - 28) + 'px');
-}
-
-function hideTooltip() {
-    d3.select('#timeline-tooltip').transition().duration(500).style('opacity', 0);
-}
-
-// Zoom functions
-function zoomIn() {
-    zoomLevel = Math.min(zoomLevel * 1.5, timelineData.length / 10);
-    renderTimeline();
-}
-
-function zoomOut() {
-    zoomLevel = Math.max(zoomLevel / 1.5, 1);
-    renderTimeline();
-}
-
-function resetZoom() {
-    zoomLevel = 1;
-    renderTimeline();
 }
 
 // Behavior Timeline zoom functions

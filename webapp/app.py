@@ -214,39 +214,6 @@ def get_unique_devices_fast(sample_events, full_events):
     return sorted_devices
 
 
-def create_timeline_data(events):
-    """Create timeline data for visualization"""
-    timeline_data = []
-
-    # Process all events without limit
-    for idx, event in enumerate(events):
-        if not isinstance(event, dict):
-            continue
-
-        event_type = event.get('event', 'unknown')
-        category = app.config_class.get_event_category(event_type)
-
-        # Get device info
-        device = None
-        pathname = None
-        if 'details' in event and isinstance(event['details'], dict):
-            # Check both k_dev and k__dev
-            device = event['details'].get('k_dev') or event['details'].get('k__dev')
-            pathname = event['details'].get('pathname', None)
-
-        timeline_data.append({
-            'id': idx,
-            'time': idx,
-            'event': event_type,
-            'category': category,
-            'device': device,
-            'pathname': pathname,
-            'pid': event.get('tgid', None),
-            'tid': event.get('tid', None),
-        })
-
-    return timeline_data
-
 def create_device_stats(events):
     """Create device usage statistics"""
     device_counts = {}
@@ -358,17 +325,6 @@ def index():
     except Exception as e:
         print(f"Error in index route: {e}")
         return render_template('index.html', pids=[], devices=[], events_count=0)
-
-@app.route('/api/timeline')
-def timeline_data():
-    """API endpoint for timeline data"""
-    try:
-        events = load_data()
-        timeline_data = create_timeline_data(events)
-        return jsonify(timeline_data)
-    except Exception as e:
-        print(f"Error in timeline_data: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/device_stats')
 def device_stats():

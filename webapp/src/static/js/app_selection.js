@@ -282,7 +282,6 @@ function analyzePid() {
 
 function showLoadingOnAllCharts(targetName) {
     const chartContainers = [
-        'timeline-container',
         'device-chart-container',
         'event-chart-container', 
         'protocol-distribution-chart',
@@ -301,7 +300,6 @@ function showLoadingOnAllCharts(targetName) {
 
 function hideLoadingOnAllCharts() {
     const chartContainers = [
-        'timeline-container',
         'device-chart-container',
         'event-chart-container', 
         'protocol-distribution-chart',
@@ -321,11 +319,6 @@ function hideLoadingOnAllCharts() {
 function refreshChartsWithNewData() {
     // Reload all chart data without full page refresh
     setTimeout(() => {
-        // Refresh timeline
-        if (typeof loadTimelineData === 'function') {
-            loadTimelineData();
-        }
-        
         // Refresh device stats
         if (typeof loadDeviceStats === 'function') {
             loadDeviceStats();

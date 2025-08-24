@@ -512,15 +512,6 @@ body {
     z-index: 999 !important;
 }
 
-/* Timeline */
-.timeline-container {
-    background: var(--background-secondary);
-    border-radius: 6px;
-    padding: 1rem;
-    margin: 1rem 0;
-    border: 1px solid var(--border-color);
-}
-
 /* Responsive */
 @media (max-width: 768px) {
     .logo-section {
