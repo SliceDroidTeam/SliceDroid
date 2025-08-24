@@ -471,29 +471,39 @@ def health_check():
         'data_file_exists': Path(app.config_class.PROCESSED_EVENTS_JSON).exists()
     })
 
+def get_trace_file():
+    """Helper function to find the appropriate trace file to use"""
+    # Check if trace.trace exists, otherwise look for any uploaded .trace files
+    default_trace_file = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
+    
+    if default_trace_file.exists():
+        return default_trace_file, None
+    else:
+        # Look for any .trace files in the traces directory
+        traces_dir = app.config_class.PROJECT_ROOT / 'data' / 'traces'
+        uploaded_trace_files = list(traces_dir.glob('*.trace'))
+        if uploaded_trace_files:
+            # Use the most recently modified trace file
+            trace_file = max(uploaded_trace_files, key=lambda x: x.stat().st_mtime)
+            return trace_file, f"Using uploaded trace file: {trace_file.name}"
+        else:
+            return None, "No trace file found. Please upload a trace file first."
+
 @app.route('/api/preloaded-file')
 def preloaded_file_info():
     """Return information about the preloaded file if one exists"""
-    # Check for uploaded_trace.trace (previously uploaded file)
-    uploaded_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'uploaded_trace.trace'
+    # Use the same logic as analysis functions
+    trace_file, message = get_trace_file()
     
-    if uploaded_trace_path.exists():
+    if trace_file is not None:
         return jsonify({
             'preloaded': True,
-            'filename': uploaded_trace_path.name
+            'filename': trace_file.name
         })
     else:
-        # Fallback to default trace.trace
-        default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
-        if default_trace_path.exists():
-            return jsonify({
-                'preloaded': True,
-                'filename': default_trace_path.name
-            })
-        else:
-            return jsonify({
-                'preloaded': False
-            })
+        return jsonify({
+            'preloaded': False
+        })
 
 @app.route('/api/upload', methods=['POST'])
 def upload_trace():
@@ -535,8 +545,10 @@ def upload_trace():
                 print(f"[Upload {upload_id[:8]}] {progress}% - {status}")
 
             try:
-                # Move file to final destination first for faster processing
-                final_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'uploaded_trace.trace'
+                # Move file to final destination with original name (no special renaming)
+                traces_dir = app.config_class.PROJECT_ROOT / 'data' / 'traces'
+                traces_dir.mkdir(parents=True, exist_ok=True)
+                final_path = traces_dir / filename
                 shutil.move(temp_file_path, final_path)
 
                 # Skip automatic processing - only process when user analyzes specific app
@@ -544,7 +556,8 @@ def upload_trace():
                     'success': True,
                     'message': 'Trace file uploaded successfully. Select an app to analyze.',
                     'csv_file': 'data/Exports/processed_events.csv',
-                    'json_file': 'data/Exports/processed_events.json'
+                    'json_file': 'data/Exports/processed_events.json',
+                    'uploaded_filename': filename
                 }
                 upload_progress[upload_id]['result'] = result
                 upload_progress[upload_id]['completed'] = True
@@ -875,10 +888,13 @@ def analyze_app():
             print(f"[ERROR] No app_id provided. Request data: {data}")
             return jsonify({'error': 'No app specified'}), 400
 
-        # Check if trace file exists
-        trace_file = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'uploaded_trace.trace'
-        if not trace_file.exists():
-            return jsonify({'error': 'No trace file found. Please upload a trace file first.'}), 400
+        # Get the appropriate trace file
+        trace_file, message = get_trace_file()
+        if trace_file is None:
+            return jsonify({'error': message}), 400
+        
+        if message:  # Log info message if using uploaded file
+            print(f"[INFO] {message}")
 
         print(f"[DEBUG] Processing trace file for app: {app_id}")
         
@@ -966,10 +982,13 @@ def analyze_pid():
 
         target_pid = int(target_pid)  # Ensure it's an integer
 
-        # Check if trace file exists
-        trace_file = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'uploaded_trace.trace'
-        if not trace_file.exists():
-            return jsonify({'error': 'No trace file found. Please upload a trace file first.'}), 400
+        # Get the appropriate trace file
+        trace_file, message = get_trace_file()
+        if trace_file is None:
+            return jsonify({'error': message}), 400
+        
+        if message:  # Log info message if using uploaded file
+            print(f"[INFO] {message}")
 
         print(f"[DEBUG] Processing trace file for PID: {target_pid}")
         
@@ -1135,18 +1154,20 @@ def get_category_mapping():
 def preload_trace_file():
     """Check if trace file exists (no automatic processing)"""
     try:
-        # Check for uploaded_trace.trace first (previously uploaded file)
-        uploaded_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'uploaded_trace.trace'
-        if uploaded_trace_path.exists():
-            print(f"Found uploaded trace file: {uploaded_trace_path}")
-            return
-            
-        # Fallback to default trace.trace
+        # Check for default trace.trace
         default_trace_path = app.config_class.PROJECT_ROOT / 'data' / 'traces' / 'trace.trace'
+        
         if default_trace_path.exists():
             print(f"Found default trace file: {default_trace_path}")
         else:
-            print(f"No trace file found at: {uploaded_trace_path} or {default_trace_path}")
+            print(f"No default trace file found at: {default_trace_path}")
+            # Check if any uploaded files exist
+            traces_dir = app.config_class.PROJECT_ROOT / 'data' / 'traces'
+            uploaded_trace_files = list(traces_dir.glob('*.trace'))
+            if uploaded_trace_files:
+                print(f"Found {len(uploaded_trace_files)} uploaded trace file(s)")
+            else:
+                print("No trace files found")
     except Exception as e:
         print(f"Error checking trace file: {e}")
 
