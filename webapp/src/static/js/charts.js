@@ -158,58 +158,6 @@ function createPieChart(containerId, data, title) {
                 const percent = ((d.data.value / d3.sum(data, d => d.value)) * 100).toFixed(1);
                 return percent > 8 ? `${percent}%` : ''; // Only show label if slice is > 8%
             });
-
-        // Create legend
-        const legendGroup = mainSvg.append("g")
-            .attr("transform", `translate(${chartWidth + 20}, 40)`);
-
-        const legendItems = legendGroup.selectAll(".legend-item")
-            .data(data)
-            .enter()
-            .append("g")
-            .attr("class", "legend-item")
-            .attr("transform", (d, i) => `translate(0, ${i * 25})`);
-
-        // Legend color boxes
-        legendItems.append("rect")
-            .attr("width", 15)
-            .attr("height", 15)
-            .attr("fill", (d, i) => color(i))
-            .attr("stroke", "#ccc")
-            .attr("stroke-width", 1);
-
-        // Legend text
-        legendItems.append("text")
-            .attr("x", 20)
-            .attr("y", 12)
-            .attr("font-size", "12px")
-            .attr("text-anchor", "start")
-            .text(d => {
-                const percent = ((d.value / d3.sum(data, d => d.value)) * 100).toFixed(1);
-                // Truncate long labels
-                const label = d.label.length > 15 ? d.label.substring(0, 15) + '...' : d.label;
-                return `${label} (${percent}%)`;
-            })
-            .append("title") // Add full text as tooltip
-            .text(d => {
-                const percent = ((d.value / d3.sum(data, d => d.value)) * 100).toFixed(1);
-                return `${d.label}: ${d.value.toLocaleString()} (${percent}%)`;
-            });
-
-        // Add legend interaction
-        legendItems
-            .style("cursor", "pointer")
-            .on("mouseover", function(event, d) {
-                // Highlight corresponding pie slice
-                const index = data.indexOf(d);
-                arcs.filter((arcData, i) => i === index)
-                    .select("path")
-                    .style("opacity", 0.8);
-            })
-            .on("mouseout", function() {
-                // Remove highlight from all slices
-                arcs.selectAll("path").style("opacity", 1);
-            });
     }
     
     // Start the rendering process

@@ -129,7 +129,7 @@ function loadAllData() {
 function showSectionLoading() {
     // Add loading indicators to main sections
     $('#timeline-container').html('<div class="text-center p-4"><div class="loading-spinner"></div><p class="mt-2">Loading timeline...</p></div>');
-    $('#device-stats-table tbody').html('<tr><td colspan="4" class="text-center"><div class="loading-spinner"></div> Loading...</td></tr>');
+    $('#device-stats-table tbody').html('<tr><td colspan="5" class="text-center"><div class="loading-spinner"></div> Loading...</td></tr>');
     $('#event-stats-table tbody').html('<tr><td colspan="3" class="text-center"><div class="loading-spinner"></div> Loading...</td></tr>');
 }
 
@@ -655,13 +655,13 @@ function renderBehaviorTimelineChart() {
 function loadDeviceStats() {
     $.getJSON('/api/device_stats', function(data) {
         if (data && data.error) {
-            $('#device-stats-table tbody').html(`<tr><td colspan="4" class="text-center text-danger">Error: ${data.error}</td></tr>`);
+            $('#device-stats-table tbody').html(`<tr><td colspan="5" class="text-center text-danger">Error: ${data.error}</td></tr>`);
             return;
         }
         renderDeviceStats(data);
     }).fail(function(jqXHR) {
         const errorMsg = jqXHR.responseJSON?.error || 'Failed to load device statistics';
-        $('#device-stats-table tbody').html(`<tr><td colspan="4" class="text-center text-danger">Error: ${errorMsg}</td></tr>`);
+        $('#device-stats-table tbody').html(`<tr><td colspan="5" class="text-center text-danger">Error: ${errorMsg}</td></tr>`);
         console.error('Device stats error:', errorMsg);
     });
 }
@@ -677,18 +677,25 @@ function renderDeviceStats(data) {
     tableBody.empty();
 
     if (!data || !Array.isArray(data) || data.length === 0) {
-        tableBody.html('<tr><td colspan="4" class="text-center">No data found</td></tr>');
+        tableBody.html('<tr><td colspan="5" class="text-center">No data found</td></tr>');
         return;
     }
+
+    // Calculate total events for percentage calculation
+    const totalEvents = data.reduce((sum, item) => sum + (item.count || 0), 0);
 
     let html = '';
     data.forEach(item => {
         const paths = Array.isArray(item.paths) ? item.paths.join(', ') : '';
         const pathCount = Array.isArray(item.paths) ? item.paths.length : 0;
+        const eventCount = item.count || 0;
+        const percentage = totalEvents > 0 ? ((eventCount / totalEvents) * 100).toFixed(1) : '0.0';
+        
         html += `
             <tr>
                 <td>${item.device || 'Unknown'}</td>
-                <td>${item.count || 0}</td>
+                <td>${eventCount}</td>
+                <td>${percentage}%</td>
                 <td>${pathCount}</td>
                 <td title="${paths}">${paths.length > 50 ? paths.substring(0, 50) + '...' : paths}</td>
             </tr>
