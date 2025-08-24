@@ -212,8 +212,7 @@ class NetworkAnalyzer(BaseAnalyzer):
             'tcp_send_count': 0,
             'tcp_recv_count': 0,
             'udp_send_count': 0,
-            'udp_recv_count': 0,
-            'communication_intensity': 'LOW'
+            'udp_recv_count': 0
         }
 
         # Count send/receive operations for TCP
@@ -230,17 +229,4 @@ class NetworkAnalyzer(BaseAnalyzer):
             else:
                 summary['udp_recv_count'] += 1
 
-
-        # Calculate communication intensity
-        total_events = (summary['total_tcp_events'] +
-                       summary['total_udp_events'] +
-                       summary['total_bluetooth_events'] +
-                       summary['total_connection_timeline_events'])
-
-        if total_events > 100:
-            summary['communication_intensity'] = 'HIGH'
-        elif total_events > 20:
-            summary['communication_intensity'] = 'MEDIUM'
-        else:
-            summary['communication_intensity'] = 'LOW'
         return summary

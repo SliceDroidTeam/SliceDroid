@@ -971,15 +971,19 @@ function renderDetailedInsights(data) {
         return;
     }
 
-    let insights = '<div class="accordion" id="insightsAccordion">';
+    let insights = '';
 
-    // Render insights from backend
+    // Render insights from backend directly without accordion structure
     Object.entries(data.detailed_insights).forEach(([key, insightData]) => {
-        insights += createInsightSection(key, insightData.title,
-            generateInsightContent(insightData.insights));
+        insights += `
+            <div class="mb-4">
+                <div class="insight-content">
+                    ${generateInsightContent(insightData.insights)}
+                </div>
+            </div>
+        `;
     });
 
-    insights += '</div>';
     insightsContainer.html(insights);
 }
 
@@ -1094,9 +1098,6 @@ function renderNetworkAnalysis(data) {
 
     // Wait for container to be fully visible before rendering charts
     setTimeout(() => {
-        // Update intensity badge
-        updateNetworkIntensityBadge(data.network_analysis);
-
         // Render summary cards
         renderNetworkSummary(data);
 
@@ -1111,19 +1112,6 @@ function renderNetworkAnalysis(data) {
         // Render connection tables
         renderConnectionTables(data.network_analysis);
     }, 200);
-}
-
-function updateNetworkIntensityBadge(networkAnalysis) {
-    const badge = $('#network-intensity-badge');
-    if (!networkAnalysis || !networkAnalysis.summary) {
-        badge.text('No Data').removeClass().addClass('badge');
-        return;
-    }
-
-    const intensity = networkAnalysis.summary.communication_intensity || 'LOW';
-    badge.text(intensity)
-         .removeClass()
-         .addClass(`badge security-badge intensity-${intensity.toLowerCase()}`);
 }
 
 function renderNetworkSummary(data) {

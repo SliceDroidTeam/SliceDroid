@@ -723,10 +723,6 @@ body {
 .risk-low { background: #28a745; color: white; }
 .risk-minimal { background: #6c757d; color: white; }
 
-.intensity-high { background: #dc3545; color: white; }
-.intensity-medium { background: #ffc107; color: #000; }
-.intensity-low { background: #28a745; color: white; }
-
 /* Summary Cards */
 .summary-card {
     background: var(--background-secondary);
