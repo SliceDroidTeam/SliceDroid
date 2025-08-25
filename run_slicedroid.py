@@ -394,8 +394,16 @@ subprocess.run(
 
 # Push config files to the device
 print("[*] Pushing config files to device...")
+
+# First, ensure the config directory exists on device
 subprocess.run(
-    [adb_command, "push", "scripts/tracer/config_files", "/data/local/tmp/config_files"],
+    [adb_command, "shell", "su", "-c", "mkdir -p /data/local/tmp/config_files"],
+    check=True
+)
+
+# Push the entire config_files directory
+subprocess.run(
+    [adb_command, "push", "scripts/tracer/config_files", "/data/local/tmp/"],
     check=True
 )
 
@@ -419,6 +427,18 @@ subprocess.run(
 )
 # Ensure the data directory exists
 os.makedirs(os.path.join("data", "traces"), exist_ok=True)
+
+# Delete old trace files to ensure fresh traces
+# Remove local trace files
+for trace_file in ["data/traces/trace.trace", "data/traces/trace.trace.gz"]:
+    if os.path.exists(trace_file):
+        os.remove(trace_file)
+
+# Remove device trace files
+subprocess.run(
+    [adb_command, "shell", "su", "-c", "rm -f /data/local/tmp/trace.trace*"],
+    check=False  # Don't fail if files don't exist
+)
 
 # Start the tracing script as a subprocess that we can control
 print("[*] Initializing system call tracer...")
