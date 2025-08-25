@@ -666,8 +666,16 @@ def get_network_analysis():
             if _current_app_info['target_pid'] is not None:
                 target_pid = _current_app_info['target_pid']
 
-        # Perform network analysis
+        # Perform network analysis using comprehensive analyzer
         network_analysis = comprehensive_analyzer.analyze_network_flows(events, target_pid)
+        
+        # Add data_transfer information using the advanced analytics network analyser
+        from src.services.advanced_analytics.network_analyser import NetworkAnalyser
+        network_analyser = NetworkAnalyser()
+        advanced_network_analysis = network_analyser.analyze_network_events(events)
+        
+        # Merge the data_transfer field into the comprehensive analysis
+        network_analysis['data_transfer'] = advanced_network_analysis.get('data_transfer', {})
 
         return jsonify({
             'network_analysis': network_analysis

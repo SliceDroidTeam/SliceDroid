@@ -976,8 +976,15 @@ function renderMBPerProtocolChart(networkAnalysis) {
         return;
     }
     
-    // Calculate data transfer from network events
-    const data = calculateDataTransfer(networkAnalysis);
+    // Use backend's data_transfer
+    const data = networkAnalysis.data_transfer;
+    
+    if (!data) {
+        container.append('div')
+            .attr('class', 'alert alert-info')
+            .text('No data transfer information available');
+        return;
+    }
     
     // Ensure container has proper width before calculating dimensions
     const containerElement = document.getElementById('mb-per-protocol-chart');
@@ -1003,7 +1010,7 @@ function renderMBPerProtocolChart(networkAnalysis) {
             protocol: 'TCP', 
             sent: data.tcp.sent_mb || 0, 
             received: data.tcp.received_mb || 0,
-            total: (data.tcp.sent_mb || 0) + (data.tcp.received_mb || 0),
+            total: data.tcp.total_mb || 0,
             color: '#007bff'
         });
     }
@@ -1014,7 +1021,7 @@ function renderMBPerProtocolChart(networkAnalysis) {
             protocol: 'UDP', 
             sent: data.udp.sent_mb || 0, 
             received: data.udp.received_mb || 0,
-            total: (data.udp.sent_mb || 0) + (data.udp.received_mb || 0),
+            total: data.udp.total_mb || 0,
             color: '#28a745'
         });
     }
@@ -1026,7 +1033,7 @@ function renderMBPerProtocolChart(networkAnalysis) {
             protocol: 'Bluetooth', 
             sent: data.bluetooth.sent_mb || 0, 
             received: data.bluetooth.received_mb || 0,
-            total: (data.bluetooth.sent_mb || 0) + (data.bluetooth.received_mb || 0),
+            total: data.bluetooth.total_mb || ((data.bluetooth.sent_mb || 0) + (data.bluetooth.received_mb || 0)),
             color: '#6f42c1'
         });
     }
@@ -1166,68 +1173,6 @@ function renderMBPerProtocolChart(networkAnalysis) {
             .style('font-size', '12px')
             .text(item.label);
     });
-}
-
-// Calculate data transfer from network events
-function calculateDataTransfer(networkAnalysis) {
-    const result = {
-        tcp: { sent_mb: 0, received_mb: 0 },
-        udp: { sent_mb: 0, received_mb: 0 },
-        bluetooth: { sent_mb: 0, received_mb: 0 }
-    };
-    
-    // Process TCP connections
-    if (networkAnalysis.tcp_connections && networkAnalysis.tcp_connections.length > 0) {
-        networkAnalysis.tcp_connections.forEach(conn => {
-            // For TCP send events, use the 'size' field
-            if (conn.direction === 'send') {
-                // Convert bytes to MB
-                const sizeMB = conn.size ? parseFloat(conn.size) / (1024 * 1024) : 0;
-                result.tcp.sent_mb += sizeMB;
-            } 
-            // For TCP receive events, use the 'len' field
-            else if (conn.direction === 'receive') {
-                // Convert bytes to MB
-                const sizeMB = conn.len ? parseFloat(conn.len) / (1024 * 1024) : 0;
-                result.tcp.received_mb += sizeMB;
-            }
-        });
-    }
-    
-    // Process UDP communications
-    if (networkAnalysis.udp_communications && networkAnalysis.udp_communications.length > 0) {
-        networkAnalysis.udp_communications.forEach(comm => {
-            // UDP uses 'len' field for both send and receive
-            const sizeMB = comm.len ? parseFloat(comm.len) / (1024 * 1024) : 0;
-            
-            if (comm.direction === 'send') {
-                result.udp.sent_mb += sizeMB;
-            } else if (comm.direction === 'receive') {
-                result.udp.received_mb += sizeMB;
-            }
-        });
-    }
-      
-    // Process Bluetooth activity if available
-    if (networkAnalysis.bluetooth_activity && networkAnalysis.bluetooth_activity.length > 0) {
-        networkAnalysis.bluetooth_activity.forEach(activity => {
-            // Check for size information in the bluetooth activity
-            let sizeMB = 0;
-            if (activity.details && activity.details.size) {
-                sizeMB = parseFloat(activity.details.size) / (1024 * 1024);
-            } else if (activity.details && activity.details.len) {
-                sizeMB = parseFloat(activity.details.len) / (1024 * 1024);
-            }
-            
-            if (activity.direction === 'send') {
-                result.bluetooth.sent_mb += sizeMB;
-            } else if (activity.direction === 'receive') {
-                result.bluetooth.received_mb += sizeMB;
-            }
-        });
-    }
-    
-    return result;
 }
 
 
