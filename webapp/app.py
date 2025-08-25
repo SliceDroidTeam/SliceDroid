@@ -797,7 +797,9 @@ def get_apps():
 def refresh_apps():
     """API endpoint for refreshing app mapping from device"""
     try:
-        result = app_mapper.refresh_mapping_from_device()
+        data = request.get_json() or {}
+        force = data.get('force', False)
+        result = app_mapper.refresh_mapping_from_device(force=force)
 
         if 'error' in result:
             return jsonify(result), 400
@@ -806,6 +808,21 @@ def refresh_apps():
 
     except Exception as e:
         print(f"Error in refresh_apps: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/apps/reload', methods=['POST'])
+def reload_apps():
+    """API endpoint for reloading app mapping from file"""
+    try:
+        result = app_mapper.force_reload_mapping()
+
+        if 'error' in result:
+            return jsonify(result), 400
+        else:
+            return jsonify(result)
+
+    except Exception as e:
+        print(f"Error in reload_apps: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/apps/generate-targets', methods=['POST'])

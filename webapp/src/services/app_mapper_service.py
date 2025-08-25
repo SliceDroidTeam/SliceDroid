@@ -182,18 +182,32 @@ class AppMapperService:
 
         return str(targets_file)
 
-    def refresh_mapping_from_device(self) -> Dict[str, str]:
+    def force_reload_mapping(self) -> Dict[str, str]:
+        """Force reload mapping from file without running device script"""
+        try:
+            old_count = len(self.apps_cache)
+            self.apps_cache.clear()  # Clear existing cache
+            self.load_mapping()  # Reload from file
+            new_count = len(self.apps_cache)
+            
+            return {
+                "success": True,
+                "message": f"Mapping reloaded from file: {old_count} -> {new_count} apps",
+                "old_count": old_count,
+                "new_count": new_count
+            }
+        except Exception as e:
+            return {"error": f"Failed to reload mapping: {str(e)}"}
+
+    def refresh_mapping_from_device(self, force: bool = False) -> Dict[str, str]:
         """Refresh mapping from connected device"""
         try:
             import subprocess
 
-            # Check if mapping file already exists
-            if self.mapping_file.exists():
-                return {
-                    "success": True,
-                    "message": f"App mapping file already exists with {len(self.apps_cache)} apps. Skipping script execution.",
-                    "skipped": True
-                }
+            # Check if mapping file already exists (unless force is True)
+            if self.mapping_file.exists() and not force:
+                # Just reload the existing file instead of skipping
+                return self.force_reload_mapping()
 
             # Check if script exists
             if not self.mapper_script.exists():

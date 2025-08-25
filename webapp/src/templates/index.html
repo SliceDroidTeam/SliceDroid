@@ -163,9 +163,16 @@
                                     <!-- App Selection Mode -->
                                     <div class="mb-3"
                                         id="app-selection-container">
-                                        <label for="app-select"
-                                            class="form-label fw-semibold">Select
-                                            Application:</label>
+                                        <div class="d-flex justify-content-between align-items-end mb-2">
+                                            <label for="app-select"
+                                                class="form-label fw-semibold mb-0">Select
+                                                Application:</label>
+                                            <button class="btn btn-sm btn-outline-secondary" 
+                                                id="refresh-apps-btn" 
+                                                title="Refresh app list from file">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </button>
+                                        </div>
                                         <select
                                             class="form-select form-select-lg"
                                             id="app-select">

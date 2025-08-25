@@ -34,6 +34,11 @@ function setupAppEventListeners() {
         updateAnalyzeButton();
     });
     
+    // Refresh apps button
+    $('#refresh-apps-btn').click(function() {
+        refreshAppsList();
+    });
+    
     // Analyze app button (handles both app and PID analysis)
     $('#analyze-app').click(analyzeTarget);
 }
@@ -102,6 +107,38 @@ function loadApps() {
         $('#app-select').html('<option value="">Failed to load apps</option>');
         $('#app-status').removeClass('alert-info alert-success alert-warning').addClass('alert-danger')
             .html('<i class="fas fa-exclamation-triangle me-2"></i><span>Failed to load applications. Please try refreshing the page.</span>');
+    });
+}
+
+function refreshAppsList() {
+    // Show loading state on refresh button
+    const refreshBtn = $('#refresh-apps-btn');
+    const originalHtml = refreshBtn.html();
+    refreshBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+    
+    // Call the reload API endpoint
+    $.ajax({
+        url: '/api/apps/reload',
+        method: 'POST',
+        contentType: 'application/json',
+        success: function(result) {
+            if (result.success) {
+                // Show success message
+                showToast('Apps Refreshed', result.message, 'success');
+                // Reload the apps list
+                loadApps();
+            } else {
+                showToast('Refresh Failed', result.error || 'Failed to refresh apps', 'error');
+            }
+        },
+        error: function(jqXHR) {
+            const errorMsg = jqXHR.responseJSON?.error || 'Failed to refresh apps';
+            showToast('Refresh Failed', errorMsg, 'error');
+        },
+        complete: function() {
+            // Restore button state
+            refreshBtn.prop('disabled', false).html(originalHtml);
+        }
     });
 }
 
