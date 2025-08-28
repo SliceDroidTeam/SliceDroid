@@ -37,14 +37,6 @@ class ComprehensiveAnalyzer(BaseAnalyzer):
         """
         return self.file_analyzer.slice_file_analysis(events, target_pid, window_size, overlap, asynchronous)
 
-    def produce_comprehensive_stats(self, analysis_results):
-        """
-        Produce comprehensive statistics from analysis results
-        Delegates to FileAnalyzer component
-        """
-        return self.file_analyzer.produce_comprehensive_stats(analysis_results)
-
-
     def analyze_network_flows(self, events, target_pid=None):
         """
         Analyze network-related events to detect communication patterns
