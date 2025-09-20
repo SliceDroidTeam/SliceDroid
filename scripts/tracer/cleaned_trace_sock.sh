@@ -6,6 +6,7 @@ TMP_DIR="/data/local/tmp"
 
 rm -f $TMP_DIR/trace.trace
 rm -f $TMP_DIR/trace.trace.gz
+rm -f $TMP_DIR/ps_snapshot.txt
 
 # Configure tracing options
 echo 102400 > $TRACE_DIR/buffer_size_kb
@@ -32,6 +33,10 @@ fi
 # Start trace_pipe background read
 cat $TRACE_DIR/trace_pipe > $TMP_DIR/trace.trace &
 waitpid=$!
+
+# Take process snapshot
+echo "Taking process snapshot..."
+ps -A > $TMP_DIR/ps_snapshot.txt
 
 # Get PIDs for processes that contain "cat"
 cat_pids=$(pgrep cat)
@@ -116,6 +121,10 @@ fi
 # Show output trace file
 echo "Trace file info:"
 ls -alh $TMP_DIR/trace.trace
+
+# Show process snapshot file
+echo "Process snapshot file:"
+ls -alh $TMP_DIR/ps_snapshot.txt
 
 # Gzip the trace
 echo "Starting gzip compression..."
