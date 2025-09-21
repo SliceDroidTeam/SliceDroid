@@ -16,4 +16,3 @@ events/kprobes/tcp_sendmsg
 events/kprobes/tcp_recvmsg
 events/kprobes/udp_recvmsg
 events/kprobes/udp_sendmsg
-events/kprobes/do_mmap
