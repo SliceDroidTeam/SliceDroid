@@ -10,6 +10,10 @@ r:kprobes/sco_sock_sendmsg sco_sock_sendmsg error=$retval:u32
 r:kprobes/l2cap_sock_sendmsg l2cap_sock_sendmsg error=$retval:u32
 r:kprobes/hci_sock_sendmsg hci_sock_sendmsg error=$retval:u32
 r:kprobes/sock_sendmsg sock_sendmsg num=$retval:u32
+r:kprobes/tcp_sendmsg_ret tcp_sendmsg ret=$retval:u32
+r:kprobes/tcp_recvmsg_ret tcp_recvmsg ret=$retval:u32
+r:kprobes/udp_sendmsg_ret udp_sendmsg ret=$retval:u32
+r:kprobes/udp_recvmsg_ret udp_recvmsg ret=$retval:u32
 p:kprobes/tcp_sendmsg tcp_sendmsg src_ip=+4($arg1):u32 dst_ip=+0($arg1):u32 src_port=+14($arg1):u16 dst_port=+12($arg1):u16 size=$arg3
 p:kprobes/tcp_connect tcp_connect src_ip=+4($arg1):u32 dst_ip=+0($arg1):u32 src_port=+14($arg1):u16 dst_port=+12($arg1):u16
 p:kprobes/tcp_recvmsg tcp_recvmsg src_ip=+4($arg1):u32 dst_ip=+0($arg1):u32 src_port=+14($arg1):u16 dst_port=+12($arg1):u16 len=$arg3

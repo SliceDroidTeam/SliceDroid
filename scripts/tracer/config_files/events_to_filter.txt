@@ -16,3 +16,7 @@ events/kprobes/tcp_sendmsg
 events/kprobes/tcp_recvmsg
 events/kprobes/udp_recvmsg
 events/kprobes/udp_sendmsg
+events/kprobes/tcp_sendmsg_ret
+events/kprobes/tcp_recvmsg_ret
+events/kprobes/udp_recvmsg_ret
+events/kprobes/udp_sendmsg_ret
