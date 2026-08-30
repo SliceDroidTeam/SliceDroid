@@ -59,19 +59,22 @@ mkdir ~/slicedroid-data
 
 **Step 4: Run Container with Network Access**
 
+The device-tracing flow needs an interactive shell so you can run `adb connect`
+first, so start the container with a `bash` override:
+
 **Windows:**
 ```powershell
-# Run container with network access for ADB
-docker run -it -v C:\slicedroid-data:/app/data -p 5000:5000 slicedroid
+# Run container with a shell for the ADB + tracing workflow
+docker run -it -v C:\slicedroid-data:/app/data -p 5000:5000 slicedroid bash
 ```
 
 **Linux/macOS:**
 ```bash
-# Run container with network access for ADB
-docker run -it -v ~/slicedroid-data:/app/data -p 5000:5000 slicedroid
+# Run container with a shell for the ADB + tracing workflow
+docker run -it -v ~/slicedroid-data:/app/data -p 5000:5000 slicedroid bash
 
 # Alternative with host networking (Linux only):
-docker run -it -v ~/slicedroid-data:/app/data --network host slicedroid
+docker run -it -v ~/slicedroid-data:/app/data --network host slicedroid bash
 ```
 
 **Step 5: Connect Device Inside Container**
@@ -90,11 +93,12 @@ adb devices
 
 **Step 6: Run SliceDroid**
 ```bash
-# Inside the container:
+# Inside the container shell:
 python3 run_slicedroid.py
 
-# Choose option 2: "Start Device Tracing + Dashboard"
+# Choose option 2: "Trace Device + Dashboard"
 # Follow the prompts to select apps and start tracing
+# (or run:  python3 run_slicedroid.py trace  directly)
 ```
 
 **Step 7: Access Dashboard**
@@ -148,16 +152,13 @@ docker run -it -v ~/slicedroid-data:/app/data -p 5000:5000 slicedroid
 ```
 
 **Step 3: Start Analysis**
-```bash
-# Inside container:
-python3 run_slicedroid.py
-# Choose option 1: "Open Dashboard Only"
-```
+
+The SliceDroid launcher starts automatically when the container runs. At the menu, choose **option 1: "Open Dashboard Only"** (no device needed).
 
 **Step 4: Upload and Analyze**
 - Go to `http://localhost:5000`
 - Use the upload interface to select your trace files
-- Analyze without any device connection
+- Pick the target with the **PID** tab (it lists the processes found in the trace), then **Analyze** — no device connection required
 
 ---
 

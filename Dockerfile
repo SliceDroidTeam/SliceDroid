@@ -31,4 +31,7 @@ VOLUME ["/app/data"]
 
 EXPOSE 5000
 
-CMD ["/bin/bash"]
+# Start the SliceDroid launcher by default (interactive menu: dashboard / trace
+# / full setup). For the device-tracing flow you need to run `adb connect`
+# first — override with a shell:  docker run -it … slicedroid bash
+CMD ["python3", "run_slicedroid.py"]

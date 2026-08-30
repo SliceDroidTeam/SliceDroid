@@ -1,6 +1,7 @@
-matplotlib
-numpy
 flask
-pandas
 androguard
 colorama
+
+# Optional dependencies:
+# scapy   # scripts/correlation/trace_pcap_correlator.py (trace/pcap correlation)
+# pytest  # running the test suite in tests/
