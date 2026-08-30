@@ -1,15 +1,77 @@
-import subprocess
-import gzip
-import os
-import sys
-import webbrowser
-import time
-import re
-import urllib.request
-import zipfile
-import colorama
+#!/usr/bin/env python3
+"""
+SliceDroid entry point.
+
+Subcommands:
+    trace       Capture an ftrace + tcpdump session from a connected device.
+    dashboard   Launch the web dashboard (webapp/app.py) and open a browser.
+    setup       One-time device setup: app mapping + resource resolution.
+
+Running with no arguments starts the interactive menu.
+"""
+
 import argparse
+import gzip
 import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+import urllib.request
+import webbrowser
+import zipfile
+
+try:
+    import colorama
+except ImportError:  # colorama is optional: fall back to uncolored output
+    class _NoColor:
+        def __getattr__(self, _name):
+            return ""
+
+    class _ColoramaStub:
+        Fore = _NoColor()
+        Style = _NoColor()
+
+        @staticmethod
+        def init(*args, **kwargs):
+            pass
+
+    colorama = _ColoramaStub()
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+TRACER_SCRIPT = os.path.join(PROJECT_ROOT, "scripts", "tracer", "cleaned_trace_sock.sh")
+TRACER_CONFIG_DIR = os.path.join(PROJECT_ROOT, "scripts", "tracer", "config_files")
+CORRELATOR_SCRIPT = os.path.join(PROJECT_ROOT, "scripts", "correlation", "trace_pcap_correlator.py")
+UDP_UPDATER_SCRIPT = os.path.join(PROJECT_ROOT, "scripts", "correlation", "update_udp_events.py")
+APP_MAPPER_SCRIPT = os.path.join(PROJECT_ROOT, "scripts", "tracker", "app_mapper.py")
+STDEV_SCRIPT = os.path.join(PROJECT_ROOT, "scripts", "resources_resolver", "run_stdev_rdev_trace.py")
+DASHBOARD_SCRIPT = os.path.join(PROJECT_ROOT, "webapp", "app.py")
+
+DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+TRACES_DIR = os.path.join(DATA_DIR, "traces")
+
+DEVICE_SCRIPT_PATH = "/data/local/tmp/cleaned_trace_sock.sh"
+DEVICE_CONFIG_DIR = "/data/local/tmp/config_files"
+DEVICE_TRACE_GZ = "/data/local/tmp/trace.trace.gz"
+DEVICE_PCAP_GZ = "/data/local/tmp/tcpdump.pcap.gz"
+
+LOCAL_TRACE_GZ = os.path.join(TRACES_DIR, "trace.trace.gz")
+LOCAL_TRACE = os.path.join(TRACES_DIR, "trace.trace")
+LOCAL_PCAP_GZ = os.path.join(TRACES_DIR, "tcpdump.pcap.gz")
+LOCAL_CORRELATIONS = os.path.join(TRACES_DIR, "correlations.csv")
+LOCAL_TRACE_CORRECTED = os.path.join(TRACES_DIR, "trace_corrected.trace")
+
+
+# ---------------------------------------------------------------------------
+# ADB helpers
+# ---------------------------------------------------------------------------
 
 def check_adb_installed():
     """Check if ADB is available in the system PATH"""
@@ -18,6 +80,7 @@ def check_adb_installed():
         return result.returncode == 0
     except FileNotFoundError:
         return False
+
 
 def download_and_setup_adb():
     """Download and setup ADB platform tools"""
@@ -30,7 +93,6 @@ def download_and_setup_adb():
         print("[*] Platform tools directory already exists, skipping download...")
         return platform_tools_dir
 
-    # Download URL for Windows platform tools
     if sys.platform.startswith("win"):
         download_url = "https://dl.google.com/android/repository/platform-tools-latest-windows.zip"
         zip_filename = "platform-tools-windows.zip"
@@ -44,16 +106,13 @@ def download_and_setup_adb():
         raise Exception("Unsupported operating system")
 
     try:
-        # Download the zip file
         print(f"[*] Downloading from {download_url}...")
         urllib.request.urlretrieve(download_url, zip_filename)
 
-        # Extract the zip file
         print("[*] Extracting platform tools...")
         with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
             zip_ref.extractall()
 
-        # Clean up the zip file
         os.remove(zip_filename)
 
         print(f"[*] Platform tools extracted to: {platform_tools_dir}")
@@ -62,6 +121,7 @@ def download_and_setup_adb():
     except Exception as e:
         print(f"[!] Error downloading/extracting platform tools: {e}")
         raise
+
 
 def setup_adb_path(platform_tools_dir):
     """Add platform tools to PATH for current session"""
@@ -77,6 +137,7 @@ def setup_adb_path(platform_tools_dir):
 
     return adb_path
 
+
 def ensure_adb_available():
     """Ensure ADB is available, download if necessary"""
     if check_adb_installed():
@@ -89,25 +150,20 @@ def ensure_adb_available():
     platform_tools_dir = os.path.join(os.getcwd(), "platform-tools")
     if os.path.exists(platform_tools_dir):
         print("[*] Found local platform-tools directory")
-        adb_path = setup_adb_path(platform_tools_dir)
-        return adb_path
+        return setup_adb_path(platform_tools_dir)
 
     # Download and setup ADB
     platform_tools_dir = download_and_setup_adb()
     adb_path = setup_adb_path(platform_tools_dir)
 
     # Verify installation
-    try:
-        result = subprocess.run([adb_path, "version"], capture_output=True, text=True)
-        if result.returncode == 0:
-            print("[*] ADB successfully installed and verified")
-            print(f"[*] ADB Version: {result.stdout.strip()}")
-            return adb_path
-        else:
-            raise Exception("ADB installation verification failed")
-    except Exception as e:
-        print(f"[!] Error verifying ADB installation: {e}")
-        raise
+    result = subprocess.run([adb_path, "version"], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise Exception("ADB installation verification failed")
+    print("[*] ADB successfully installed and verified")
+    print(f"[*] ADB Version: {result.stdout.strip()}")
+    return adb_path
+
 
 def check_device_connection(adb_command):
     """Check if any devices are connected"""
@@ -122,133 +178,318 @@ def check_device_connection(adb_command):
         print(f"[!] Error checking device connection: {e}")
         return False, []
 
+
+def require_device(adb_command):
+    """Ensure at least one device is connected; prompt once for a retry."""
+    print("[*] Checking device connection...")
+    is_connected, devices = check_device_connection(adb_command)
+
+    if not is_connected:
+        print("[!] No Android devices found!")
+        print("[*] Please ensure:")
+        print("    1. Your device is connected via USB")
+        print("    2. USB Debugging is enabled")
+        print("    3. You've authorized this computer on your device")
+        print("    4. You're using a data cable (not just charging cable)")
+        print("\n[*] Run 'adb devices' to check connection status")
+
+        input("[*] Connect your device and press Enter to continue...")
+
+        is_connected, devices = check_device_connection(adb_command)
+        if not is_connected:
+            print("[!] Still no devices found. Exiting...")
+            sys.exit(1)
+
+    print(f"[*] Found {len(devices)} connected device(s):")
+    for device in devices:
+        print(f"    - {device}")
+    return devices
+
+
+# ---------------------------------------------------------------------------
+# Setup flow (app mapping + resource resolution)
+# ---------------------------------------------------------------------------
+
 def should_create_app_mapping():
     """Check if app_mapping.json is missing or empty"""
-    app_mapping_file = os.path.join("data", "app_mapping.json")
-    
-    # File doesn't exist
+    app_mapping_file = os.path.join(DATA_DIR, "app_mapping.json")
+
     if not os.path.exists(app_mapping_file):
         return True
-    
-    # File exists but is empty or contains empty JSON
+
     try:
         with open(app_mapping_file, 'r', encoding='utf-8') as f:
             content = f.read().strip()
             if not content or content == '{}' or content == '[]':
                 return True
-        
-        # Try to parse JSON and check if it has meaningful content
+
         with open(app_mapping_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
             if not data or len(data) == 0:
                 return True
-                
+
     except (json.JSONDecodeError, Exception):
         # File is corrupted, needs recreation
         return True
-    
+
     return False
 
+
+def run_setup():
+    """Create the app mapping and resolve device resources (st_dev/r_dev)."""
+    adb_command = ensure_adb_available()
+    require_device(adb_command)
+
+    # Create app mapping from connected device if needed
+    if should_create_app_mapping():
+        print("[*] App mapping is missing or empty - creating from connected device...")
+        if os.path.exists(APP_MAPPER_SCRIPT):
+            try:
+                print("[*] Analyzing installed apps to extract commercial names...")
+                output_path = os.path.join(DATA_DIR, "app_mapping.json")
+                os.makedirs(DATA_DIR, exist_ok=True)
+                subprocess.run([
+                    sys.executable, APP_MAPPER_SCRIPT,
+                    "--create",
+                    "--output", output_path,
+                    "--limit", "50",
+                    "--include-system"
+                ], check=True, timeout=500, cwd=PROJECT_ROOT)
+                print("[*] App mapping completed successfully")
+            except subprocess.TimeoutExpired:
+                print("[!] App mapping timed out, continuing without app mapping...")
+            except subprocess.CalledProcessError as e:
+                print(f"[!] App mapping failed: {e}, continuing without app mapping...")
+            except Exception as e:
+                print(f"[!] App mapping error: {e}, continuing without app mapping...")
+        else:
+            print("[!] App mapper script not found, skipping app mapping...")
+    else:
+        print("[*] App mapping already exists and contains data - skipping creation")
+
+    # Check if rdevs.txt and regular_files.txt exist to skip the script
+    mapping_dir = os.path.join(DATA_DIR, "mappings")
+    skip_rdev = False
+    if os.path.isdir(mapping_dir):
+        rdevs_file = os.path.join(mapping_dir, "rdevs.txt")
+        regularfiles_file = os.path.join(mapping_dir, "regular_files.txt")
+
+        if os.path.exists(rdevs_file) and os.path.exists(regularfiles_file):
+            print("[*] Found existing rdevs.txt and regular_files.txt, skipping resource resolution script...")
+            skip_rdev = True
+        else:
+            for filename in os.listdir(mapping_dir):
+                if re.match(r"cat2devs.txt", filename):
+                    skip_rdev = True
+                    break
+
+    if not skip_rdev:
+        # Collect st_devs and r_devs
+        subprocess.run([sys.executable, STDEV_SCRIPT], check=True,
+                       stderr=subprocess.STDOUT, cwd=PROJECT_ROOT)
+    else:
+        print("[*] Resource resolution artefacts already present - skipping")
+
+    print("[*] Setup completed.")
+
+
+# ---------------------------------------------------------------------------
+# Trace flow
+# ---------------------------------------------------------------------------
+
+def push_tracer_to_device(adb_command):
+    """Push the tracer script and its config files to the device."""
+    print("[*] Pushing tracing script to device...")
+    subprocess.run(
+        [adb_command, "push", TRACER_SCRIPT, DEVICE_SCRIPT_PATH],
+        check=True
+    )
+
+    print("[*] Making tracing script executable...")
+    subprocess.run(
+        [adb_command, "shell", "chmod", "+x", DEVICE_SCRIPT_PATH],
+        check=True
+    )
+
+    print("[*] Converting script to Unix format...")
+    subprocess.run(
+        [adb_command, "shell", "su", "-c", f"dos2unix {DEVICE_SCRIPT_PATH}"],
+        check=True
+    )
+
+    print("[*] Pushing config files to device...")
+    subprocess.run(
+        [adb_command, "shell", "su", "-c", f"mkdir -p {DEVICE_CONFIG_DIR}"],
+        check=True
+    )
+    subprocess.run(
+        [adb_command, "push", TRACER_CONFIG_DIR, "/data/local/tmp/"],
+        check=True
+    )
+
+    print("[*] Converting configuration files to Unix format...")
+    subprocess.run(
+        [
+            adb_command, "shell", "su", "-c",
+            f"cd {DEVICE_CONFIG_DIR} && "
+            f"find {DEVICE_CONFIG_DIR} -type f | while IFS= read -r f; do "
+            "dos2unix \"$f\"; "
+            "done"
+        ],
+        check=True
+    )
+
+
+def clean_previous_artifacts(adb_command):
+    """Remove stale trace/pcap artefacts locally and on the device."""
+    os.makedirs(TRACES_DIR, exist_ok=True)
+
+    for stale in [LOCAL_TRACE, LOCAL_TRACE_GZ, LOCAL_PCAP_GZ,
+                  LOCAL_CORRELATIONS, LOCAL_TRACE_CORRECTED]:
+        if os.path.exists(stale):
+            os.remove(stale)
+
+    subprocess.run(
+        [adb_command, "shell", "su", "-c",
+         "rm -f /data/local/tmp/trace.trace* /data/local/tmp/tcpdump.pcap*"],
+        check=False  # Don't fail if files don't exist
+    )
+
+
+def run_correlation():
+    """Run the trace/pcap correlator and the UDP event rewriter."""
+    print("[*] Correlating trace with tcpdump capture...")
+    result = subprocess.run([
+        sys.executable, CORRELATOR_SCRIPT,
+        "--trace", LOCAL_TRACE,
+        "--pcap", LOCAL_PCAP_GZ,
+        "--output", LOCAL_CORRELATIONS,
+    ], cwd=PROJECT_ROOT)
+    if result.returncode != 0:
+        print("[!] Correlation failed (is scapy installed? pip install scapy)")
+        return False
+
+    print("[*] Rewriting UDP events with correlated addresses...")
+    result = subprocess.run([
+        sys.executable, UDP_UPDATER_SCRIPT,
+        "--trace", LOCAL_TRACE,
+        "--correlations", LOCAL_CORRELATIONS,
+        "--output", LOCAL_TRACE_CORRECTED,
+    ], cwd=PROJECT_ROOT)
+    if result.returncode != 0:
+        print("[!] UDP event rewrite failed")
+        return False
+
+    print(f"[*] Corrected trace available at {LOCAL_TRACE_CORRECTED}")
+    return True
+
+
+def run_trace(correlate=False, skip_pcap=False):
+    """Full tracing workflow: push tracer, run it, pull and unpack artefacts."""
+    adb_command = ensure_adb_available()
+    require_device(adb_command)
+
+    push_tracer_to_device(adb_command)
+
+    print("Setting selinux permissive mode. Don't forget to set it back to enforcing after tracing!")
+    subprocess.run(
+        [adb_command, "shell", "su", "-c", "setenforce 0"],
+        check=True
+    )
+
+    clean_previous_artifacts(adb_command)
+
+    # Start the tracing script as a subprocess that we can control
+    print("[*] Initializing system call tracer...")
+    print("[*] Ready to capture system activity. Tracer is now waiting for your commands.")
+    trace_process = subprocess.Popen(
+        [adb_command, "shell", "su", "-c", DEVICE_SCRIPT_PATH],
+        stdin=subprocess.PIPE
+    )
+
+    print("\n" + "=" * 70)
+    print("[*] TRACING ACTIVE - Use your Android device now!")
+    print("[*] Perform the actions you want to analyze...")
+    print("[*] Press ENTER when finished to stop tracing and analyze results")
+    print("=" * 70 + "\n")
+    input()
+
+    # A newline on the tracer's stdin makes its `read STOP` return
+    trace_process.stdin.write(b'\n')
+    trace_process.stdin.flush()
+    trace_process.wait()
+
+    print("[*] Pulling trace file from device...")
+    subprocess.run(
+        [adb_command, "pull", DEVICE_TRACE_GZ, LOCAL_TRACE_GZ],
+        check=True
+    )
+
+    if not skip_pcap:
+        print("[*] Pulling tcpdump capture from device...")
+        pull_pcap = subprocess.run(
+            [adb_command, "pull", DEVICE_PCAP_GZ, LOCAL_PCAP_GZ],
+            check=False
+        )
+        if pull_pcap.returncode != 0:
+            print("[!] Could not pull tcpdump capture (was tcpdump available on the device?)")
+    else:
+        print("[*] Skipping tcpdump capture pull (--skip-pcap)")
+
+    print("[*] Extracting trace file...")
+    with gzip.open(LOCAL_TRACE_GZ, "rb") as f_in, open(LOCAL_TRACE, "wb") as f_out:
+        shutil.copyfileobj(f_in, f_out)
+
+    print(f"[*] Trace available at {LOCAL_TRACE}")
+
+    if correlate:
+        if skip_pcap or not os.path.exists(LOCAL_PCAP_GZ):
+            print("[!] Cannot correlate without a tcpdump capture - skipping correlation")
+        else:
+            run_correlation()
+
+
+# ---------------------------------------------------------------------------
+# Dashboard flow
+# ---------------------------------------------------------------------------
+
 def open_dashboard():
-    # Open the dashboard in the default browser
+    """Open the dashboard in the default browser"""
     if not os.path.exists('/.dockerenv'):
         print("[*] Opening dashboard in browser...")
         webbrowser.open("http://localhost:5000")
     print("Please visit http://localhost:5000 in your browser")
 
-def check_necessary_files():
-    """Check if all necessary files exist for dashboard functionality"""
-    required_files = {
-        'app_mapping': os.path.join("data", "app_mapping.json"),
-        'cat2devs': os.path.join("data", "mappings", "cat2devs.txt"),
-        'trace_file': None  # Will check for any .trace file
-    }
-    
-    status = {}
-    
-    # Check app_mapping.json
-    status['app_mapping'] = os.path.exists(required_files['app_mapping'])
-    
-    # Check cat2devs.txt
-    status['cat2devs'] = os.path.exists(required_files['cat2devs'])
-    
-    # Check for any .trace file in traces directory
-    traces_dir = os.path.join("data", "traces")
-    status['trace_file'] = False
-    if os.path.exists(traces_dir):
-        for file in os.listdir(traces_dir):
-            if file.endswith('.trace'):
-                status['trace_file'] = True
-                break
-    
-    return status, all(status.values())
 
-def display_menu():
-    """Display the main menu and get user choice"""
-    file_status, all_files_exist = check_necessary_files()
-    
-    print("\n" + "="*70)
-    print("                           SLICEDROID MENU")
-    print("="*70)
-    
-    # Display file status
-    print("\nData Files Status:")
-    status_icon = lambda exists: colorama.Fore.GREEN + "OK" + colorama.Style.RESET_ALL if exists else colorama.Fore.RED + "Missing" + colorama.Style.RESET_ALL
-    print(f"   {status_icon(file_status['app_mapping'])} App Mapping (app_mapping.json)")
-    print(f"   {status_icon(file_status['cat2devs'])} Device Categories (mappings/cat2devs.txt)")
-    print(f"   {status_icon(file_status['trace_file'])} Trace File (traces/*.trace)")
-    
-    if all_files_exist:
-        print(colorama.Fore.GREEN + "All necessary files are available!" + colorama.Style.RESET_ALL)
-    else:
-        print(colorama.Fore.RED + "Some files are missing" + colorama.Style.RESET_ALL)
+def run_dashboard():
+    """Start the web dashboard and open a browser tab."""
+    # Make sure the exports directory exists for the webapp
+    os.makedirs(os.path.join(DATA_DIR, "Exports"), exist_ok=True)
 
-    print("\nChoose your action:")
-    print("┌─────────────────────────────────────────────────────────────────────┐")
-    print("│ 1. Open Dashboard Only                                              │")
-    print("│    └─ Use existing data files, start web interface immediately      │")
-    print("│                                                                     │")
-    print("│ 2. Trace Device + Dashboard                                         │")
-    print("│    └─ Capture new trace from device, then start dashboard           │")
-    print("│                                                                     │")
-    print("│ 3. Full Setup + Trace + Dashboard                                   │")
-    print("│    └─ Complete flow: setup, device analysis, trace, dashboard       │")
-    print("└─────────────────────────────────────────────────────────────────────┘")
-    
-    while True:
-        try:
-            choice = input("\n👉 Enter your choice (1-3): ").strip()
-            if choice in ['1', '2', '3']:
-                return int(choice)
-            else:
-                print("Invalid choice. Please enter 1, 2, or 3.")
-        except KeyboardInterrupt:
-            print("\n\nGoodbye!")
-            sys.exit(0)
-
-def start_dashboard_only():
-    """Start only the web dashboard without any device operations"""
-    print("\nStarting dashboard in standalone mode...")
-    
-    dashboard = os.path.join("webapp", "app.py")
-    
     print("[*] Starting web dashboard...")
-    # Start the Flask app as a background process:
     server_proc = subprocess.Popen(
-        [sys.executable, dashboard],
-        stderr=subprocess.STDOUT
+        [sys.executable, DASHBOARD_SCRIPT],
+        stderr=subprocess.STDOUT,
+        cwd=PROJECT_ROOT
     )
 
-    # Give Flask a second to spin up
+    # Give Flask a moment to spin up
     time.sleep(5)
 
-    # Open the dashboard in the default browser
     open_dashboard()
 
     # Wait for the server to exit before letting the script finish
-    server_proc.wait()
+    try:
+        server_proc.wait()
+    except KeyboardInterrupt:
+        print("\n[*] Stopping dashboard...")
+        server_proc.terminate()
 
-# Main script starts here
+
+# ---------------------------------------------------------------------------
+# Interactive menu
+# ---------------------------------------------------------------------------
+
 def print_banner():
     """Print ASCII art banner"""
     banner = """
@@ -266,287 +507,152 @@ def print_banner():
 """
     print(banner)
 
-print_banner()
 
-# Display menu and get user choice
-user_choice = display_menu()
+def check_necessary_files():
+    """Check if all necessary files exist for dashboard functionality"""
+    status = {
+        'app_mapping': os.path.exists(os.path.join(DATA_DIR, "app_mapping.json")),
+        'cat2devs': os.path.exists(os.path.join(DATA_DIR, "mappings", "cat2devs.txt")),
+        'trace_file': False,
+    }
 
-if user_choice == 1:
-    start_dashboard_only()
-    sys.exit(0)
-elif user_choice == 2:
-    print("\n📱 Starting device tracing + dashboard flow...")
-    # Will continue with tracing flow below
-elif user_choice == 3:
-    print("\n🔧 Starting full setup flow...")
-    # Will continue with full flow below
+    # Check for any .trace file in traces directory
+    if os.path.exists(TRACES_DIR):
+        for file in os.listdir(TRACES_DIR):
+            if file.endswith('.trace'):
+                status['trace_file'] = True
+                break
 
-print("[*] Starting SliceDroid...")
+    return status, all(status.values())
 
-# Ensure ADB is available
-try:
-    adb_command = ensure_adb_available()
-except Exception as e:
-    print(f"[!] Failed to setup ADB: {e}")
-    print("[!] Please install ADB manually or check your internet connection")
-    sys.exit(1)
 
-# Check device connection
-print("[*] Checking device connection...")
-is_connected, devices = check_device_connection(adb_command)
+def display_menu():
+    """Display the main menu and get user choice"""
+    file_status, all_files_exist = check_necessary_files()
 
-if not is_connected:
-    print("[!] No Android devices found!")
-    print("[*] Please ensure:")
-    print("    1. Your device is connected via USB")
-    print("    2. USB Debugging is enabled")
-    print("    3. You've authorized this computer on your device")
-    print("    4. You're using a data cable (not just charging cable)")
-    print("\n[*] Run 'adb devices' to check connection status")
+    print("\n" + "=" * 70)
+    print("                           SLICEDROID MENU")
+    print("=" * 70)
 
-    # Give user a chance to connect device
-    input("[*] Connect your device and press Enter to continue...")
+    # Display file status
+    print("\nData Files Status:")
+    status_icon = lambda exists: colorama.Fore.GREEN + "OK" + colorama.Style.RESET_ALL if exists else colorama.Fore.RED + "Missing" + colorama.Style.RESET_ALL
+    print(f"   {status_icon(file_status['app_mapping'])} App Mapping (app_mapping.json)")
+    print(f"   {status_icon(file_status['cat2devs'])} Device Categories (mappings/cat2devs.txt)")
+    print(f"   {status_icon(file_status['trace_file'])} Trace File (traces/*.trace)")
 
-    is_connected, devices = check_device_connection(adb_command)
-    if not is_connected:
-        print("[!] Still no devices found. Exiting...")
-        sys.exit(1)
-
-print(f"[*] Found {len(devices)} connected device(s):")
-for device in devices:
-    print(f"    - {device}")
-
-# Skip app mapping and resource resolution for option 2 (trace + dashboard)
-if user_choice == 3:  # Only do full setup for option 3
-    # Create app mapping from connected device if needed
-    if should_create_app_mapping():
-        print("[*] App mapping is missing or empty - creating from connected device...")
-        app_mapper_script = os.path.join("scripts", "tracker", "app_mapper.py")
-        if os.path.exists(app_mapper_script):
-            try:
-                print("[*] Analyzing installed apps to extract commercial names...")
-                output_path = os.path.join("data", "app_mapping.json")
-                # Ensure data directory exists
-                os.makedirs("data", exist_ok=True)
-                subprocess.run([
-                    sys.executable, app_mapper_script,
-                    "--create", 
-                    "--output", output_path,
-                    "--limit", "50",
-                    "--include-system"
-                ], check=True, timeout=500, cwd=os.getcwd())
-                print("[*] App mapping completed successfully")
-            except subprocess.TimeoutExpired:
-                print("[!] App mapping timed out, continuing without app mapping...")
-            except subprocess.CalledProcessError as e:
-                print(f"[!] App mapping failed: {e}, continuing without app mapping...")
-            except Exception as e:
-                print(f"[!] App mapping error: {e}, continuing without app mapping...")
-        else:
-            print("[!] App mapper script not found, skipping app mapping...")
+    if all_files_exist:
+        print(colorama.Fore.GREEN + "All necessary files are available!" + colorama.Style.RESET_ALL)
     else:
-        print("[*] App mapping already exists and contains data - skipping creation")
+        print(colorama.Fore.RED + "Some files are missing" + colorama.Style.RESET_ALL)
 
-    # Check if rdevs.txt and regularfiles.txt exist to skip the script
-    mapping_dir = "data/mappings"
-    skip_rdev = False
-    if os.path.isdir(mapping_dir):
-        rdevs_file = os.path.join(mapping_dir, "rdevs.txt")
-        regularfiles_file = os.path.join(mapping_dir, "regular_files.txt")
-        
-        if os.path.exists(rdevs_file) and os.path.exists(regularfiles_file):
-            print("[*] Found existing rdevs.txt and regular_files.txt, skipping resource resolution script...")
-            skip_rdev = True
-        else:
-            for filename in os.listdir(mapping_dir):
-                if re.match(r"cat2devs.txt", filename):
-                    skip_rdev = True
-                    break
+    print("\nChoose your action:")
+    print("┌─────────────────────────────────────────────────────────────────────┐")
+    print("│ 1. Open Dashboard Only                                              │")
+    print("│    └─ Use existing data files, start web interface immediately      │")
+    print("│                                                                     │")
+    print("│ 2. Trace Device + Dashboard                                         │")
+    print("│    └─ Capture new trace from device, then start dashboard           │")
+    print("│                                                                     │")
+    print("│ 3. Full Setup + Trace + Dashboard                                   │")
+    print("│    └─ Complete flow: setup, device analysis, trace, dashboard       │")
+    print("└─────────────────────────────────────────────────────────────────────┘")
 
-    if not skip_rdev:
-        # Collect st_devs and r_devs
-        stdev_script = os.path.join("scripts", "resources_resolver", "run_stdev_rdev_trace.py")
-        subprocess.run(["python", stdev_script], check=True, stderr=subprocess.STDOUT)
-else:
-    print("[*] Skipping app mapping and resource resolution (using existing data)...")
-
-# Push tracing script to the device
-print("[*] Pushing tracing script to device...")
-tracing_script = os.path.join("scripts", "tracer", "cleaned_trace_sock.sh")
-subprocess.run(
-    [adb_command, "push", tracing_script, "/data/local/tmp/cleaned_trace_sock.sh"],
-    check=True
-)
-
-# Make the tracing script executable
-print("[*] Making tracing script executable...")
-subprocess.run(
-    [adb_command, "shell", "chmod", "+x", "/data/local/tmp/cleaned_trace_sock.sh"],
-    check=True
-)
-
-# Convert the tracing script to Unix format
-print("[*] Converting script to Unix format...")
-subprocess.run(
-    [adb_command, "shell", "su", "-c", "dos2unix /data/local/tmp/cleaned_trace_sock.sh"],
-    check=True
-)
-
-# Push config files to the device
-print("[*] Pushing config files to device...")
-
-# First, ensure the config directory exists on device
-subprocess.run(
-    [adb_command, "shell", "su", "-c", "mkdir -p /data/local/tmp/config_files"],
-    check=True
-)
-
-# Push the entire config_files directory
-subprocess.run(
-    [adb_command, "push", "scripts/tracer/config_files", "/data/local/tmp/"],
-    check=True
-)
-
-print("[*] Converting configuration files to Unix format...")
-subprocess.run(
-    [
-        adb_command, "shell", "su", "-c",
-        # cd into the folder, find all files, and run dos2unix on each one
-        "cd /data/local/tmp/config_files && " 
-        "find /data/local/tmp/config_files -type f | while IFS= read -r f; do "
-        "dos2unix \"$f\"; "
-        "done"
-    ],
-    check=True
-)
-
-print("Setting selinux permissive mode. Don't forget to set it back to enforcing after tracing!")
-subprocess.run(
-    [adb_command, "shell", "su", "-c", "setenforce 0"],
-    check=True
-)
-# Ensure the data directory exists
-os.makedirs(os.path.join("data", "traces"), exist_ok=True)
-
-# Delete old trace files to ensure fresh traces
-# Remove local trace files
-for trace_file in ["data/traces/trace.trace", "data/traces/trace.trace.gz"]:
-    if os.path.exists(trace_file):
-        os.remove(trace_file)
-
-# Remove device trace files
-subprocess.run(
-    [adb_command, "shell", "su", "-c", "rm -f /data/local/tmp/trace.trace*"],
-    check=False  # Don't fail if files don't exist
-)
-
-# Start the tracing script as a subprocess that we can control
-print("[*] Initializing system call tracer...")
-print("[*] Ready to capture system activity. Tracer is now waiting for your commands.")
-trace_process = subprocess.Popen(
-    [adb_command, "shell", "su", "-c", "/data/local/tmp/cleaned_trace_sock.sh"],
-    stdin=subprocess.PIPE
-)
-
-print("\n" + "="*70)
-print("[*] TRACING ACTIVE - Use your Android device now!")
-print("[*] Perform the actions you want to analyze...")
-print("[*] Press ENTER when finished to stop tracing and analyze results")
-print("="*70 + "\n")
-input()
-
-trace_process.stdin.write(b'\n')
-trace_process.stdin.flush()
-trace_process.wait()
-
-print("[*] Pulling trace file from device...")
-subprocess.run(
-    [adb_command, "pull", "/data/local/tmp/trace.trace.gz", "data/traces/trace.trace.gz"],
-    check=True
-)
-
-print("[*] Extracting trace file...")
-with gzip.open("data/traces/trace.trace.gz", "rb") as f_in, \
-     open("data/traces/trace.trace", "wb") as f_out:
-    f_out.write(f_in.read())
-
-#make sure exports directory exists
-exports_dir = os.path.join("data", "Exports")
-os.makedirs(exports_dir, exist_ok=True)
-
-dashboard = os.path.join("webapp", "app.py")
-
-print("[*] Starting web dashboard...")
-# Start the Flask app as a background process:
-server_proc = subprocess.Popen(
-    [sys.executable, dashboard],
-    stderr=subprocess.STDOUT
-)
-
-# Give Flask a second to spin up
-time.sleep(5)
+    while True:
+        try:
+            choice = input("\n👉 Enter your choice (1-3): ").strip()
+            if choice in ['1', '2', '3']:
+                return int(choice)
+            else:
+                print("Invalid choice. Please enter 1, 2, or 3.")
+        except KeyboardInterrupt:
+            print("\n\nGoodbye!")
+            sys.exit(0)
 
 
-open_dashboard()
+def run_interactive():
+    """Interactive menu (default when no subcommand is given)."""
+    user_choice = display_menu()
 
-# Wait for the server to exit before letting the script finish
-server_proc.wait()
+    if user_choice == 1:
+        run_dashboard()
+    elif user_choice == 2:
+        print("\n📱 Starting device tracing + dashboard flow...")
+        run_trace()
+        run_dashboard()
+    elif user_choice == 3:
+        print("\n🔧 Starting full setup flow...")
+        run_setup()
+        run_trace()
+        run_dashboard()
 
-# Handle command line arguments
-def handle_args():
-    """Handle command line arguments"""
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def build_parser():
     parser = argparse.ArgumentParser(
+        prog="run_slicedroid.py",
         description="SliceDroid - Android Security Analysis Tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run_slicedroid.py                    # Run normal SliceDroid analysis
-  python run_slicedroid.py --network          # Run network traffic aggregator
-  python run_slicedroid.py --network -t 60    # Run network aggregator for 60 seconds
-  python run_slicedroid.py --network -i eth0  # Monitor specific interface
+  python run_slicedroid.py                       # Interactive menu
+  python run_slicedroid.py trace                 # Capture a trace + pcap
+  python run_slicedroid.py trace --correlate     # ... and correlate them
+  python run_slicedroid.py trace --skip-pcap     # Trace only, no pcap pull
+  python run_slicedroid.py dashboard             # Launch the web dashboard
+  python run_slicedroid.py setup                 # Device setup (app mapping, resources)
         """
     )
-    
-    parser.add_argument('--network', action='store_true',
-                       help='Run network traffic aggregator instead of normal analysis')
-    parser.add_argument('-i', '--interface', default='any',
-                       help='Network interface to monitor (default: any)')
-    parser.add_argument('-t', '--duration', type=int,
-                       help='Network capture duration in seconds')
-    parser.add_argument('-o', '--output',
-                       help='Save network summary to JSON file')
-    
-    args = parser.parse_args()
-    
-    # If network flag is set, run network aggregator instead
-    if args.network:
-        print("\n" + "="*60)
-        print("NETWORK TRAFFIC AGGREGATOR MODE")
-        print("="*60)
-        
-        # Build command for network aggregator
-        aggregator_script = os.path.join("scripts", "network_aggregator.py")
-        cmd = [sys.executable, aggregator_script]
-        
-        if args.interface:
-            cmd.extend(['-i', args.interface])
-        if args.duration:
-            cmd.extend(['-t', str(args.duration)])
-        if args.output:
-            cmd.extend(['-o', args.output])
-        
-        print(f"[*] Running: {' '.join(cmd)}")
-        
-        try:
-            subprocess.run(cmd)
-        except KeyboardInterrupt:
-            print("\n[*] Network aggregation stopped by user")
-        except Exception as e:
-            print(f"[!] Error running network aggregator: {e}")
-        
-        sys.exit(0)
 
-# Check for network flag before running normal flow
+    subparsers = parser.add_subparsers(dest="command")
+
+    trace_parser = subparsers.add_parser(
+        "trace",
+        help="Capture an ftrace + tcpdump session from a connected device"
+    )
+    trace_parser.add_argument(
+        "--correlate", action="store_true",
+        help="After pulling the artefacts, correlate the trace with the pcap "
+             "and produce data/traces/trace_corrected.trace (requires scapy)"
+    )
+    trace_parser.add_argument(
+        "--skip-pcap", action="store_true",
+        help="Do not pull the tcpdump capture from the device"
+    )
+
+    subparsers.add_parser(
+        "dashboard",
+        help="Launch the web dashboard and open it in a browser"
+    )
+
+    subparsers.add_parser(
+        "setup",
+        help="One-time device setup: app mapping and resource resolution"
+    )
+
+    return parser
+
+
+def main(argv=None):
+    colorama.init()
+
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    print_banner()
+
+    if args.command == "trace":
+        run_trace(correlate=args.correlate, skip_pcap=args.skip_pcap)
+    elif args.command == "dashboard":
+        run_dashboard()
+    elif args.command == "setup":
+        run_setup()
+    else:
+        run_interactive()
+
+
 if __name__ == "__main__":
-    handle_args()
-    # Continue with normal execution if no network flag
+    main()

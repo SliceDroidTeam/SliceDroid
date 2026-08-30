@@ -1,2 +1,0 @@
-m.facebook.orca
-te_app_settings

@@ -321,60 +321,6 @@ class AppMapper:
             print(f"Error loading mapping: {e}")
             return {}
 
-    def get_processes_for_apps(self, app_identifiers: List[str]) -> List[str]:
-        """Get shortened process names for list of apps"""
-        mapping = self.load_mapping("app_mapping.json")
-
-        process_names = []
-        for app_id in app_identifiers:
-            # Search by package name
-            if app_id in mapping:
-                if isinstance(mapping[app_id], dict):
-                    processes = mapping[app_id].get("processes", [app_id])
-                else:
-                    processes = [app_id]
-                # Use processes directly (already shortened in mapping)
-                process_names.extend(processes)
-            else:
-                # Search by commercial name
-                found = False
-                for package, info in mapping.items():
-                    if isinstance(info, dict):
-                        if info.get("commercial_name", "").lower() == app_id.lower():
-                            processes = info.get("processes", [package])
-                            process_names.extend(processes)
-                            found = True
-                            break
-                if not found:
-                    # Fallback: treat as package name and use last 15 chars
-                    fallback_process = app_id[-15:] if len(app_id) > 15 else app_id
-                    process_names.append(fallback_process)
-
-        return list(set(process_names))
-
-
-
-    def generate_pid_targets(self, selected_apps: List[str], output_file: str = None):
-        """Generate pid_targets.txt for eBPF tracing"""
-        if not output_file:
-            output_file = "pid_targets.txt"
-
-        process_names = self.get_processes_for_apps(selected_apps)
-
-        try:
-            with open(output_file, 'w') as f:
-                for process in sorted(process_names):
-                    f.write(f"{process}\n")
-
-            print(f"Generated {output_file} with {len(process_names)} process targets:")
-            for process in sorted(process_names):
-                print(f"  - {process}")
-
-            return output_file
-        except Exception as e:
-            print(f"Error generating pid targets: {e}")
-            return None
-
 
 def main():
     """CLI interface"""
@@ -387,23 +333,13 @@ def main():
                        help="Limit packages to process")
     parser.add_argument("--output", default="app_mapping.json",
                        help="Output file")
-    parser.add_argument("--generate-targets", nargs="+",
-                       help="Generate pid_targets.txt for apps")
-    parser.add_argument("--targets-file", default="pid_targets.txt",
-                       help="Targets output file")
     parser.add_argument("--include-system", action="store_true",
                        help="Include system apps")
 
     args = parser.parse_args()
     mapper = AppMapper()
 
-    if args.generate_targets:
-        print(f"Generating process targets for: {args.generate_targets}")
-        targets_file = mapper.generate_pid_targets(args.generate_targets, args.targets_file)
-        if targets_file:
-            print(f"Success! Process targets saved to {targets_file}")
-
-    elif args.create:
+    if args.create:
         print("Creating app mapping...")
         mapping = mapper.create_mapping(limit=args.limit, include_system=args.include_system)
         mapper.save_mapping(mapping, args.output)

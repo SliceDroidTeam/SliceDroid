@@ -14,6 +14,7 @@ events/kprobes/l2cap_sock_sendmsg
 events/kprobes/sock_sendmsg
 events/kprobes/tcp_sendmsg
 events/kprobes/tcp_recvmsg
+events/kprobes/tcp_connect
 events/kprobes/udp_recvmsg
 events/kprobes/udp_sendmsg
 events/kprobes/tcp_sendmsg_ret
