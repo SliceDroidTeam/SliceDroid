@@ -1,0 +1,22 @@
+# tracer: nop
+#           TASK-PID       TGID    CPU#   |||||  TIMESTAMP  FUNCTION
+    com.test.app-1001    ( 1000) [001] d..1  100.000100: write_probe: (vfs_write+0x0/0x2c8) file=0xffff000012340001 buf=0x7fa0001000 count=1000000 inode=0 k__dev=0 s_dev_inode=0 i_mode=8192 kuid=10123 kgid=10123 pathname="null"
+    com.test.app-1000    ( 1000) [000] d..1  100.000200: write_probe: (vfs_write+0x0/0x2c8) file=0xffff000012340002 buf=0x7fa0002000 count=0x100 inode=42 k__dev=0 s_dev_inode=999 i_mode=33188 kuid=10123 kgid=10123 pathname="/data/data/com.test.app/files/somefile.txt"
+    com.test.app-1001    ( 1000) [001] d..1  100.000300: binder_transaction: transaction=101 dest_node=17 dest_proc=500 dest_thread=0 reply=0 flags=0x10 code=0x2
+      noise_proc-3000    ( 3000) [002] d..1  100.000400: read_probe: (vfs_read+0x0/0x2a0) file=0xffff000012340003 buf=0x7fb0001000 count=0x40 inode=99 k__dev=0 s_dev_inode=777 i_mode=33188 kuid=10456 kgid=10456 pathname="/data/local/tmp/noise.txt"
+   system_server-510     (  500) [003] d..1  100.000500: binder_transaction_received: transaction=101
+   system_server-510     (  500) [003] d..1  100.000600: read_probe: (vfs_read+0x0/0x2a0) file=0xffff000012340004 buf=0x7fc0001000 count=0x200 inode=5057 k__dev=0 s_dev_inode=266338357 i_mode=33184 kuid=10023 kgid=10023 pathname="/data/data/com.android.providers.contacts/databases/contacts2.db"
+   system_server-510     (  500) [003] d..1  100.000700: binder_transaction: transaction=102 dest_node=3 dest_proc=1000 dest_thread=1001 reply=1 flags=0x10 code=0x2
+    com.test.app-1001    ( 1000) [001] d..1  100.000800: binder_transaction_received: transaction=102
+    com.test.app-1001    ( 1000) [001] d..1  100.000900: write_probe: (vfs_write+0x0/0x2c8) file=0xffff000012340001 buf=0x7fa0001000 count=1000001 inode=0 k__dev=0 s_dev_inode=0 i_mode=8192 kuid=10123 kgid=10123 pathname="null"
+    com.test.app-1000    ( 1000) [000] d..1  100.001000: tcp_sendmsg: (tcp_sendmsg+0x0/0x40) src_ip=117549248 dst_ip=584628317 src_port=43210 dst_port=47873 size=0x578
+    com.test.app-1000    ( 1000) [000] d..1  100.001100: tcp_sendmsg_ret: (inet_sendmsg+0x50/0x70 <- tcp_sendmsg) ret=1400
+    com.test.app-1000    ( 1000) [000] d..1  100.001110: tcp_recvmsg: (tcp_recvmsg+0x0/0x40) src_ip=117549248 dst_ip=584628317 src_port=43210 dst_port=47873 len=0x400
+    com.test.app-1000    ( 1000) [000] d..1  100.001120: tcp_recvmsg_ret: (inet_recvmsg+0x50/0x70 <- tcp_recvmsg) ret=800
+    com.test.app-1000    ( 1000) [000] d..1  100.001200: udp_sendmsg: (udp_sendmsg+0x0/0x40) src_ip=117549248 dst_ip=83886090 src_port=51000 dst_port=13568 len=0xc8
+    com.test.app-1000    ( 1000) [000] d..1  100.001300: udp_sendmsg_ret: (inet_sendmsg+0x50/0x70 <- udp_sendmsg) ret=200
+    com.test.app-1000    ( 1000) [000] d..1  100.001400: unix_stream_sendmsg: (unix_stream_sendmsg+0x0/0x5c0) sock=0xffff000012350001 msg=0x7fa0003000 len=0x40 topid=555 inode=111 k__dev=0 s_dev_inode=0 i_mode=49663 kuid=10123 kgid=10123 pathname="socket:[111]"
+      helper_svc-2000    ( 2000) [002] d..1  100.001500: unix_stream_recvmsg: (unix_stream_recvmsg+0x0/0x1a0) sock=0xffff000012350002 msg=0x7fd0001000 len=0x40 topid=555 frompid=1000 inode=112 k__dev=0 s_dev_inode=0 i_mode=49663 kuid=1000 kgid=1000 pathname="socket:[112]"
+      helper_svc-2000    ( 2000) [002] d..1  100.001600: write_probe: (vfs_write+0x0/0x2c8) file=0xffff000012340005 buf=0x7fd0002000 count=0x80 inode=77 k__dev=0 s_dev_inode=888 i_mode=33188 kuid=1000 kgid=1000 pathname="/data/misc/helper/helper.log"
+      noise_proc-3001    ( 3000) [002] d..1  100.001700: write_probe: (vfs_write+0x0/0x2c8) file=0xffff000012340006 buf=0x7fb0002000 count=0x20 inode=98 k__dev=0 s_dev_inode=778 i_mode=33188 kuid=10456 kgid=10456 pathname="/data/local/tmp/noise2.txt"
+      noise_proc-3001    ( 3000) [002] d..1  100.001800: binder_transaction: transaction=999 dest_node=44 dest_proc=3999 dest_thread=0 reply=0 flags=0x10 code=0x7

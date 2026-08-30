@@ -161,27 +161,6 @@ class AppMapperService:
         stats["category_breakdown"] = category_stats
         return stats
 
-    def export_process_targets(self, selected_apps: List[str]) -> str:
-        """Export process targets for selected apps"""
-        process_names = []
-
-        for app_id in selected_apps:
-            processes = self.get_processes_for_app(app_id)
-            process_names.extend(processes)
-
-        # Remove duplicates and sort
-        unique_processes = sorted(list(set(process_names)))
-
-        # Create PID targets file
-        targets_file = self.project_root / "scripts" / "tracer" / "config_files" / "pid_targets.txt"
-        targets_file.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(targets_file, 'w') as f:
-            for process in unique_processes:
-                f.write(f"{process}\n")
-
-        return str(targets_file)
-
     def force_reload_mapping(self) -> Dict[str, str]:
         """Force reload mapping from file without running device script"""
         try:
@@ -203,6 +182,7 @@ class AppMapperService:
         """Refresh mapping from connected device"""
         try:
             import subprocess
+            import sys
 
             # Check if mapping file already exists (unless force is True)
             if self.mapping_file.exists() and not force:
@@ -218,7 +198,7 @@ class AppMapperService:
 
             # Run script
             result = subprocess.run([
-                "python", str(self.mapper_script),
+                sys.executable, str(self.mapper_script),
                 "--create",
                 "--output", str(self.mapping_file),
                 "--limit", "50",  # Limit to prevent long execution
